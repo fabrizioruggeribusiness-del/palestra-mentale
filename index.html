@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d1220">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Palestra Mentale</title>
+<style>
+  :root {
+    --bg: #0d1220;
+    --bg2: #141b2e;
+    --card: #1a2238;
+    --card2: #212b46;
+    --line: #2b3654;
+    --txt: #e8ecf5;
+    --dim: #8a94ad;
+    --gold: #e8b84b;
+    --gold2: #f5d27a;
+    --green: #5ec97c;
+    --red: #e06c6c;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    background: var(--bg); color: var(--txt);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100vh; padding-top: var(--safe-top);
+  }
+  #app { max-width: 560px; margin: 0 auto; padding: 16px 16px calc(84px + var(--safe-bot)); }
+
+  /* ── header ── */
+  .hero { text-align:center; padding: 14px 0 18px; }
+  .hero .cat { font-size: 13px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  .hero h1 { font-size: 26px; font-weight: 800; margin: 4px 0 2px; }
+  .hero .sub { color: var(--dim); font-size: 13px; }
+  .statrow { display:flex; gap:10px; margin: 14px 0 4px; }
+  .stat { flex:1; background: var(--card); border:1px solid var(--line); border-radius: 14px; padding: 12px 8px; text-align:center; }
+  .stat b { display:block; font-size: 20px; color: var(--gold2); }
+  .stat span { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+  .progress { height: 8px; background: var(--card); border-radius: 99px; overflow:hidden; margin-top: 12px; border:1px solid var(--line); }
+  .progress i { display:block; height:100%; background: linear-gradient(90deg, var(--gold), var(--gold2)); border-radius:99px; transition: width .6s ease; }
+  .progress-label { display:flex; justify-content:space-between; font-size:11px; color:var(--dim); margin-top:5px; }
+
+  /* ── cards & forms ── */
+  .card { background: var(--card); border:1px solid var(--line); border-radius: 16px; padding: 16px; margin-top: 14px; }
+  .card h2 { font-size: 15px; margin-bottom: 10px; color: var(--gold2); }
+  .card h2 small { color: var(--dim); font-weight: 400; }
+  label { display:block; font-size: 12px; color: var(--dim); margin: 12px 0 5px; text-transform: uppercase; letter-spacing: 1px; }
+  input, textarea, select {
+    width:100%; background: var(--bg2); color: var(--txt);
+    border:1px solid var(--line); border-radius: 10px; padding: 11px 12px;
+    font-size: 16px; font-family: inherit; outline: none;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--gold); }
+  textarea { min-height: 96px; resize: vertical; line-height: 1.45; }
+  button {
+    width:100%; padding: 13px; border:none; border-radius: 12px; margin-top: 14px;
+    background: linear-gradient(135deg, var(--gold), #d4a234); color:#1a1408;
+    font-size: 16px; font-weight: 700; font-family: inherit; cursor:pointer;
+  }
+  button:disabled { opacity:.45; }
+  button.ghost { background: transparent; border:1px solid var(--line); color: var(--dim); font-weight: 500; }
+  button.mini { width:auto; padding: 7px 13px; font-size: 13px; margin: 0; border-radius: 9px; }
+  .err { color: var(--red); font-size: 13px; margin-top: 10px; text-align:center; min-height: 1em; }
+  .muted { color: var(--dim); font-size: 13px; line-height: 1.5; }
+
+  /* ── result card ── */
+  .score-big { font-size: 52px; font-weight: 800; text-align:center; color: var(--gold2); line-height: 1.1; }
+  .score-big small { font-size: 18px; color: var(--dim); font-weight: 500; }
+  .coach { background: var(--bg2); border-left: 3px solid var(--gold); border-radius: 0 10px 10px 0; padding: 12px 14px; margin-top: 12px; font-size: 14px; line-height: 1.55; }
+  .badge { display:inline-block; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+  .badge.ok { background: rgba(94,201,124,.15); color: var(--green); }
+  .badge.mid { background: rgba(232,184,75,.15); color: var(--gold2); }
+  .badge.ko { background: rgba(224,108,108,.15); color: var(--red); }
+
+  /* ── libreria ── */
+  .book { display:flex; align-items:center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .book:last-child { border-bottom: none; }
+  .book .info { flex:1; min-width:0; }
+  .book .t { font-weight: 600; font-size: 15px; }
+  .book .a { color: var(--dim); font-size: 12px; margin-top: 2px; }
+  .book .pts { color: var(--gold2); font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+  /* ── percorso ── */
+  .ladder { list-style:none; }
+  .ladder li { display:flex; align-items:center; gap:10px; padding: 9px 0; color: var(--dim); font-size: 14px; }
+  .ladder li.done { color: var(--txt); }
+  .ladder li.current { color: var(--gold2); font-weight: 700; }
+  .ladder .dot { width: 10px; height: 10px; border-radius: 99px; background: var(--line); flex-shrink: 0; }
+  .ladder li.done .dot { background: var(--gold); }
+  .ladder li.current .dot { background: var(--gold2); box-shadow: 0 0 0 4px rgba(232,184,75,.2); }
+  .week { display:flex; gap:8px; justify-content:space-between; margin-top: 6px; }
+  .day { flex:1; text-align:center; }
+  .day i { display:block; width: 26px; height: 26px; margin: 0 auto 4px; border-radius: 99px; background: var(--bg2); border: 1px solid var(--line); font-style: normal; line-height: 26px; font-size: 13px; }
+  .day.hit i { background: var(--gold); border-color: var(--gold); color: #1a1408; font-weight: 700; }
+  .day span { font-size: 10px; color: var(--dim); text-transform: uppercase; }
+
+  /* ── tabs ── */
+  nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(13,18,32,.92); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line); display:flex;
+    padding: 8px 0 calc(8px + var(--safe-bot)); z-index: 10;
+  }
+  nav a { flex:1; text-align:center; color: var(--dim); text-decoration:none; font-size: 11px; }
+  nav a .ico { font-size: 21px; display:block; margin-bottom: 2px; }
+  nav a.on { color: var(--gold2); }
+  .view { display:none; }
+  .view.on { display:block; animation: fade .25s ease; }
+  @keyframes fade { from { opacity:0; transform: translateY(6px);} to { opacity:1; transform:none;} }
+  .spinner { width: 26px; height: 26px; border: 3px solid var(--line); border-top-color: var(--gold); border-radius: 99px; margin: 14px auto 0; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg);} }
+  .center { text-align:center; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ════ AUTH ════ -->
+  <div id="v-auth" class="view">
+    <div class="hero" style="padding-top:48px">
+      <div class="cat">Palestra Mentale</div>
+      <h1>Allenati a capire.</h1>
+      <div class="sub">Leggi su carta. Poi vieni qui a dimostrarlo.</div>
+    </div>
+    <div class="card">
+      <label>Email</label>
+      <input id="auth-email" type="email" autocomplete="email" placeholder="la tua email">
+      <label>Password</label>
+      <input id="auth-pass" type="password" autocomplete="current-password" placeholder="password">
+      <button id="btn-login">Entra</button>
+      <button id="btn-signup" class="ghost">Prima volta? Crea l'account</button>
+      <div id="auth-err" class="err"></div>
+    </div>
+  </div>
+
+  <!-- ════ OGGI ════ -->
+  <div id="v-oggi" class="view">
+    <div class="hero">
+      <div class="cat" id="h-cat">Novizio</div>
+      <h1 id="h-greet">Palestra Mentale</h1>
+      <div class="statrow">
+        <div class="stat"><b id="s-punti">0</b><span>Punti</span></div>
+        <div class="stat"><b id="s-forma">0</b><span>Forma</span></div>
+        <div class="stat"><b id="s-libri">0</b><span>Conquistati</span></div>
+      </div>
+      <div class="progress"><i id="h-bar" style="width:0%"></i></div>
+      <div class="progress-label"><span id="h-from"></span><span id="h-to"></span></div>
+    </div>
+
+    <!-- nessun libro attivo -->
+    <div id="oggi-nobook" class="card hidden center">
+      <h2>Nessun libro attivo</h2>
+      <p class="muted">L'allenamento parte da un libro. Aggiungine uno in Libreria.</p>
+    </div>
+
+    <!-- check-in fatto -->
+    <div id="oggi-done" class="card hidden">
+      <h2>Allenamento di oggi ✓</h2>
+      <div class="score-big"><span id="done-score"></span><small>/10</small></div>
+      <div class="coach" id="done-comment"></div>
+      <p class="muted" style="margin-top:12px">Torna domani. La forma si costruisce un giorno alla volta.</p>
+    </div>
+
+    <!-- form check-in -->
+    <div id="oggi-form" class="card hidden">
+      <h2>Check-in <small>— 2 minuti, poi chiudi il telefono</small></h2>
+      <label>Libro</label>
+      <select id="ci-book"></select>
+      <div id="ci-recall-box" class="hidden">
+        <label>🧠 Richiamo — dalla sessione precedente</label>
+        <div class="coach" id="ci-recall-q" style="margin-top:0"></div>
+        <textarea id="ci-recall-a" style="min-height:60px" placeholder="Rispondi a memoria (bonus punti se corretto, salta pure se vuoi)"></textarea>
+      </div>
+      <label>Cosa ho capito oggi</label>
+      <textarea id="ci-summary" placeholder="3–5 frasi con la sostanza di quello che hai letto. Niente frasi generiche: il coach se ne accorge."></textarea>
+      <label>Come lo applico</label>
+      <textarea id="ci-apply" style="min-height:60px" placeholder="Un'azione concreta, tua."></textarea>
+      <button id="btn-checkin">Valuta l'allenamento</button>
+      <div id="ci-wait" class="hidden center"><div class="spinner"></div><p class="muted" style="margin-top:8px">Il coach sta leggendo…</p></div>
+      <div id="ci-err" class="err"></div>
+    </div>
+
+    <!-- risultato appena valutato -->
+    <div id="oggi-result" class="card hidden">
+      <h2>Verdetto del coach</h2>
+      <div class="score-big"><span id="res-score"></span><small>/10</small></div>
+      <div id="res-recall" class="center" style="margin-top:8px"></div>
+      <div class="coach" id="res-comment"></div>
+      <p class="muted center" style="margin-top:12px">+<span id="res-points"></span> punti</p>
+    </div>
+  </div>
+
+  <!-- ════ LIBRERIA ════ -->
+  <div id="v-libri" class="view">
+    <div class="hero"><div class="cat">Libreria</div><h1>I tuoi cicli</h1><div class="sub">Ogni libro è un ciclo di allenamento.</div></div>
+    <div class="card">
+      <h2>Nuovo libro</h2>
+      <label>Titolo</label><input id="nb-title" placeholder="Titolo del libro">
+      <label>Autore</label><input id="nb-author" placeholder="Autore">
+      <button id="btn-addbook">Inizia il ciclo</button>
+      <div id="nb-err" class="err"></div>
+    </div>
+    <div class="card"><h2>Attivi</h2><div id="list-attivi"><p class="muted">Nessun libro attivo.</p></div></div>
+    <div class="card"><h2>Conquistati 🏆</h2><div id="list-conq"><p class="muted">Ancora nessuno. Il primo è il più importante.</p></div></div>
+  </div>
+
+  <!-- ════ PERCORSO ════ -->
+  <div id="v-percorso" class="view">
+    <div class="hero"><div class="cat">Percorso</div><h1>Da Novizio a Mentore</h1><div class="sub">La categoria non si perde mai. La forma sì.</div></div>
+    <div class="card"><h2>Ultimi 7 giorni</h2><div class="week" id="week"></div></div>
+    <div class="card"><h2>Le categorie</h2><ul class="ladder" id="ladder"></ul></div>
+    <div class="card"><h2>Numeri</h2><div id="numbers" class="muted"></div></div>
+  </div>
+
+  <!-- ════ IMPOSTAZIONI ════ -->
+  <div id="v-config" class="view">
+    <div class="hero"><div class="cat">Impostazioni</div><h1>⚙️</h1></div>
+    <div class="card">
+      <h2>Chiave API Claude</h2>
+      <p class="muted">Serve per la valutazione AI. Si crea su console.anthropic.com → API Keys. Resta solo su questo dispositivo.</p>
+      <label>API Key</label>
+      <input id="cfg-key" type="password" placeholder="sk-ant-...">
+      <button id="btn-savekey">Salva chiave</button>
+      <p class="muted center" id="cfg-key-status" style="margin-top:10px"></p>
+    </div>
+    <div class="card">
+      <h2>Account</h2>
+      <p class="muted" id="cfg-email"></p>
+      <button id="btn-logout" class="ghost">Esci</button>
+    </div>
+  </div>
+
+  <!-- ════ NAV ════ -->
+  <nav id="nav" class="hidden">
+    <a href="#" data-v="oggi" class="on"><span class="ico">🏋️</span>Oggi</a>
+    <a href="#" data-v="libri"><span class="ico">📚</span>Libreria</a>
+    <a href="#" data-v="percorso"><span class="ico">📈</span>Percorso</a>
+    <a href="#" data-v="config"><span class="ico">⚙️</span>Altro</a>
+  </nav>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import Anthropic from 'https://esm.sh/@anthropic-ai/sdk';
+
+/* ───────────────── CONFIG ───────────────── */
+const SUPABASE_URL = 'https://gnrrcbhmimwwytndpxtm.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_7ZrPs4Ak_HNCsU2FfBMgWQ_biy0wGEt'; // chiave pubblica per design (RLS) — gitleaks:allow
+const MODEL = 'claude-haiku-4-5';
+const BOOK_CONQUEST_BONUS = 30;
+const CATEGORIE = [
+  { nome: 'Novizio',    min: 0    },
+  { nome: 'Intermedio', min: 150  },
+  { nome: 'Avanzato',   min: 400  },
+  { nome: 'Atleta',     min: 800  },
+  { nome: 'Coach',      min: 1400 },
+  { nome: 'Mentore',    min: 2200 },
+];
+
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+const today = () => new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD locale
+
+let user = null, books = [], checkins = [];
+
+/* ───────────────── NAV ───────────────── */
+function show(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  $('v-' + view).classList.add('on');
+  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.dataset.v === view));
+  $('nav').classList.toggle('hidden', view === 'auth');
+}
+document.querySelectorAll('nav a').forEach(a => a.onclick = e => { e.preventDefault(); show(a.dataset.v); });
+
+/* ───────────────── AUTH ───────────────── */
+$('btn-login').onclick = () => auth('login');
+$('btn-signup').onclick = () => auth('signup');
+async function auth(mode) {
+  $('auth-err').textContent = '';
+  const email = $('auth-email').value.trim(), password = $('auth-pass').value;
+  if (!email || !password) { $('auth-err').textContent = 'Email e password, dai.'; return; }
+  const fn = mode === 'login' ? sb.auth.signInWithPassword({ email, password }) : sb.auth.signUp({ email, password });
+  const { data, error } = await fn;
+  if (error) { $('auth-err').textContent = error.message; return; }
+  if (mode === 'signup' && !data.session) { $('auth-err').textContent = 'Controlla la mail per confermare, poi entra.'; return; }
+  user = data.session.user;
+  await boot();
+}
+$('btn-logout').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+/* ───────────────── DATA ───────────────── */
+async function loadAll() {
+  const [b, c] = await Promise.all([
+    sb.from('pm_books').select('*').order('created_at'),
+    sb.from('pm_checkins').select('*').order('day'),
+  ]);
+  books = b.data || [];
+  checkins = c.data || [];
+}
+
+/* ───────────────── GAME MATH ───────────────── */
+const totalPoints = () =>
+  checkins.reduce((s, c) => s + (c.points || 0), 0) +
+  books.filter(b => b.status === 'conquistato').length * BOOK_CONQUEST_BONUS;
+
+function categoria(pts) {
+  let cur = CATEGORIE[0], next = null;
+  for (let i = 0; i < CATEGORIE.length; i++) {
+    if (pts >= CATEGORIE[i].min) { cur = CATEGORIE[i]; next = CATEGORIE[i + 1] || null; }
+  }
+  return { cur, next };
+}
+
+// Forma: cresce coi giorni consecutivi, cala (non si azzera) quando salti.
+function forma() {
+  const days = [...new Set(checkins.map(c => c.day))].sort();
+  let f = 0, prev = null;
+  for (const d of days) {
+    if (prev) {
+      const gap = Math.round((new Date(d) - new Date(prev)) / 86400000);
+      if (gap > 1) f = Math.max(0, f - 2 * (gap - 1));
+    }
+    f += 1; prev = d;
+  }
+  if (prev) { // decadimento fino a oggi, senza contare oggi stesso
+    const gap = Math.round((new Date(today()) - new Date(prev)) / 86400000);
+    if (gap > 1) f = Math.max(0, f - 2 * (gap - 1));
+  }
+  return f;
+}
+
+/* ───────────────── RENDER ───────────────── */
+function render() {
+  const pts = totalPoints();
+  const { cur, next } = categoria(pts);
+  $('h-cat').textContent = cur.nome;
+  $('s-punti').textContent = pts;
+  $('s-forma').textContent = forma();
+  $('s-libri').textContent = books.filter(b => b.status === 'conquistato').length;
+  if (next) {
+    const span = next.min - cur.min;
+    $('h-bar').style.width = Math.min(100, ((pts - cur.min) / span) * 100) + '%';
+    $('h-from').textContent = cur.nome;
+    $('h-to').textContent = `${next.nome} a ${next.min}`;
+  } else {
+    $('h-bar').style.width = '100%';
+    $('h-from').textContent = 'Mentore'; $('h-to').textContent = 'Vetta raggiunta';
+  }
+  renderOggi(); renderLibri(); renderPercorso();
+  $('cfg-email').textContent = user.email;
+  $('cfg-key-status').textContent = getKey() ? 'Chiave salvata ✓ (***' + getKey().slice(-4) + ')' : 'Nessuna chiave salvata.';
+}
+
+function renderOggi() {
+  const attivi = books.filter(b => b.status === 'attivo');
+  const doneToday = checkins.find(c => c.day === today());
+  ['oggi-nobook','oggi-done','oggi-form','oggi-result'].forEach(id => $(id).classList.add('hidden'));
+  if (doneToday) {
+    $('oggi-done').classList.remove('hidden');
+    $('done-score').textContent = doneToday.score;
+    $('done-comment').textContent = doneToday.coach_comment;
+  } else if (!attivi.length) {
+    $('oggi-nobook').classList.remove('hidden');
+  } else {
+    $('oggi-form').classList.remove('hidden');
+    $('ci-book').innerHTML = attivi.map(b => `<option value="${b.id}">${esc(b.title)}</option>`).join('');
+    onBookChange();
+  }
+}
+$('ci-book') && ($('ci-book').onchange = onBookChange);
+function onBookChange() {
+  const bookId = $('ci-book').value;
+  const prev = [...checkins].reverse().find(c => c.book_id === bookId && c.recall_question);
+  $('ci-recall-box').classList.toggle('hidden', !prev);
+  if (prev) { $('ci-recall-q').textContent = prev.recall_question; $('ci-recall-box').dataset.q = prev.recall_question; }
+}
+
+function renderLibri() {
+  const row = (b) => {
+    const pts = checkins.filter(c => c.book_id === b.id).reduce((s, c) => s + (c.points || 0), 0);
+    const n = checkins.filter(c => c.book_id === b.id).length;
+    return `<div class="book">
+      <div class="info"><div class="t">${esc(b.title)}</div><div class="a">${esc(b.author || '')} · ${n} sessioni</div></div>
+      <div class="pts">${pts} pt</div>
+      ${b.status === 'attivo' ? `<button class="mini" data-conq="${b.id}">🏆</button>` : ''}
+    </div>`;
+  };
+  const attivi = books.filter(b => b.status === 'attivo');
+  const conq = books.filter(b => b.status === 'conquistato');
+  $('list-attivi').innerHTML = attivi.length ? attivi.map(row).join('') : '<p class="muted">Nessun libro attivo.</p>';
+  $('list-conq').innerHTML = conq.length ? conq.map(row).join('') : '<p class="muted">Ancora nessuno. Il primo è il più importante.</p>';
+  document.querySelectorAll('[data-conq]').forEach(btn => btn.onclick = async () => {
+    if (!confirm('Libro finito e capito? Segna come conquistato (+' + BOOK_CONQUEST_BONUS + ' punti).')) return;
+    await sb.from('pm_books').update({ status: 'conquistato', finished_at: new Date().toISOString() }).eq('id', btn.dataset.conq);
+    await loadAll(); render();
+  });
+}
+
+function renderPercorso() {
+  const pts = totalPoints();
+  const { cur } = categoria(pts);
+  $('ladder').innerHTML = CATEGORIE.map(c => {
+    const cls = c.nome === cur.nome ? 'current' : (pts >= c.min ? 'done' : '');
+    return `<li class="${cls}"><span class="dot"></span>${c.nome} <span style="margin-left:auto;font-size:12px">${c.min} pt</span></li>`;
+  }).join('');
+  const giorni = ['dom','lun','mar','mer','gio','ven','sab'];
+  let html = '';
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = d.toLocaleDateString('sv-SE');
+    const hit = checkins.some(c => c.day === ds);
+    html += `<div class="day ${hit ? 'hit' : ''}"><i>${hit ? '✓' : ''}</i><span>${giorni[d.getDay()]}</span></div>`;
+  }
+  $('week').innerHTML = html;
+  $('numbers').innerHTML = `Sessioni totali: <b>${checkins.length}</b><br>
+    Media punteggio: <b>${checkins.length ? (checkins.reduce((s,c)=>s+c.score,0)/checkins.length).toFixed(1) : '—'}</b><br>
+    Libri attivi: <b>${books.filter(b=>b.status==='attivo').length}</b> · conquistati: <b>${books.filter(b=>b.status==='conquistato').length}</b>`;
+}
+
+/* ───────────────── LIBRERIA ───────────────── */
+$('btn-addbook').onclick = async () => {
+  $('nb-err').textContent = '';
+  const title = $('nb-title').value.trim(), author = $('nb-author').value.trim();
+  if (!title) { $('nb-err').textContent = 'Il titolo serve.'; return; }
+  const { error } = await sb.from('pm_books').insert({ user_id: user.id, title, author });
+  if (error) { $('nb-err').textContent = error.message; return; }
+  $('nb-title').value = ''; $('nb-author').value = '';
+  await loadAll(); render();
+};
+
+/* ───────────────── CLAUDE — VALUTAZIONE ───────────────── */
+const getKey = () => localStorage.getItem('pm_anthropic_key') || '';
+$('btn-savekey').onclick = () => {
+  const k = $('cfg-key').value.trim();
+  if (k) { localStorage.setItem('pm_anthropic_key', k); $('cfg-key').value = ''; }
+  render();
+};
+
+const SCHEMA = {
+  type: 'object',
+  properties: {
+    score: { type: 'integer', enum: [1,2,3,4,5,6,7,8,9,10],
+      description: 'Quanto il riassunto dimostra comprensione reale: 1-3 fuffa generica, 4-6 superficiale ma onesto, 7-8 sostanza vera, 9-10 comprensione profonda con collegamento personale' },
+    coach_comment: { type: 'string', description: 'Commento da coach in italiano, 2-3 frasi: diretto, sfidante, mai da guru. Dai del tu.' },
+    recall_result: { type: 'string', enum: ['corretto','parziale','sbagliato','non_valutato'],
+      description: 'Valutazione della risposta alla domanda di richiamo; non_valutato se non c era domanda o risposta' },
+    recall_question: { type: 'string', description: 'UNA domanda di richiamo sul contenuto di OGGI, da fare alla prossima sessione. In italiano, specifica, risposta in 1-2 frasi.' }
+  },
+  required: ['score','coach_comment','recall_result','recall_question'],
+  additionalProperties: false
+};
+
+const SYSTEM = `Sei il coach della "Palestra Mentale" di Fabrizio: un'app personale dove guadagna punti solo dimostrando di aver CAPITO ciò che legge.
+Il tuo compito: valutare il riassunto di lettura di oggi.
+Criteri:
+- Sostanza vs fuffa: frasi generiche valide per qualsiasi libro ("molto interessante", "insegna a migliorare") = punteggio basso. Idee specifiche del libro, esempi, collegamenti personali = punteggio alto.
+- L'applicazione pratica conta: un'azione concreta e personale alza il voto, una vaga lo abbassa.
+- Se c'è una domanda di richiamo con risposta, valutala: corretto/parziale/sbagliato.
+Tono del commento: diretto, asciutto, sfidante ma mai umiliante. Niente linguaggio da guru, niente esclamativi motivazionali. Come un coach in palestra che rispetti: ti dice cosa va e cosa manca. Dagli del tu.`;
+
+$('btn-checkin').onclick = async () => {
+  $('ci-err').textContent = '';
+  const apiKey = getKey();
+  if (!apiKey) { $('ci-err').textContent = 'Prima salva la chiave API in ⚙️ Altro.'; return; }
+  const summary = $('ci-summary').value.trim();
+  const apply = $('ci-apply').value.trim();
+  if (summary.length < 40) { $('ci-err').textContent = 'Troppo corto. Minimo qualche frase vera.'; return; }
+  const bookId = $('ci-book').value;
+  const book = books.find(b => b.id === bookId);
+  const recallQ = $('ci-recall-box').classList.contains('hidden') ? '' : $('ci-recall-box').dataset.q;
+  const recallA = $('ci-recall-a').value.trim();
+
+  let userMsg = `Libro: "${book.title}"${book.author ? ' di ' + book.author : ''}\n\n`;
+  if (recallQ) userMsg += `DOMANDA DI RICHIAMO (dalla sessione precedente): ${recallQ}\nRISPOSTA DI FABRIZIO: ${recallA || '(nessuna risposta)'}\n\n`;
+  userMsg += `COSA HO CAPITO OGGI:\n${summary}\n\nCOME LO APPLICO:\n${apply || '(non indicato)'}`;
+
+  $('btn-checkin').disabled = true; $('ci-wait').classList.remove('hidden');
+  try {
+    const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+    const resp = await client.messages.create({
+      model: MODEL,
+      max_tokens: 1000,
+      system: SYSTEM,
+      output_config: { format: { type: 'json_schema', schema: SCHEMA } },
+      messages: [{ role: 'user', content: userMsg }],
+    });
+    if (resp.stop_reason === 'refusal') throw new Error('Il coach ha rifiutato la richiesta. Riprova.');
+    const out = JSON.parse(resp.content.find(b => b.type === 'text').text);
+
+    const bonus = out.recall_result === 'corretto' ? 3 : out.recall_result === 'parziale' ? 1 : 0;
+    const points = out.score + bonus;
+    const { error } = await sb.from('pm_checkins').insert({
+      user_id: user.id, book_id: bookId, day: today(),
+      summary, application: apply,
+      score: out.score, coach_comment: out.coach_comment,
+      recall_question: out.recall_question,
+      recall_answer: recallA || null, recall_result: out.recall_result,
+      points,
+    });
+    if (error) throw new Error('Salvataggio fallito: ' + error.message);
+
+    await loadAll(); render();
+    ['oggi-done','oggi-form'].forEach(id => $(id).classList.add('hidden'));
+    $('oggi-result').classList.remove('hidden');
+    $('res-score').textContent = out.score;
+    $('res-comment').textContent = out.coach_comment;
+    $('res-points').textContent = points;
+    $('res-recall').innerHTML = recallQ
+      ? { corretto: '<span class="badge ok">Richiamo corretto +3</span>',
+          parziale: '<span class="badge mid">Richiamo parziale +1</span>',
+          sbagliato: '<span class="badge ko">Richiamo sbagliato</span>' }[out.recall_result] || ''
+      : '';
+    $('ci-summary').value = ''; $('ci-apply').value = ''; $('ci-recall-a').value = '';
+  } catch (e) {
+    $('ci-err').textContent = e.message || 'Errore. Controlla connessione e chiave API.';
+  } finally {
+    $('btn-checkin').disabled = false; $('ci-wait').classList.add('hidden');
+  }
+};
+
+/* ───────────────── UTIL & BOOT ───────────────── */
+function esc(s) { return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+async function boot() {
+  await loadAll();
+  render();
+  show('oggi');
+}
+
+const { data: { session } } = await sb.auth.getSession();
+if (session) { user = session.user; await boot(); } else { show('auth'); }
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>

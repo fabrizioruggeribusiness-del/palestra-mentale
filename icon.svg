@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16203a"/>
+      <stop offset="1" stop-color="#0a0f1d"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f5d27a"/>
+      <stop offset="1" stop-color="#d9a23a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+  <!-- bilanciere -->
+  <g fill="url(#gold)">
+    <rect x="212" y="318" width="600" height="36" rx="18"/>
+    <rect x="232" y="238" width="70" height="196" rx="28"/>
+    <rect x="722" y="238" width="70" height="196" rx="28"/>
+    <rect x="142" y="278" width="56" height="116" rx="24"/>
+    <rect x="826" y="278" width="56" height="116" rx="24"/>
+  </g>
+  <!-- libro aperto -->
+  <g>
+    <path d="M512 520 C 430 470, 310 460, 230 488 L 230 770 C 310 742, 430 752, 512 802 Z" fill="url(#gold)"/>
+    <path d="M512 520 C 594 470, 714 460, 794 488 L 794 770 C 714 742, 594 752, 512 802 Z" fill="#e8b84b" opacity="0.82"/>
+    <rect x="502" y="516" width="20" height="290" rx="10" fill="#0a0f1d"/>
+    <!-- righe di testo -->
+    <g stroke="#0d1220" stroke-width="14" stroke-linecap="round" opacity="0.55">
+      <line x1="278" y1="560" x2="450" y2="548"/>
+      <line x1="278" y1="618" x2="450" y2="606"/>
+      <line x1="278" y1="676" x2="450" y2="664"/>
+      <line x1="574" y1="548" x2="746" y2="560"/>
+      <line x1="574" y1="606" x2="746" y2="618"/>
+      <line x1="574" y1="664" x2="746" y2="676"/>
+    </g>
+  </g>
+</svg>

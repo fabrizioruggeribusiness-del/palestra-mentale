@@ -1,0 +1,12 @@
+{
+  "name": "Palestra Mentale",
+  "short_name": "Palestra",
+  "description": "Allenati a capire. Punti solo se hai capito davvero.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0d1220",
+  "theme_color": "#0d1220",
+  "icons": [
+    { "src": "icon.png", "sizes": "1024x1024", "type": "image/png" }
+  ]
+}
