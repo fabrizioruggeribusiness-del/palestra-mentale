@@ -731,53 +731,117 @@ function formaGlobale() {
 }
 const statoIdx = f => f < 2 ? 0 : f < 4 ? 1 : f < 6.5 ? 2 : f < 8.5 ? 3 : 4;
 
-/* ───────────────── AVATAR ───────────────── */
-function avatarSVG(s) { // s = 0..4
-  const t = s / 4;
-  const sh = 26 + t * 15;                 // mezza larghezza spalle
-  const slump = (1 - t) * 8;              // postura
-  const hy = 40 + slump;                  // centro testa
-  const sy = hy + 27;                     // linea spalle
-  const mouth = -3 + t * 8;
-  const armW = 9 + t * 5;
-  const auraOp = [0, .15, .35, .6, .95][s];
-  const aura = ['#5a647e', '#8a94ad', '#e8b84b', '#f5d27a', '#ffdf80'][s];
-  const skin = '#d99e6b', beard = '#33281f', top = '#222c49';
-  const browTilt = (1 - t) * 3;
+/* ───────────────── AVATAR (pixel art stile JRPG retrò) ─────────────────
+   o outline · s/S pelle · e occhi · b/m barba · t/T canotta · p pantaloni · k scarpe */
+const SPRITE_NEUTRAL = [
+'.........oooooo.........',
+'........osssssso........',
+'........osssssso........',
+'........osesseso........',
+'........osssssso........',
+'........obssssbo........',
+'........obsmmsbo........',
+'.........obbbbo.........',
+'..........osso..........',
+'.......oooooooooo.......',
+'......osttttttttso......',
+'.....osSttttttttSso.....',
+'.....osottttttttoso.....',
+'.....osottttttttoso.....',
+'.....oSottttttttoSo.....',
+'.....osoTttttttToso.....',
+'......ooottttttooo......',
+'........oppppppo........',
+'........oppppppo........',
+'........oppooppo........',
+'........oppooppo........',
+'........ossoosso........',
+'........ossoosso........',
+'........oSSooSSo........',
+'.......okkko..okkko.....',
+];
+const SPRITE_SLUMP = [
+'........................',
+'.........oooooo.........',
+'........osssssso........',
+'........osssssso........',
+'........osesseso........',
+'........osssssso........',
+'........obssssbo........',
+'........obsmmsbo........',
+'.........obbbbo.........',
+'........oooooooo........',
+'.......osttttttso.......',
+'......osottttttoso......',
+'......osottttttoso......',
+'......osottttttoso......',
+'......oSottttttoSo......',
+'......osoTTTTTToso......',
+'........oppppppo........',
+'........oppppppo........',
+'........oppooppo........',
+'........oppooppo........',
+'........ossoosso........',
+'........ossoosso........',
+'........oSSooSSo........',
+'.......okkko..okkko.....',
+'........................',
+];
+const SPRITE_FLEX = [
+'.........oooooo.........',
+'..oo....osssssso....oo..',
+'.osso...osssssso...osso.',
+'.osso...osesseso...osso.',
+'.oSso...osssssso...osSo.',
+'..osso..obssssbo..osso..',
+'..oSso..obsmmsbo..osSo..',
+'...osso..obbbbo..osso...',
+'....oso...osso...oso....',
+'....oooooooooooooooo....',
+'.....osttttttttttso.....',
+'.....oSttttttttttSo.....',
+'......otttttttttto......',
+'......oTttttttttTo......',
+'......otttttttttto......',
+'......ooTTTTTTTToo......',
+'........oppppppo........',
+'........oppppppo........',
+'........oppooppo........',
+'........oppooppo........',
+'........ossoosso........',
+'........ossoosso........',
+'........oSSooSSo........',
+'.......okkko..okkko.....',
+];
 
-  let arms;
-  if (s >= 4) {       // doppio bicipite
-    arms = `<path d="M${100-sh},${sy+3} C${100-sh-16},${sy-2} ${100-sh-20},${sy-14} ${100-sh-14},${sy-24}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>
-            <path d="M${100+sh},${sy+3} C${100+sh+16},${sy-2} ${100+sh+20},${sy-14} ${100+sh+14},${sy-24}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>`;
-  } else if (s === 3) { // mani sui fianchi
-    arms = `<path d="M${100-sh},${sy+4} C${100-sh-14},${sy+18} ${100-sh-10},${sy+34} ${100-22},${sy+44}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>
-            <path d="M${100+sh},${sy+4} C${100+sh+14},${sy+18} ${100+sh+10},${sy+34} ${100+22},${sy+44}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>`;
-  } else {            // braccia lungo i fianchi
-    arms = `<path d="M${100-sh},${sy+4} C${100-sh-6},${sy+22} ${100-sh-5},${sy+40} ${100-sh-3},${sy+56}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>
-            <path d="M${100+sh},${sy+4} C${100+sh+6},${sy+22} ${100+sh+5},${sy+40} ${100+sh+3},${sy+56}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>`;
-  }
-
-  return `<svg viewBox="0 0 200 215" xmlns="http://www.w3.org/2000/svg">
-    <defs><radialGradient id="aura"><stop offset="0%" stop-color="${aura}" stop-opacity=".5"/><stop offset="100%" stop-color="${aura}" stop-opacity="0"/></radialGradient></defs>
-    <ellipse cx="100" cy="105" rx="88" ry="100" fill="url(#aura)" opacity="${auraOp}"/>
-    <!-- gambe -->
-    <path d="M88,${sy+62} L84,205" stroke="${top}" stroke-width="15" stroke-linecap="round"/>
-    <path d="M112,${sy+62} L116,205" stroke="${top}" stroke-width="15" stroke-linecap="round"/>
-    ${arms}
-    <!-- torso -->
-    <path d="M${100-sh},${sy} C${100-sh-3},${sy+24} ${100-19},${sy+48} ${100-17},${sy+66} L${100+17},${sy+66} C${100+19},${sy+48} ${100+sh+3},${sy+24} ${100+sh},${sy} C${100+sh*0.6},${sy-7} ${100-sh*0.6},${sy-7} ${100-sh},${sy} Z" fill="${top}"/>
-    <!-- collo + testa -->
-    <rect x="94" y="${hy+14}" width="12" height="12" fill="${skin}"/>
-    <circle cx="100" cy="${hy}" r="21" fill="${skin}"/>
-    <!-- barba -->
-    <path d="M81,${hy+2} C81,${hy+22} 90,${hy+27} 100,${hy+27} C110,${hy+27} 119,${hy+22} 119,${hy+2} C116,${hy+13} 112,${hy+14} 100,${hy+14} C88,${hy+14} 84,${hy+13} 81,${hy+2} Z" fill="${beard}"/>
-    <!-- occhi e sopracciglia -->
-    <circle cx="92" cy="${hy-2}" r="2" fill="#1a1408"/>
-    <circle cx="108" cy="${hy-2}" r="2" fill="#1a1408"/>
-    <path d="M87,${hy-8+browTilt} L96,${hy-9}" stroke="${beard}" stroke-width="2.4" stroke-linecap="round"/>
-    <path d="M104,${hy-9} L113,${hy-8+browTilt}" stroke="${beard}" stroke-width="2.4" stroke-linecap="round"/>
-    <!-- bocca -->
-    <path d="M93,${hy+11} Q100,${hy+11+mouth} 107,${hy+11}" stroke="#e8c9a8" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+function avatarSVG(st) { // st = 0..4
+  const grid = st <= 1 ? SPRITE_SLUMP : st === 4 ? SPRITE_FLEX : SPRITE_NEUTRAL;
+  const pal = {
+    o: '#10131f',
+    s: ['#a8866a','#c49473','#d99e6b','#e0a673','#eab07a'][st],
+    S: ['#84684f','#a87c5c','#b8804f','#c08a55','#cc955c'][st],
+    e: '#0e0e12',
+    b: '#34281d', m: '#221a11',
+    t: ['#3a4150','#3f4f6e','#27486b','#2a5e46','#a8842a'][st],
+    T: ['#2e3440','#344158','#1f3a57','#224c39','#8a6a1e'][st],
+    p: ['#2b303f','#2a3248','#2a3248','#2a3248','#33405e'][st],
+    k: '#1c2233',
+  };
+  const auraOp = [0, .15, .35, .6, .95][st];
+  const aura = ['#5a647e', '#8a94ad', '#e8b84b', '#f5d27a', '#ffdf80'][st];
+  let px = '';
+  grid.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch !== '.' && pal[ch]) px += `<rect x="${x}" y="${y}" width="1" height="1" fill="${pal[ch]}"/>`;
+  }));
+  // scintille per lo stato massimo
+  const sparks = st === 4
+    ? [[2,11],[21,12],[4,18],[19,20],[12,0]].map(([x,y]) => `<rect x="${x}" y="${y}" width="1" height="1" fill="#ffe9a8" opacity=".9"/>`).join('')
+    : '';
+  const h = grid.length;
+  return `<svg viewBox="0 0 24 ${h}" xmlns="http://www.w3.org/2000/svg">
+    <defs><radialGradient id="aura"><stop offset="0%" stop-color="${aura}" stop-opacity=".55"/><stop offset="100%" stop-color="${aura}" stop-opacity="0"/></radialGradient></defs>
+    <ellipse cx="12" cy="${h / 2}" rx="13" ry="${h / 2 + 1}" fill="url(#aura)" opacity="${auraOp}"/>
+    <g shape-rendering="crispEdges">${px}${sparks}</g>
   </svg>`;
 }
 
