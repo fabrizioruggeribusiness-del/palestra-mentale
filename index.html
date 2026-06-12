@@ -208,7 +208,7 @@
     </div>
 
     <div class="card">
-      <h2>Il coach</h2>
+      <h2 id="coach-title">Il coach</h2>
       <div class="coach" id="po-coach">…</div>
       <button id="btn-coach" class="ghost">🎙️ Nuovo discorso del coach</button>
       <div id="coach-err" class="err"></div>
@@ -323,13 +323,14 @@
   <div id="v-disciplina" class="view">
     <div class="hero">
       <div class="cat">Disciplina</div>
-      <h1 id="di-today-pts">0/21 pt oggi</h1>
+      <h1 id="di-today-pts">0 pt</h1>
       <div class="sub">I Boss decidono il mese. Il resto è bonus.</div>
     </div>
     <div id="disc-locked" class="warn hidden">⚠️ Esegui prima la migrazione SQL (vedi Ruota).</div>
     <div id="disc-main">
       <div class="card">
-        <h2>Check di oggi <small>— ✅ fatto · ❌ saltato · sulle dispersioni ✅ = hai resistito</small></h2>
+        <h2 id="di-check-title">Check <small>— ✅ fatto · ❌ saltato · sulle dispersioni ✅ = hai resistito</small></h2>
+        <div class="chips" id="di-days"></div>
         <div id="di-list"></div>
       </div>
       <div class="card">
@@ -337,10 +338,24 @@
         <div class="statrow" style="margin-top:4px">
           <div class="stat"><b id="di-month-pts">0</b><span>Punti mese</span></div>
           <div class="stat"><b id="di-month-lvl">—</b><span>Livello</span></div>
-          <div class="stat"><b id="di-perfect">0</b><span>Giorni 21/21</span></div>
+          <div class="stat"><b id="di-perfect">0</b><span>Giorni pieni</span></div>
         </div>
         <div class="progress"><i id="di-bar" style="width:0%"></i></div>
-        <div class="progress-label"><span>🥉 280 · 🥈 420 · 🥇 540 (+50€)</span><span>👑 610 (+100€)</span></div>
+        <div class="progress-label" id="di-levels-label"><span></span><span></span></div>
+        <div id="di-history" class="muted" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h2>Gestisci abitudini <small>— l'archivio non cancella lo storico</small></h2>
+        <div id="di-manage"></div>
+        <label>Nuova abitudine</label><input id="dh-name" placeholder="es. Stretching serale">
+        <label>Tipo</label>
+        <select id="dh-tier">
+          <option value="boss">⭐ Boss (3 pt)</option>
+          <option value="standard" selected>Standard (1 pt)</option>
+          <option value="secondaria">Secondaria (1 pt)</option>
+          <option value="dispersione">Dispersione (1 pt)</option>
+        </select>
+        <button id="btn-addhabit" class="ghost">Aggiungi</button>
       </div>
     </div>
   </div>
@@ -444,19 +459,98 @@ const HABITS_SEED = [
   ['🚫','No porno','dispersione',1], ['🚫','No social passivi','dispersione',1], ['🚫','No schermi pre-sonno','dispersione',1], ['🚫','No videogiochi','dispersione',1],
 ];
 const TIER_LABEL = { boss:'⭐ Boss — 3 pt', standard:'Standard — 1 pt', secondaria:'Secondarie — 1 pt', dispersione:'Dispersioni — ✅ = resistito, 1 pt' };
-const MAX_DAY_PTS = 21, MAX_MONTH_PTS = 630;
-const MESE_LIVELLI = [ ['👑 Campione',610], ['🥇 Oro',540], ['🥈 Argento',420], ['🥉 Bronzo',280] ];
+const TIER_EMOJI = { boss:'⭐', standard:'▫️', secondaria:'▫️', dispersione:'🚫' };
+// massimi dinamici: cambiano se aggiungi/archivi abitudini
+const maxDayPts = () => habits.filter(h => h.active).reduce((s, h) => s + h.points, 0) || 21;
+const daysInMonth = ym => { const [y, m] = ym.split('-').map(Number); return new Date(y, m, 0).getDate(); };
+const maxMonthPts = ym => maxDayPts() * daysInMonth(ym);
+// soglie tarate sul tracker originale (630/mese), riscalate sul massimo attuale
+const MESE_LIVELLI = [ ['👑 Campione', 610], ['🥇 Oro', 540], ['🥈 Argento', 420], ['🥉 Bronzo', 280] ];
+const livelliScalati = ym => { const k = maxMonthPts(ym) / 630; return MESE_LIVELLI.map(([n, v]) => [n, Math.round(v * k)]); };
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
 const today = () => new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD locale
+const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toLocaleDateString('sv-SE'); };
 const thisMonth = () => today().slice(0, 7);
 const lastNDays = n => { const out=[]; for (let i=n-1;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); out.push(d.toLocaleDateString('sv-SE')); } return out; };
+const isNetErr = e => !navigator.onLine || /fetch|load failed|network|connection/i.test(e?.message || '');
+const MESI_IT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
 
 let user = null, books = [], checkins = [];
 let poReady = true, exercises = [], workoutLogs = [], habits = [], habitDays = [], wheel = [];
 let selDay = localStorage.getItem('po_selday') || '';
 let openHistory = null;
+let diDay = today();
+
+/* ───────────────── CODA OFFLINE ─────────────────
+   In palestra senza campo i salvataggi finiscono qui e
+   ripartono da soli appena torna la rete. */
+const qGet = () => { try { return JSON.parse(localStorage.getItem('po_queue') || '[]'); } catch { return []; } };
+const qSet = q => localStorage.setItem('po_queue', JSON.stringify(q));
+function qPush(op) {
+  let q = qGet();
+  if (op.kind === 'habit') q = q.filter(o => !(o.kind === 'habit' && o.habit_id === op.habit_id && o.day === op.day));
+  if (op.kind === 'wheel') q = q.filter(o => !(o.kind === 'wheel' && o.row.area === op.row.area && o.row.month === op.row.month));
+  q.push(op); qSet(q);
+}
+async function qFlush() {
+  const q = qGet();
+  if (!q.length || !user) return;
+  const rest = [];
+  for (const op of q) {
+    try {
+      if (op.kind === 'workout') {
+        const { error } = await sb.from('po_workout_logs').insert(op.rows.map(({ _tmp, ...r }) => r)); if (error) throw error;
+      } else if (op.kind === 'habit') {
+        if (op.state === 'unset') {
+          const { error } = await sb.from('po_habit_days').delete().match({ user_id: user.id, habit_id: op.habit_id, day: op.day }); if (error) throw error;
+        } else {
+          const { error } = await sb.from('po_habit_days').upsert(
+            { user_id: user.id, habit_id: op.habit_id, day: op.day, done: op.state === 'yes' },
+            { onConflict: 'user_id,habit_id,day' }); if (error) throw error;
+        }
+      } else if (op.kind === 'wheel') {
+        const { error } = await sb.from('po_wheel').upsert(op.row, { onConflict: 'user_id,area,month' }); if (error) throw error;
+      }
+    } catch (e) {
+      if (isNetErr(e)) { rest.push(op); } // rete ancora giù: ritenta dopo
+      // errore non di rete: scarta l'operazione per non bloccare la coda
+    }
+  }
+  qSet(rest);
+  if (rest.length < q.length) { await loadAll(); renderAll(); }
+}
+window.addEventListener('online', qFlush);
+
+// riapplica localmente le operazioni in coda (così l'UI riflette anche ciò che è offline)
+function applyQueueLocally() {
+  for (const op of qGet()) {
+    if (op.kind === 'habit') {
+      habitDays = habitDays.filter(x => !(x.habit_id === op.habit_id && x.day === op.day));
+      if (op.state !== 'unset') habitDays.push({ id: 'tmp-' + op.habit_id + op.day, user_id: user?.id, habit_id: op.habit_id, day: op.day, done: op.state === 'yes' });
+    } else if (op.kind === 'workout') {
+      for (const r of op.rows) if (!workoutLogs.some(l => l.id === r._tmp)) workoutLogs.push({ ...r, id: r._tmp });
+    } else if (op.kind === 'wheel') {
+      wheel = wheel.filter(w => !(w.area === op.row.area && w.month === op.row.month));
+      wheel.push({ id: 'tmp-w', ...op.row });
+    }
+  }
+}
+
+const SNAP_KEY = 'po_snapshot';
+function saveSnapshot() {
+  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel, poReady })); } catch {}
+}
+function restoreSnapshot() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SNAP_KEY) || 'null');
+    if (!s) return false;
+    ({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel } = s);
+    poReady = s.poReady;
+    return true;
+  } catch { return false; }
+}
 
 /* ───────────────── NAV ───────────────── */
 function show(view) {
@@ -486,38 +580,45 @@ $('btn-logout').onclick = async () => { await sb.auth.signOut(); location.reload
 
 /* ───────────────── DATA ───────────────── */
 async function loadAll() {
-  const [b, c] = await Promise.all([
-    sb.from('pm_books').select('*').order('created_at'),
-    sb.from('pm_checkins').select('*').order('day'),
-  ]);
-  books = b.data || [];
-  checkins = c.data || [];
+  try {
+    const [b, c] = await Promise.all([
+      sb.from('pm_books').select('*').order('created_at'),
+      sb.from('pm_checkins').select('*').order('day'),
+    ]);
+    books = b.data || [];
+    checkins = c.data || [];
 
-  const [ex, wl, h, hd, w] = await Promise.all([
-    sb.from('po_exercises').select('*').order('position'),
-    sb.from('po_workout_logs').select('*').order('day'),
-    sb.from('po_habits').select('*').order('position'),
-    sb.from('po_habit_days').select('*'),
-    sb.from('po_wheel').select('*').order('month'),
-  ]);
-  if (ex.error || h.error) { poReady = false; return; }
-  poReady = true;
-  exercises = ex.data || []; workoutLogs = wl.data || [];
-  habits = h.data || []; habitDays = hd.data || []; wheel = w.data || [];
+    const [ex, wl, h, hd, w] = await Promise.all([
+      sb.from('po_exercises').select('*').order('position'),
+      sb.from('po_workout_logs').select('*').order('day'),
+      sb.from('po_habits').select('*').order('position'),
+      sb.from('po_habit_days').select('*'),
+      sb.from('po_wheel').select('*').order('month'),
+    ]);
+    if (ex.error || h.error) { poReady = false; applyQueueLocally(); return; }
+    poReady = true;
+    exercises = ex.data || []; workoutLogs = wl.data || [];
+    habits = h.data || []; habitDays = hd.data || []; wheel = w.data || [];
 
-  // primo avvio: semina scheda e abitudini
-  if (!exercises.length) {
-    const rows = [];
-    SCHEDA_SEED.forEach((g, gi) => g.ex.forEach(([name, scheme], i) =>
-      rows.push({ user_id: user.id, day_name: g.day, day_order: gi, name, scheme, position: i })));
-    const { data } = await sb.from('po_exercises').insert(rows).select();
-    exercises = data || [];
-  }
-  if (!habits.length) {
-    const rows = HABITS_SEED.map(([emoji, name, tier, points], i) =>
-      ({ user_id: user.id, emoji, name, tier, points, position: i }));
-    const { data } = await sb.from('po_habits').insert(rows).select();
-    habits = data || [];
+    // primo avvio: semina scheda e abitudini
+    if (!exercises.length) {
+      const rows = [];
+      SCHEDA_SEED.forEach((g, gi) => g.ex.forEach(([name, scheme], i) =>
+        rows.push({ user_id: user.id, day_name: g.day, day_order: gi, name, scheme, position: i })));
+      const { data } = await sb.from('po_exercises').insert(rows).select();
+      exercises = data || [];
+    }
+    if (!habits.length) {
+      const rows = HABITS_SEED.map(([emoji, name, tier, points], i) =>
+        ({ user_id: user.id, emoji, name, tier, points, position: i }));
+      const { data } = await sb.from('po_habits').insert(rows).select();
+      habits = data || [];
+    }
+    applyQueueLocally();
+    saveSnapshot();
+  } catch (e) {
+    // offline: riparti dall'ultimo snapshot + coda locale
+    if (restoreSnapshot()) applyQueueLocally();
   }
   if (!selDay || !exercises.some(e => e.day_name === selDay)) selDay = exercises[0]?.day_name || '';
 }
@@ -554,8 +655,12 @@ function forma() {
 }
 
 const maxW = sets => Math.max(0, ...(sets || []).map(s => +s.w || 0));
+// 1RM stimato (Epley): premia la crescita generica — più peso O più ripetizioni
+const est1rm = s => (+s.w || 0) * (1 + (+s.r || 0) / 30);
+const best1rm = sets => Math.max(0, ...(sets || []).map(est1rm));
+const bestSet = sets => (sets || []).reduce((b, s) => est1rm(s) > est1rm(b) ? s : b, { w: 0, r: 0 });
 
-// XP Corpo: 10 per allenamento + 2 per ogni PR (carico massimo superato)
+// XP Corpo: 10 per allenamento + 2 per ogni PR (1RM stimato superato)
 function corpoStats() {
   const sessions = new Set(workoutLogs.map(l => l.day)).size;
   let prs = 0;
@@ -563,9 +668,9 @@ function corpoStats() {
   for (const l of workoutLogs) (byEx[l.exercise_id] ??= []).push(l);
   for (const id in byEx) {
     const logs = byEx[id].sort((a, b) => a.day < b.day ? -1 : 1);
-    let best = maxW(logs[0]?.sets);
+    let best = best1rm(logs[0]?.sets);
     for (let i = 1; i < logs.length; i++) {
-      const m = maxW(logs[i].sets);
+      const m = best1rm(logs[i].sets);
       if (m > best) { prs++; best = m; }
     }
   }
@@ -607,7 +712,7 @@ function dayPoints(day) {
 function scoreDisciplina() {
   const days = lastNDays(7);
   const avg = days.reduce((s, d) => s + dayPoints(d), 0) / days.length;
-  return Math.min(10, +(avg / MAX_DAY_PTS * 10).toFixed(1));
+  return Math.min(10, +(avg / maxDayPts() * 10).toFixed(1));
 }
 function manualScore(area) {
   const entries = wheel.filter(w => w.area === area);
@@ -737,6 +842,7 @@ function renderRuota() {
   // coach (cache)
   const cached = coachCache();
   $('po-coach').textContent = cached ? cached.text : (getKey() ? 'Tocca il bottone per il primo discorso del coach.' : 'Salva la chiave API in ⚙️ Altro per attivare il coach.');
+  $('coach-title').textContent = cached?.recap && cached.day === today() ? 'Recap della settimana 🏁' : 'Il coach';
 }
 
 async function onAreaTap(key) {
@@ -747,56 +853,83 @@ async function onAreaTap(key) {
   if (!v) return;
   const score = parseInt(v, 10);
   if (!(score >= 1 && score <= 10)) { alert('Serve un numero da 1 a 10.'); return; }
-  await sb.from('po_wheel').upsert(
-    { user_id: user.id, area: key, month: thisMonth(), score },
-    { onConflict: 'user_id,area,month' });
-  await loadAll(); renderAll();
+  const row = { user_id: user.id, area: key, month: thisMonth(), score };
+  try {
+    const { error } = await sb.from('po_wheel').upsert(row, { onConflict: 'user_id,area,month' });
+    if (error) throw error;
+    await loadAll();
+  } catch (e) {
+    if (isNetErr(e)) { qPush({ kind: 'wheel', row }); applyQueueLocally(); }
+    else alert('Errore: ' + e.message);
+  }
+  renderAll();
 }
 
 /* ───────────────── COACH AI ───────────────── */
 const coachCache = () => { try { return JSON.parse(localStorage.getItem('po_coach') || 'null'); } catch { return null; } };
+const isSunday = () => new Date().getDay() === 0;
 
-function coachContext() {
+function periodStats(days) {
+  return {
+    workouts: days.filter(d => workoutLogs.some(l => l.day === d)).length,
+    reads: days.filter(d => checkins.some(c => c.day === d)).length,
+    discAvg: +(days.reduce((s, d) => s + dayPoints(d), 0) / days.length).toFixed(1),
+  };
+}
+
+function coachContext(recap) {
   const last7 = lastNDays(7);
-  const wDays = last7.filter(d => workoutLogs.some(l => l.day === d));
-  const ciDays = last7.filter(d => checkins.some(c => c.day === d));
+  const cur = periodStats(last7);
   const attivo = books.find(b => b.status === 'attivo');
-  const discAvg = (last7.reduce((s, d) => s + dayPoints(d), 0) / 7).toFixed(1);
   // boss più saltate negli ultimi 7 giorni
   const bossFails = habits.filter(h => h.tier === 'boss').map(h => {
     const fails = habitDays.filter(d => d.habit_id === h.id && last7.includes(d.day) && !d.done).length;
     return { name: h.name, fails };
   }).filter(b => b.fails > 0).sort((a, b) => b.fails - a.fails);
   const { sessions, prs } = poReady ? corpoStats() : { sessions: 0, prs: 0 };
-  return `Ultimi 7 giorni di Fabrizio:
-- Palestra: ${wDays.length} allenamenti (totale storico: ${sessions}, PR totali: ${prs})
-- Lettura: ${ciDays.length} check-in${attivo ? `, libro attivo "${attivo.title}"` : ', NESSUN libro attivo'}
-- Disciplina: media ${discAvg}/21 punti al giorno${bossFails.length ? `; boss saltate: ${bossFails.map(b => b.name + ' ×' + b.fails).join(', ')}` : ''}
+  let ctx = `Ultimi 7 giorni di Fabrizio:
+- Palestra: ${cur.workouts} allenamenti (totale storico: ${sessions}, PR totali: ${prs})
+- Lettura: ${cur.reads} check-in${attivo ? `, libro attivo "${attivo.title}"` : ', NESSUN libro attivo'}
+- Disciplina: media ${cur.discAvg}/${maxDayPts()} punti al giorno${bossFails.length ? `; boss saltate: ${bossFails.map(b => b.name + ' ×' + b.fails).join(', ')}` : ''}
 - Forma aree (0-10): Corpo ${scoreCorpo()}, Mente ${scoreMente()}, Disciplina ${scoreDisciplina()}
-- Stato personaggio: ${STATI[statoIdx(formaGlobale())].nome}
+- Stato personaggio: ${STATI[statoIdx(formaGlobale())].nome}`;
+  if (recap) {
+    const prev = periodStats(lastNDays(14).slice(0, 7));
+    ctx += `
+Settimana precedente (per confronto): ${prev.workouts} allenamenti, ${prev.reads} check-in lettura, media disciplina ${prev.discAvg}/${maxDayPts()}.`;
+  }
+  ctx += `
 Obiettivi 2026: 75 kg / 8-10% BF entro agosto; avviare Herbalife (World Team entro novembre); 24 libri; diventare padre a dicembre — la scadenza è reale.`;
+  return ctx;
 }
 
+const COACH_RULES = `Regole: diretto e asciutto, mai da guru, niente esclamativi motivazionali, niente moralismi. Se sta mollando, riportalo ai fondamentali senza giudicare: contano i fatti. Se sta andando bene, alza l'asticella.`;
 const COACH_SYSTEM = `Sei il coach di "Player One", l'app dove Fabrizio (31 anni, Roma) tratta la sua vita da videogioco per diventare il più forte possibile.
 Ricevi i suoi dati reali degli ultimi 7 giorni. Scrivi un discorso breve: 3-4 frasi, in italiano, dando del tu.
-Regole: diretto e asciutto, mai da guru, niente esclamativi motivazionali, niente moralismi. Una osservazione concreta sui dati (cosa va, cosa scivola) + UNA direttiva precisa per oggi. Se sta mollando, riportalo ai fondamentali senza giudicare: contano i fatti. Se sta andando bene, alza l'asticella.`;
+Una osservazione concreta sui dati (cosa va, cosa scivola) + UNA direttiva precisa per oggi. ${COACH_RULES}`;
+const COACH_SYSTEM_RECAP = `Sei il coach di "Player One", l'app dove Fabrizio (31 anni, Roma) tratta la sua vita da videogioco per diventare il più forte possibile.
+È domenica: fai il discorso di fine settimana, come un allenatore negli spogliatoi. 5-7 frasi, in italiano, dando del tu.
+Struttura: bilancio della settimana area per area confrontando con la settimana precedente (meglio/peggio, con i numeri), poi UNA direttiva chiara per la settimana che inizia. ${COACH_RULES}`;
 
 async function runCoach() {
   const apiKey = getKey();
   if (!apiKey) { $('coach-err').textContent = 'Prima salva la chiave API in ⚙️ Altro.'; return; }
+  const recap = isSunday();
   $('coach-err').textContent = '';
   $('btn-coach').disabled = true;
   $('po-coach').textContent = 'Il coach sta guardando i tuoi numeri…';
   try {
     const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
     const resp = await client.messages.create({
-      model: MODEL, max_tokens: 300, system: COACH_SYSTEM,
-      messages: [{ role: 'user', content: coachContext() }],
+      model: MODEL, max_tokens: recap ? 600 : 300,
+      system: recap ? COACH_SYSTEM_RECAP : COACH_SYSTEM,
+      messages: [{ role: 'user', content: coachContext(recap) }],
     });
     if (resp.stop_reason === 'refusal') throw new Error('Il coach ha rifiutato. Riprova.');
     const text = resp.content.find(b => b.type === 'text')?.text?.trim() || '…';
-    localStorage.setItem('po_coach', JSON.stringify({ day: today(), text }));
+    localStorage.setItem('po_coach', JSON.stringify({ day: today(), text, recap }));
     $('po-coach').textContent = text;
+    $('coach-title').textContent = recap ? 'Recap della settimana 🏁' : 'Il coach';
   } catch (e) {
     $('coach-err').textContent = e.message || 'Errore coach.';
     $('po-coach').textContent = coachCache()?.text || '…';
@@ -820,6 +953,10 @@ const fmtSets = sets => (sets || []).map(s => `${s.w}x${s.r}`).join(', ');
 
 function renderCorpo() {
   if (!poReady) return;
+  // non perdere quello che stavi scrivendo quando la UI si ridisegna
+  const draft = {};
+  document.querySelectorAll('input.sets[data-ex]').forEach(i => { if (i.value.trim()) draft[i.dataset.ex] = i.value; });
+
   $('co-days').innerHTML = dayNames().map(d =>
     `<span class="chip ${d === selDay ? 'on' : ''}" data-day="${esc(d)}">${esc(d)}</span>`).join('');
   document.querySelectorAll('#co-days .chip').forEach(ch => ch.onclick = () => {
@@ -832,18 +969,25 @@ function renderCorpo() {
 
   $('co-exlist').innerHTML = exs.map(e => {
     const logs = workoutLogs.filter(l => l.exercise_id === e.id).sort((a, b) => a.day < b.day ? 1 : -1);
-    const last = logs[0];
-    const best = Math.max(0, ...logs.map(l => maxW(l.sets)));
+    const last = logs.find(l => l.day !== today());
+    const bestLog = logs.reduce((b, l) => best1rm(l.sets) > best1rm(b?.sets) ? l : b, null);
+    const bs = bestLog ? bestSet(bestLog.sets) : null;
     const todayLog = logs.find(l => l.day === today());
+    const pending = todayLog && String(todayLog.id).startsWith('tmp');
     const hist = openHistory === e.id
-      ? `<div class="history">${logs.slice(0, 5).map(l => `${l.day} — ${fmtSets(l.sets)}`).join('<br>') || 'Nessuna sessione registrata.'}</div>` : '';
+      ? `<div class="history">${logs.slice(0, 6).map(l =>
+          `${l.day} — ${fmtSets(l.sets)}${String(l.id).startsWith('tmp') ? ' 📴' : ` <span class="del" data-dellog="${l.id}" title="elimina">🗑</span>`}`
+        ).join('<br>') || 'Nessuna sessione registrata.'}</div>` : '';
+    const inputVal = draft[e.id] ?? (todayLog && !pending ? fmtSets(todayLog.sets) : '');
     return `<div class="ex">
       <div class="exhead" data-hist="${e.id}">
         <span class="name">${esc(e.name)}</span><span class="scheme">${esc(e.scheme || '')}</span>
         <span class="del" data-del="${e.id}">✕</span>
       </div>
-      <div class="lastbest">${todayLog ? `oggi: <b>${fmtSets(todayLog.sets)}</b> · ` : ''}${last && !todayLog ? `ultima: ${fmtSets(last.sets)} (${last.day}) · ` : ''}${best ? `best: <span class="pr-tag">${best} kg</span>` : 'mai registrato'}</div>
-      ${todayLog ? '' : `<input class="sets" data-ex="${e.id}" placeholder="es. 90x7, 95x6, 95x6" inputmode="text">`}
+      <div class="lastbest">${last ? `ultima: ${fmtSets(last.sets)} (${last.day}) · ` : ''}${bs && bs.w ? `best: <span class="pr-tag">${bs.w}x${bs.r} (≈${Math.round(est1rm(bs))} 1RM)</span>` : 'mai registrato'}</div>
+      ${pending
+        ? '<div class="lastbest">oggi: <b>' + esc(fmtSets(todayLog.sets)) + '</b> 📴 in attesa di rete</div>'
+        : `<input class="sets" data-ex="${e.id}" ${todayLog ? `data-logid="${todayLog.id}"` : ''} value="${esc(inputVal)}" placeholder="es. 90x7, 95x6, 95x6" inputmode="text">`}
       ${hist}
     </div>`;
   }).join('') || '<p class="muted">Nessun esercizio in questa giornata.</p>';
@@ -860,6 +1004,17 @@ function renderCorpo() {
     await sb.from('po_exercises').update({ active: false }).eq('id', e.id);
     await loadAll(); renderAll();
   });
+  document.querySelectorAll('[data-dellog]').forEach(el => el.onclick = async ev => {
+    ev.stopPropagation();
+    if (!confirm('Eliminare questa sessione? Sparisce anche da best e PR.')) return;
+    try {
+      const { error } = await sb.from('po_workout_logs').delete().eq('id', el.dataset.dellog);
+      if (error) throw new Error(error.message);
+      await loadAll(); renderAll();
+    } catch (e) {
+      alert(isNetErr(e) ? 'Serve la rete per eliminare. Riprova dopo.' : 'Errore: ' + e.message);
+    }
+  });
 
   // settimana
   const giorni = ['dom','lun','mar','mer','gio','ven','sab'];
@@ -873,30 +1028,57 @@ function renderCorpo() {
 $('btn-saveworkout').onclick = async () => {
   $('co-err').textContent = ''; $('co-msg').textContent = '';
   const inputs = [...document.querySelectorAll('input.sets[data-ex]')];
-  const rows = [];
+  const inserts = [], updates = [];
   let prCount = 0;
   for (const inp of inputs) {
     const val = inp.value.trim();
     if (!val) continue;
     const sets = parseSets(val);
     if (!sets.length) { $('co-err').textContent = `Formato non capito: "${val}". Usa peso x reps, es. 90x7.`; return; }
-    const exId = inp.dataset.ex;
-    const prevBest = Math.max(0, ...workoutLogs.filter(l => l.exercise_id === exId).map(l => maxW(l.sets)));
-    if (prevBest > 0 && maxW(sets) > prevBest) prCount++;
-    rows.push({ user_id: user.id, exercise_id: exId, day: today(), sets });
+    const exId = inp.dataset.ex, logId = inp.dataset.logid;
+    if (logId) {
+      const cur = workoutLogs.find(l => l.id === logId);
+      if (cur && fmtSets(cur.sets) === fmtSets(sets)) continue; // invariato
+      updates.push({ id: logId, sets });
+    } else {
+      const prevBest = Math.max(0, ...workoutLogs.filter(l => l.exercise_id === exId).map(l => best1rm(l.sets)));
+      if (prevBest > 0 && best1rm(sets) > prevBest) prCount++;
+      inserts.push({ user_id: user.id, exercise_id: exId, day: today(), sets });
+    }
   }
-  if (!rows.length) { $('co-err').textContent = 'Compila almeno un esercizio.'; return; }
+  if (!inserts.length && !updates.length) { $('co-err').textContent = 'Niente di nuovo da salvare.'; return; }
   $('btn-saveworkout').disabled = true;
+  let offline = false, updFail = 0;
   try {
-    const { error } = await sb.from('po_workout_logs').insert(rows);
-    if (error) throw new Error(error.message);
-    // l'allenamento spunta da solo la boss habit Palestra
+    if (inserts.length) {
+      try {
+        const { error } = await sb.from('po_workout_logs').insert(inserts);
+        if (error) throw new Error(error.message);
+      } catch (e) {
+        if (!isNetErr(e)) throw e;
+        offline = true;
+        qPush({ kind: 'workout', rows: inserts.map(r => ({ ...r, _tmp: 'tmp-' + Math.random().toString(36).slice(2) })) });
+      }
+    }
+    for (const u of updates) { // le modifiche richiedono rete
+      try {
+        const { error } = await sb.from('po_workout_logs').update({ sets: u.sets }).eq('id', u.id);
+        if (error) throw new Error(error.message);
+      } catch { updFail++; }
+    }
+    // l'allenamento spunta da solo la boss habit Palestra (gestisce anche l'offline)
     const hPalestra = habits.find(h => h.name === 'Palestra');
-    if (hPalestra) await sb.from('po_habit_days').upsert(
-      { user_id: user.id, habit_id: hPalestra.id, day: today(), done: true },
-      { onConflict: 'user_id,habit_id,day' });
+    if (inserts.length && hPalestra) await setHabitState(hPalestra.id, today(), 'yes', true);
     await loadAll(); renderAll();
-    $('co-msg').textContent = `Registrato ✓ +10 XP${prCount ? ` · ${prCount} PR! +${prCount * 2} XP` : ''} · Boss "Palestra" spuntata`;
+    let msg = offline
+      ? 'Salvato offline 📴 — sincronizzo appena torna la rete'
+      : inserts.length
+        ? `Registrato ✓ +10 XP${prCount ? ` · ${prCount} PR! +${prCount * 2} XP` : ''}`
+        : 'Aggiornato ✓';
+    if (inserts.length && !offline && updates.length) msg += ` · ${updates.length - updFail} modificati`;
+    if (inserts.length) msg += ' · Boss "Palestra" spuntata';
+    if (updFail) msg += ` · ⚠️ ${updFail} modifiche non salvate (serve rete)`;
+    $('co-msg').textContent = msg;
   } catch (e) {
     $('co-err').textContent = e.message;
   } finally {
@@ -916,9 +1098,37 @@ $('btn-addex').onclick = async () => {
 };
 
 /* ───────────────── DISCIPLINA ───────────────── */
+// Cambia lo stato di un'abitudine in un giorno. Ottimista: aggiorna subito la UI,
+// se la rete manca accoda e sincronizza dopo. silent=true non ridisegna (lo fa il chiamante).
+async function setHabitState(habitId, day, state, silent) {
+  habitDays = habitDays.filter(x => !(x.habit_id === habitId && x.day === day));
+  if (state !== 'unset') habitDays.push({ id: 'tmp-' + habitId + day, user_id: user.id, habit_id: habitId, day, done: state === 'yes' });
+  if (!silent) renderAll();
+  try {
+    if (state === 'unset') {
+      const { error } = await sb.from('po_habit_days').delete().match({ user_id: user.id, habit_id: habitId, day });
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await sb.from('po_habit_days').upsert(
+        { user_id: user.id, habit_id: habitId, day, done: state === 'yes' },
+        { onConflict: 'user_id,habit_id,day' });
+      if (error) throw new Error(error.message);
+    }
+    if (!silent) { await loadAll(); renderAll(); }
+  } catch (e) {
+    if (isNetErr(e)) qPush({ kind: 'habit', habit_id: habitId, day, state }); // UI già aggiornata
+    else if (!silent) { alert('Errore: ' + e.message); await loadAll(); renderAll(); }
+  }
+}
+
 function renderDisciplina() {
   if (!poReady) return;
-  const t = today();
+  const t = diDay;
+  const giorniLabel = { [today()]: 'Oggi', [yesterday()]: 'Ieri' };
+  $('di-days').innerHTML = [today(), yesterday()].map(d =>
+    `<span class="chip ${d === diDay ? 'on' : ''}" data-diday="${d}">${giorniLabel[d]}</span>`).join('');
+  document.querySelectorAll('[data-diday]').forEach(ch => ch.onclick = () => { diDay = ch.dataset.diday; renderDisciplina(); });
+
   const stateOf = h => {
     const d = habitDays.find(x => x.habit_id === h.id && x.day === t);
     return d ? (d.done ? 'yes' : 'no') : '';
@@ -938,32 +1148,72 @@ function renderDisciplina() {
     }).join('') + '</div>';
   }).join('');
 
-  document.querySelectorAll('.tog').forEach(el => el.onclick = async () => {
-    const habitId = el.dataset.h, want = el.dataset.set === 'yes';
+  document.querySelectorAll('.tog').forEach(el => el.onclick = () => {
+    const habitId = el.dataset.h, want = el.dataset.set;
     const cur = habitDays.find(x => x.habit_id === habitId && x.day === t);
-    if (cur && cur.done === want) {
-      await sb.from('po_habit_days').delete().eq('id', cur.id);
-    } else {
-      await sb.from('po_habit_days').upsert(
-        { user_id: user.id, habit_id: habitId, day: t, done: want },
-        { onConflict: 'user_id,habit_id,day' });
-    }
-    await loadAll(); renderAll();
+    const curState = cur ? (cur.done ? 'yes' : 'no') : '';
+    setHabitState(habitId, t, curState === want ? 'unset' : want);
   });
 
-  $('di-today-pts').textContent = `${dayPoints(t)}/${MAX_DAY_PTS} pt oggi`;
+  $('di-today-pts').textContent = `${dayPoints(t)}/${maxDayPts()} pt ${giorniLabel[t].toLowerCase()}`;
 
-  // mese
+  // mese corrente
   const monthDays = habitDays.filter(d => d.day.startsWith(thisMonth()));
   const days = [...new Set(monthDays.map(d => d.day))];
   const monthPts = days.reduce((s, d) => s + dayPoints(d), 0);
-  const perfect = days.filter(d => dayPoints(d) >= MAX_DAY_PTS).length;
-  const lvl = MESE_LIVELLI.find(([, min]) => monthPts >= min);
+  const perfect = days.filter(d => dayPoints(d) >= maxDayPts()).length;
+  const soglie = livelliScalati(thisMonth());
+  const lvl = soglie.find(([, min]) => monthPts >= min);
   $('di-month-pts').textContent = monthPts;
   $('di-month-lvl').textContent = lvl ? lvl[0] : '—';
   $('di-perfect').textContent = perfect;
-  $('di-bar').style.width = Math.min(100, monthPts / MAX_MONTH_PTS * 100) + '%';
+  $('di-bar').style.width = Math.min(100, monthPts / maxMonthPts(thisMonth()) * 100) + '%';
+  const [camp, oro, arg, bro] = soglie;
+  $('di-levels-label').innerHTML = `<span>🥉 ${bro[1]} · 🥈 ${arg[1]} · 🥇 ${oro[1]} (+50€)</span><span>👑 ${camp[1]} (+100€)</span>`;
+
+  // storico mesi passati
+  const past = [...new Set(habitDays.map(d => d.day.slice(0, 7)))].filter(m => m < thisMonth()).sort().reverse();
+  $('di-history').innerHTML = past.length ? '<b>Storico:</b><br>' + past.map(m => {
+    const mdays = [...new Set(habitDays.filter(d => d.day.startsWith(m)).map(d => d.day))];
+    const pts = mdays.reduce((s, d) => s + dayPoints(d), 0);
+    const l = livelliScalati(m).find(([, min]) => pts >= min);
+    const [y, mm] = m.split('-');
+    return `${MESI_IT[+mm - 1]} ${y} — <b>${pts} pt</b>${l ? ' · ' + l[0] : ''}`;
+  }).join('<br>') : '';
+
+  // gestione abitudini
+  $('di-manage').innerHTML = habits.filter(h => h.active).sort((a, b) => a.position - b.position).map(h =>
+    `<div class="habit"><span class="hname">${h.emoji} ${esc(h.name)}</span><span class="hpts">${TIER_LABEL[h.tier].split(' — ')[0]}</span><span class="del" data-archh="${h.id}">✕</span></div>`
+  ).join('');
+  document.querySelectorAll('[data-archh]').forEach(el => el.onclick = async () => {
+    const h = habits.find(x => x.id === el.dataset.archh);
+    if (!confirm(`Archiviare "${h.name}"? Lo storico e i punti già presi restano.`)) return;
+    try {
+      const { error } = await sb.from('po_habits').update({ active: false }).eq('id', h.id);
+      if (error) throw new Error(error.message);
+      await loadAll(); renderAll();
+    } catch (e) {
+      alert(isNetErr(e) ? 'Serve la rete per archiviare. Riprova dopo.' : 'Errore: ' + e.message);
+    }
+  });
 }
+
+$('btn-addhabit').onclick = async () => {
+  const name = $('dh-name').value.trim(), tier = $('dh-tier').value;
+  if (!name) return;
+  try {
+    const { error } = await sb.from('po_habits').insert({
+      user_id: user.id, name, tier,
+      emoji: TIER_EMOJI[tier], points: tier === 'boss' ? 3 : 1,
+      position: Math.max(0, ...habits.map(h => h.position)) + 1,
+    });
+    if (error) throw new Error(error.message);
+    $('dh-name').value = '';
+    await loadAll(); renderAll();
+  } catch (e) {
+    alert(isNetErr(e) ? 'Serve la rete per aggiungere abitudini. Riprova dopo.' : 'Errore: ' + e.message);
+  }
+};
 
 /* ───────────────── MENTE (render) ───────────────── */
 function renderMente() {
@@ -1133,9 +1383,7 @@ $('btn-checkin').onclick = async () => {
     // il check-in lettura spunta da solo l'abitudine Lettura
     if (poReady) {
       const hLettura = habits.find(h => h.name.startsWith('Lettura'));
-      if (hLettura) await sb.from('po_habit_days').upsert(
-        { user_id: user.id, habit_id: hLettura.id, day: today(), done: true },
-        { onConflict: 'user_id,habit_id,day' });
+      if (hLettura) await setHabitState(hLettura.id, today(), 'yes', true);
     }
 
     await loadAll(); renderAll();
@@ -1168,11 +1416,12 @@ function renderAll() {
 
 async function boot() {
   await loadAll();
+  await qFlush(); // svuota la coda offline se c'è rete
   renderAll();
   show('ruota');
-  // discorso del coach: massimo uno automatico al giorno
+  // discorso del coach: massimo uno automatico al giorno (la domenica è il recap)
   const cached = coachCache();
-  if (getKey() && poReady && (!cached || cached.day !== today())) runCoach();
+  if (getKey() && poReady && navigator.onLine && (!cached || cached.day !== today())) runCoach();
 }
 
 const { data: { session } } = await sb.auth.getSession();
