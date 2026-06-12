@@ -1,7 +1,7 @@
 {
-  "name": "Palestra Mentale",
-  "short_name": "Palestra",
-  "description": "Allenati a capire. Punti solo se hai capito davvero.",
+  "name": "Player One",
+  "short_name": "Player One",
+  "description": "La tua vita. Un solo personaggio. Diventa il più forte possibile.",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0d1220",

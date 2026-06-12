@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0d1220">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
-<title>Palestra Mentale</title>
+<title>Player One</title>
 <style>
   :root {
     --bg: #0d1220;
@@ -22,6 +22,7 @@
     --gold2: #f5d27a;
     --green: #5ec97c;
     --red: #e06c6c;
+    --blue: #7aa2f7;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bot: env(safe-area-inset-bottom, 0px);
   }
@@ -34,7 +35,7 @@
   #app { max-width: 560px; margin: 0 auto; padding: 16px 16px calc(84px + var(--safe-bot)); }
 
   /* ── header ── */
-  .hero { text-align:center; padding: 14px 0 18px; }
+  .hero { text-align:center; padding: 14px 0 10px; }
   .hero .cat { font-size: 13px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold); font-weight: 700; }
   .hero h1 { font-size: 26px; font-weight: 800; margin: 4px 0 2px; }
   .hero .sub { color: var(--dim); font-size: 13px; }
@@ -67,12 +68,52 @@
   button.ghost { background: transparent; border:1px solid var(--line); color: var(--dim); font-weight: 500; }
   button.mini { width:auto; padding: 7px 13px; font-size: 13px; margin: 0; border-radius: 9px; }
   .err { color: var(--red); font-size: 13px; margin-top: 10px; text-align:center; min-height: 1em; }
+  .ok-msg { color: var(--green); font-size: 13px; margin-top: 10px; text-align:center; }
   .muted { color: var(--dim); font-size: 13px; line-height: 1.5; }
+  .warn { background: rgba(224,108,108,.12); border:1px solid rgba(224,108,108,.4); border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.5; margin-top: 14px; }
 
-  /* ── result card ── */
+  /* ── ruota ── */
+  .avatarwrap { text-align:center; margin-top: 4px; }
+  .avatarwrap svg { width: 170px; height: auto; }
+  .stato-label { font-size: 16px; font-weight: 800; color: var(--gold2); margin-top: -6px; }
+  .stato-desc { font-size: 12px; color: var(--dim); margin-top: 2px; }
+  .wheelwrap { display:flex; justify-content:center; margin-top: 10px; }
+  .wheelwrap svg { width: 100%; max-width: 340px; height: auto; }
+  .wheel-legend { display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin-top: 12px; font-size: 13px; }
+  .wheel-legend div { display:flex; align-items:center; gap:7px; color: var(--dim); }
+  .wheel-legend b { color: var(--txt); margin-left:auto; }
+  .wheel-legend .swatch { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+  .coach { background: var(--bg2); border-left: 3px solid var(--gold); border-radius: 0 10px 10px 0; padding: 12px 14px; margin-top: 12px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+
+  /* ── corpo ── */
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top: 4px; }
+  .chip { padding: 8px 12px; border-radius: 99px; background: var(--bg2); border:1px solid var(--line); color: var(--dim); font-size: 13px; font-weight:600; cursor:pointer; }
+  .chip.on { background: var(--gold); border-color: var(--gold); color:#1a1408; }
+  .ex { padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .ex:last-child { border-bottom: none; }
+  .ex .exhead { display:flex; align-items:baseline; gap:8px; cursor:pointer; }
+  .ex .name { font-weight: 600; font-size: 15px; }
+  .ex .scheme { color: var(--gold2); font-size: 12px; font-weight:700; }
+  .ex .del { margin-left:auto; color: var(--dim); font-size: 14px; padding: 0 4px; cursor:pointer; }
+  .ex .lastbest { color: var(--dim); font-size: 12px; margin-top: 3px; }
+  .ex input.sets { margin-top: 7px; font-size: 15px; padding: 9px 11px; }
+  .ex .history { margin-top: 8px; font-size: 12px; color: var(--dim); line-height: 1.7; border-left: 2px solid var(--line); padding-left: 10px; }
+  .pr-tag { color: var(--green); font-weight:700; }
+
+  /* ── disciplina ── */
+  .hgroup { margin-top: 14px; }
+  .hgroup .gtitle { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim); padding-bottom: 4px; }
+  .habit { display:flex; align-items:center; gap:10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .habit:last-child { border-bottom:none; }
+  .habit .hname { flex:1; font-size: 15px; min-width:0; }
+  .habit .hpts { font-size: 11px; color: var(--dim); white-space:nowrap; }
+  .tog { width: 42px; height: 36px; border-radius: 10px; background: var(--bg2); border:1px solid var(--line); font-size: 16px; line-height: 34px; text-align:center; cursor:pointer; color: var(--dim); }
+  .tog.yes { background: rgba(94,201,124,.18); border-color: var(--green); color: var(--green); }
+  .tog.no  { background: rgba(224,108,108,.18); border-color: var(--red); color: var(--red); }
+
+  /* ── result card (mente) ── */
   .score-big { font-size: 52px; font-weight: 800; text-align:center; color: var(--gold2); line-height: 1.1; }
   .score-big small { font-size: 18px; color: var(--dim); font-weight: 500; }
-  .coach { background: var(--bg2); border-left: 3px solid var(--gold); border-radius: 0 10px 10px 0; padding: 12px 14px; margin-top: 12px; font-size: 14px; line-height: 1.55; }
   .badge { display:inline-block; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
   .badge.ok { background: rgba(94,201,124,.15); color: var(--green); }
   .badge.mid { background: rgba(232,184,75,.15); color: var(--gold2); }
@@ -107,7 +148,7 @@
     border-top: 1px solid var(--line); display:flex;
     padding: 8px 0 calc(8px + var(--safe-bot)); z-index: 10;
   }
-  nav a { flex:1; text-align:center; color: var(--dim); text-decoration:none; font-size: 11px; }
+  nav a { flex:1; text-align:center; color: var(--dim); text-decoration:none; font-size: 10px; }
   nav a .ico { font-size: 21px; display:block; margin-bottom: 2px; }
   nav a.on { color: var(--gold2); }
   .view { display:none; }
@@ -125,9 +166,9 @@
   <!-- ════ AUTH ════ -->
   <div id="v-auth" class="view">
     <div class="hero" style="padding-top:48px">
-      <div class="cat">Palestra Mentale</div>
-      <h1>Allenati a capire.</h1>
-      <div class="sub">Leggi su carta. Poi vieni qui a dimostrarlo.</div>
+      <div class="cat">Player One</div>
+      <h1>La tua vita. Un solo personaggio.</h1>
+      <div class="sub">Ogni azione reale è esperienza. Diventa il più forte possibile.</div>
     </div>
     <div class="card">
       <label>Email</label>
@@ -140,11 +181,79 @@
     </div>
   </div>
 
-  <!-- ════ OGGI ════ -->
-  <div id="v-oggi" class="view">
+  <!-- ════ RUOTA (home) ════ -->
+  <div id="v-ruota" class="view">
+    <div class="hero">
+      <div class="cat">Player One</div>
+      <h1 id="po-level">Livello 1</h1>
+      <div class="progress"><i id="po-xpbar" style="width:0%"></i></div>
+      <div class="progress-label"><span id="po-xpcur"></span><span id="po-xpnext"></span></div>
+    </div>
+
+    <div id="mig-banner" class="warn hidden">
+      ⚠️ Tabelle mancanti su Supabase. Esegui <b>player-one-schema.sql</b> nel SQL Editor, poi ricarica. Il modulo Mente funziona comunque.
+    </div>
+
+    <div class="avatarwrap">
+      <div id="po-avatar"></div>
+      <div class="stato-label" id="po-stato"></div>
+      <div class="stato-desc" id="po-stato-desc"></div>
+    </div>
+
+    <div class="card">
+      <h2>Ruota della Vita <small>— tocca uno spicchio</small></h2>
+      <div class="wheelwrap" id="po-wheel"></div>
+      <div class="wheel-legend" id="po-legend"></div>
+      <p class="muted" style="margin-top:10px">Corpo, Mente e Disciplina si muovono da soli con le tue azioni. Le altre aree le voti tu, una volta al mese (1–10).</p>
+    </div>
+
+    <div class="card">
+      <h2>Il coach</h2>
+      <div class="coach" id="po-coach">…</div>
+      <button id="btn-coach" class="ghost">🎙️ Nuovo discorso del coach</button>
+      <div id="coach-err" class="err"></div>
+    </div>
+  </div>
+
+  <!-- ════ CORPO ════ -->
+  <div id="v-corpo" class="view">
+    <div class="hero">
+      <div class="cat">Corpo</div>
+      <h1>In palestra</h1>
+      <div class="sub">Scegli la giornata, segna i carichi. Il ferro non mente.</div>
+    </div>
+    <div id="corpo-locked" class="warn hidden">⚠️ Esegui prima la migrazione SQL (vedi Ruota).</div>
+    <div id="corpo-main">
+      <div class="card">
+        <h2>Giornata</h2>
+        <div class="chips" id="co-days"></div>
+      </div>
+      <div class="card">
+        <h2 id="co-daytitle">Esercizi</h2>
+        <p class="muted">Scrivi le serie come <b>90x7, 95x6, 95x6</b> (peso x ripetizioni). Tocca il nome per lo storico.</p>
+        <div id="co-exlist"></div>
+        <button id="btn-saveworkout">Registra allenamento</button>
+        <div id="co-msg" class="ok-msg"></div>
+        <div id="co-err" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>Ultimi 7 giorni</h2>
+        <div class="week" id="co-week"></div>
+      </div>
+      <div class="card">
+        <h2>Aggiungi esercizio <small>— alla giornata selezionata</small></h2>
+        <label>Nome</label><input id="co-newname" placeholder="es. Croci ai cavi">
+        <label>Schema</label><input id="co-newscheme" placeholder="es. 3x10">
+        <button id="btn-addex" class="ghost">Aggiungi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ MENTE (Palestra Mentale) ════ -->
+  <div id="v-mente" class="view">
     <div class="hero">
       <div class="cat" id="h-cat">Novizio</div>
-      <h1 id="h-greet">Palestra Mentale</h1>
+      <h1>Palestra Mentale</h1>
       <div class="statrow">
         <div class="stat"><b id="s-punti">0</b><span>Punti</span></div>
         <div class="stat"><b id="s-forma">0</b><span>Forma</span></div>
@@ -157,7 +266,7 @@
     <!-- nessun libro attivo -->
     <div id="oggi-nobook" class="card hidden center">
       <h2>Nessun libro attivo</h2>
-      <p class="muted">L'allenamento parte da un libro. Aggiungine uno in Libreria.</p>
+      <p class="muted">L'allenamento parte da un libro. Aggiungine uno qui sotto.</p>
     </div>
 
     <!-- check-in fatto -->
@@ -195,11 +304,7 @@
       <div class="coach" id="res-comment"></div>
       <p class="muted center" style="margin-top:12px">+<span id="res-points"></span> punti</p>
     </div>
-  </div>
 
-  <!-- ════ LIBRERIA ════ -->
-  <div id="v-libri" class="view">
-    <div class="hero"><div class="cat">Libreria</div><h1>I tuoi cicli</h1><div class="sub">Ogni libro è un ciclo di allenamento.</div></div>
     <div class="card">
       <h2>Nuovo libro</h2>
       <label>Titolo</label><input id="nb-title" placeholder="Titolo del libro">
@@ -209,14 +314,35 @@
     </div>
     <div class="card"><h2>Attivi</h2><div id="list-attivi"><p class="muted">Nessun libro attivo.</p></div></div>
     <div class="card"><h2>Conquistati 🏆</h2><div id="list-conq"><p class="muted">Ancora nessuno. Il primo è il più importante.</p></div></div>
-  </div>
-
-  <!-- ════ PERCORSO ════ -->
-  <div id="v-percorso" class="view">
-    <div class="hero"><div class="cat">Percorso</div><h1>Da Novizio a Mentore</h1><div class="sub">La categoria non si perde mai. La forma sì.</div></div>
     <div class="card"><h2>Ultimi 7 giorni</h2><div class="week" id="week"></div></div>
     <div class="card"><h2>Le categorie</h2><ul class="ladder" id="ladder"></ul></div>
     <div class="card"><h2>Numeri</h2><div id="numbers" class="muted"></div></div>
+  </div>
+
+  <!-- ════ DISCIPLINA ════ -->
+  <div id="v-disciplina" class="view">
+    <div class="hero">
+      <div class="cat">Disciplina</div>
+      <h1 id="di-today-pts">0/21 pt oggi</h1>
+      <div class="sub">I Boss decidono il mese. Il resto è bonus.</div>
+    </div>
+    <div id="disc-locked" class="warn hidden">⚠️ Esegui prima la migrazione SQL (vedi Ruota).</div>
+    <div id="disc-main">
+      <div class="card">
+        <h2>Check di oggi <small>— ✅ fatto · ❌ saltato · sulle dispersioni ✅ = hai resistito</small></h2>
+        <div id="di-list"></div>
+      </div>
+      <div class="card">
+        <h2>Il mese</h2>
+        <div class="statrow" style="margin-top:4px">
+          <div class="stat"><b id="di-month-pts">0</b><span>Punti mese</span></div>
+          <div class="stat"><b id="di-month-lvl">—</b><span>Livello</span></div>
+          <div class="stat"><b id="di-perfect">0</b><span>Giorni 21/21</span></div>
+        </div>
+        <div class="progress"><i id="di-bar" style="width:0%"></i></div>
+        <div class="progress-label"><span>🥉 280 · 🥈 420 · 🥇 540 (+50€)</span><span>👑 610 (+100€)</span></div>
+      </div>
+    </div>
   </div>
 
   <!-- ════ IMPOSTAZIONI ════ -->
@@ -224,7 +350,7 @@
     <div class="hero"><div class="cat">Impostazioni</div><h1>⚙️</h1></div>
     <div class="card">
       <h2>Chiave API Claude</h2>
-      <p class="muted">Serve per la valutazione AI. Si crea su console.anthropic.com → API Keys. Resta solo su questo dispositivo.</p>
+      <p class="muted">Serve per la valutazione AI e il coach. Si crea su console.anthropic.com → API Keys. Resta solo su questo dispositivo.</p>
       <label>API Key</label>
       <input id="cfg-key" type="password" placeholder="sk-ant-...">
       <button id="btn-savekey">Salva chiave</button>
@@ -239,9 +365,10 @@
 
   <!-- ════ NAV ════ -->
   <nav id="nav" class="hidden">
-    <a href="#" data-v="oggi" class="on"><span class="ico">🏋️</span>Oggi</a>
-    <a href="#" data-v="libri"><span class="ico">📚</span>Libreria</a>
-    <a href="#" data-v="percorso"><span class="ico">📈</span>Percorso</a>
+    <a href="#" data-v="ruota" class="on"><span class="ico">🎯</span>Ruota</a>
+    <a href="#" data-v="corpo"><span class="ico">🏋️</span>Corpo</a>
+    <a href="#" data-v="mente"><span class="ico">🧠</span>Mente</a>
+    <a href="#" data-v="disciplina"><span class="ico">⚔️</span>Disciplina</a>
     <a href="#" data-v="config"><span class="ico">⚙️</span>Altro</a>
   </nav>
 </div>
@@ -264,11 +391,72 @@ const CATEGORIE = [
   { nome: 'Mentore',    min: 2200 },
 ];
 
+const AREAS = [
+  { key:'corpo',      label:'Corpo',      emoji:'🏋️', type:'auto',    color:'#e8b84b' },
+  { key:'mente',      label:'Mente',      emoji:'🧠', type:'auto',    color:'#7aa2f7' },
+  { key:'disciplina', label:'Disciplina', emoji:'⚔️', type:'auto',    color:'#5ec97c' },
+  { key:'famiglia',   label:'Famiglia',   emoji:'❤️', type:'manuale', color:'#e06c8a' },
+  { key:'allianz',    label:'Allianz',    emoji:'🛡️', type:'manuale', color:'#6cc3e0' },
+  { key:'herbalife',  label:'Herbalife',  emoji:'🌱', type:'manuale', color:'#8fd96c' },
+  { key:'brand',      label:'Brand',      emoji:'📣', type:'manuale', color:'#d98fe0' },
+  { key:'finanze',    label:'Finanze',    emoji:'💶', type:'manuale', color:'#e0b06c' },
+];
+
+const STATI = [
+  { nome:'Spento',        desc:'Il personaggio è fermo. Una sola azione oggi lo riaccende.' },
+  { nome:'In ripresa',    desc:'Ti stai rialzando. È la parte che conta.' },
+  { nome:'Costante',      desc:'La rotta è giusta. Tienila.' },
+  { nome:'In forma',      desc:'Stai costruendo identità, non inseguendo motivazione.' },
+  { nome:'Inarrestabile', desc:'Versione migliore di te. Difendila.' },
+];
+
+// Scheda da "Nuova Scheda" (Google Sheets) — seed iniziale, poi vive su Supabase
+const SCHEDA_SEED = [
+  { day:'Femorali + Tricipiti', ex:[
+    ['Calf','3x6/8'],['Hip thrust','3x6/8'],['Leg curl sdraiato','2x3min + 1x15'],
+    ['Stacco rumeno','3x6/8'],['Pressa','3x8'],['Leg extension','3x21'],['Abductor machine','3xMax'],
+    ['Push down','3x6/8'],['French press manubri','3x8'],['Manubrio sopra testa','3x10'],['Cavo alto singolo + corda','2x10 + 2x10'],
+  ]},
+  { day:'Quadricipiti + Bicipiti', ex:[
+    ['Leg extension','2x2min + 1x15'],['Adductor','3x8'],['Pressa','3x6'],['Squat bulgaro','3x6'],
+    ['Stacco rumeno','3x8'],['Leg curl sdraiato','3x12'],['Calf','3x20'],
+    ['Biceps curl','3x6'],['Curl manubri colonna','3x6/8'],['Hammer curl spider','3x6/8'],['Hammer curl macchinario','3x2min'],
+  ]},
+  { day:'Spalle + Petto A', ex:[
+    ['Panca piana','3-5-7-10'],['Chest press inclinata','4x6-6-8-8'],['Pec fly','3x8/10'],
+    ['Alzate laterali panca inclinata','3x8/10'],['Dip','3xMax'],['Rear delts','3x12/15'],
+  ]},
+  { day:'Dorso', ex:[
+    ['Lat machine','3-5-7-10'],['Pulley lat singolo','3x8/10'],['Rematore','3x8/10'],
+    ['Rear delts','2x8 + 2x1min'],['Campana','3x10'],['Trazioni','3xMax'],
+  ]},
+  { day:'Spalle + Petto B', ex:[
+    ['Shoulder press','3-5-7-10'],['Alzate laterali','2x8 + 2x2min'],['Pec fly','3x8/10'],
+    ['Chest press','4x6-6-8-8'],['Alzate laterali (finale)','3x8/10'],['Dip','3xMax'],
+  ]},
+];
+
+// Tracker Abitudini — Giugno 2026 (abitudini lavorative escluse)
+const HABITS_SEED = [
+  ['⏰','Sveglia 7:00','boss',3], ['🏋️','Palestra','boss',3], ['🥗','Macros rispettati','boss',3], ['👟','Passi ≥ 8.000','boss',3],
+  ['🏃','Cardio','standard',1], ['📖','Lettura ≥ 20 pag','standard',1], ['✍️','Journal','standard',1],
+  ['🧘','Meditazione','secondaria',1], ['📚','Studio giornaliero','secondaria',1],
+  ['🚫','No porno','dispersione',1], ['🚫','No social passivi','dispersione',1], ['🚫','No schermi pre-sonno','dispersione',1], ['🚫','No videogiochi','dispersione',1],
+];
+const TIER_LABEL = { boss:'⭐ Boss — 3 pt', standard:'Standard — 1 pt', secondaria:'Secondarie — 1 pt', dispersione:'Dispersioni — ✅ = resistito, 1 pt' };
+const MAX_DAY_PTS = 21, MAX_MONTH_PTS = 630;
+const MESE_LIVELLI = [ ['👑 Campione',610], ['🥇 Oro',540], ['🥈 Argento',420], ['🥉 Bronzo',280] ];
+
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
 const today = () => new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD locale
+const thisMonth = () => today().slice(0, 7);
+const lastNDays = n => { const out=[]; for (let i=n-1;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); out.push(d.toLocaleDateString('sv-SE')); } return out; };
 
 let user = null, books = [], checkins = [];
+let poReady = true, exercises = [], workoutLogs = [], habits = [], habitDays = [], wheel = [];
+let selDay = localStorage.getItem('po_selday') || '';
+let openHistory = null;
 
 /* ───────────────── NAV ───────────────── */
 function show(view) {
@@ -276,6 +464,7 @@ function show(view) {
   $('v-' + view).classList.add('on');
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.dataset.v === view));
   $('nav').classList.toggle('hidden', view === 'auth');
+  window.scrollTo(0, 0);
 }
 document.querySelectorAll('nav a').forEach(a => a.onclick = e => { e.preventDefault(); show(a.dataset.v); });
 
@@ -303,6 +492,34 @@ async function loadAll() {
   ]);
   books = b.data || [];
   checkins = c.data || [];
+
+  const [ex, wl, h, hd, w] = await Promise.all([
+    sb.from('po_exercises').select('*').order('position'),
+    sb.from('po_workout_logs').select('*').order('day'),
+    sb.from('po_habits').select('*').order('position'),
+    sb.from('po_habit_days').select('*'),
+    sb.from('po_wheel').select('*').order('month'),
+  ]);
+  if (ex.error || h.error) { poReady = false; return; }
+  poReady = true;
+  exercises = ex.data || []; workoutLogs = wl.data || [];
+  habits = h.data || []; habitDays = hd.data || []; wheel = w.data || [];
+
+  // primo avvio: semina scheda e abitudini
+  if (!exercises.length) {
+    const rows = [];
+    SCHEDA_SEED.forEach((g, gi) => g.ex.forEach(([name, scheme], i) =>
+      rows.push({ user_id: user.id, day_name: g.day, day_order: gi, name, scheme, position: i })));
+    const { data } = await sb.from('po_exercises').insert(rows).select();
+    exercises = data || [];
+  }
+  if (!habits.length) {
+    const rows = HABITS_SEED.map(([emoji, name, tier, points], i) =>
+      ({ user_id: user.id, emoji, name, tier, points, position: i }));
+    const { data } = await sb.from('po_habits').insert(rows).select();
+    habits = data || [];
+  }
+  if (!selDay || !exercises.some(e => e.day_name === selDay)) selDay = exercises[0]?.day_name || '';
 }
 
 /* ───────────────── GAME MATH ───────────────── */
@@ -318,7 +535,7 @@ function categoria(pts) {
   return { cur, next };
 }
 
-// Forma: cresce coi giorni consecutivi, cala (non si azzera) quando salti.
+// Forma lettura: cresce coi giorni consecutivi, cala (non si azzera) quando salti.
 function forma() {
   const days = [...new Set(checkins.map(c => c.day))].sort();
   let f = 0, prev = null;
@@ -329,15 +546,427 @@ function forma() {
     }
     f += 1; prev = d;
   }
-  if (prev) { // decadimento fino a oggi, senza contare oggi stesso
+  if (prev) {
     const gap = Math.round((new Date(today()) - new Date(prev)) / 86400000);
     if (gap > 1) f = Math.max(0, f - 2 * (gap - 1));
   }
   return f;
 }
 
-/* ───────────────── RENDER ───────────────── */
-function render() {
+const maxW = sets => Math.max(0, ...(sets || []).map(s => +s.w || 0));
+
+// XP Corpo: 10 per allenamento + 2 per ogni PR (carico massimo superato)
+function corpoStats() {
+  const sessions = new Set(workoutLogs.map(l => l.day)).size;
+  let prs = 0;
+  const byEx = {};
+  for (const l of workoutLogs) (byEx[l.exercise_id] ??= []).push(l);
+  for (const id in byEx) {
+    const logs = byEx[id].sort((a, b) => a.day < b.day ? -1 : 1);
+    let best = maxW(logs[0]?.sets);
+    for (let i = 1; i < logs.length; i++) {
+      const m = maxW(logs[i].sets);
+      if (m > best) { prs++; best = m; }
+    }
+  }
+  return { sessions, prs, xp: sessions * 10 + prs * 2 };
+}
+
+// XP Disciplina: somma dei punti guadagnati
+const habitXP = () => habitDays.reduce((s, d) => {
+  if (!d.done) return s;
+  const h = habits.find(h => h.id === d.habit_id);
+  return s + (h ? h.points : 0);
+}, 0);
+
+const totalXP = () => totalPoints() + (poReady ? corpoStats().xp + habitXP() : 0);
+
+function levelInfo(xp) {
+  let lvl = 1, need = 100, base = 0;
+  while (xp >= base + need) { base += need; lvl++; need = Math.round(need * 1.25); }
+  return { lvl, cur: xp - base, need };
+}
+
+// ── Punteggi ruota (0-10) ──
+function scoreCorpo() {
+  const days = new Set(workoutLogs.map(l => l.day));
+  const recent = lastNDays(14).filter(d => days.has(d)).length;
+  return Math.min(10, +(recent / 8 * 10).toFixed(1)); // target ~4 allenamenti/settimana
+}
+function scoreMente() {
+  const days = new Set(checkins.map(c => c.day));
+  const recent = lastNDays(14).filter(d => days.has(d)).length;
+  return Math.min(10, +(recent / 10 * 10).toFixed(1)); // target ~5 letture/settimana
+}
+function dayPoints(day) {
+  return habitDays.filter(d => d.day === day && d.done).reduce((s, d) => {
+    const h = habits.find(h => h.id === d.habit_id);
+    return s + (h ? h.points : 0);
+  }, 0);
+}
+function scoreDisciplina() {
+  const days = lastNDays(7);
+  const avg = days.reduce((s, d) => s + dayPoints(d), 0) / days.length;
+  return Math.min(10, +(avg / MAX_DAY_PTS * 10).toFixed(1));
+}
+function manualScore(area) {
+  const entries = wheel.filter(w => w.area === area);
+  return entries.length ? entries[entries.length - 1].score : null;
+}
+function areaScore(a) {
+  if (a.key === 'corpo') return scoreCorpo();
+  if (a.key === 'mente') return scoreMente();
+  if (a.key === 'disciplina') return scoreDisciplina();
+  return manualScore(a.key);
+}
+// Forma del personaggio: solo le aree d'azione (le autovalutazioni non muovono l'avatar)
+function formaGlobale() {
+  if (!poReady) return scoreMente();
+  return +((scoreCorpo() + scoreMente() + scoreDisciplina()) / 3).toFixed(1);
+}
+const statoIdx = f => f < 2 ? 0 : f < 4 ? 1 : f < 6.5 ? 2 : f < 8.5 ? 3 : 4;
+
+/* ───────────────── AVATAR ───────────────── */
+function avatarSVG(s) { // s = 0..4
+  const t = s / 4;
+  const sh = 26 + t * 15;                 // mezza larghezza spalle
+  const slump = (1 - t) * 8;              // postura
+  const hy = 40 + slump;                  // centro testa
+  const sy = hy + 27;                     // linea spalle
+  const mouth = -3 + t * 8;
+  const armW = 9 + t * 5;
+  const auraOp = [0, .15, .35, .6, .95][s];
+  const aura = ['#5a647e', '#8a94ad', '#e8b84b', '#f5d27a', '#ffdf80'][s];
+  const skin = '#d99e6b', beard = '#33281f', top = '#222c49';
+  const browTilt = (1 - t) * 3;
+
+  let arms;
+  if (s >= 4) {       // doppio bicipite
+    arms = `<path d="M${100-sh},${sy+3} C${100-sh-16},${sy-2} ${100-sh-20},${sy-14} ${100-sh-14},${sy-24}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>
+            <path d="M${100+sh},${sy+3} C${100+sh+16},${sy-2} ${100+sh+20},${sy-14} ${100+sh+14},${sy-24}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>`;
+  } else if (s === 3) { // mani sui fianchi
+    arms = `<path d="M${100-sh},${sy+4} C${100-sh-14},${sy+18} ${100-sh-10},${sy+34} ${100-22},${sy+44}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>
+            <path d="M${100+sh},${sy+4} C${100+sh+14},${sy+18} ${100+sh+10},${sy+34} ${100+22},${sy+44}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>`;
+  } else {            // braccia lungo i fianchi
+    arms = `<path d="M${100-sh},${sy+4} C${100-sh-6},${sy+22} ${100-sh-5},${sy+40} ${100-sh-3},${sy+56}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>
+            <path d="M${100+sh},${sy+4} C${100+sh+6},${sy+22} ${100+sh+5},${sy+40} ${100+sh+3},${sy+56}" stroke="${skin}" stroke-width="${armW}" fill="none" stroke-linecap="round"/>`;
+  }
+
+  return `<svg viewBox="0 0 200 215" xmlns="http://www.w3.org/2000/svg">
+    <defs><radialGradient id="aura"><stop offset="0%" stop-color="${aura}" stop-opacity=".5"/><stop offset="100%" stop-color="${aura}" stop-opacity="0"/></radialGradient></defs>
+    <ellipse cx="100" cy="105" rx="88" ry="100" fill="url(#aura)" opacity="${auraOp}"/>
+    <!-- gambe -->
+    <path d="M88,${sy+62} L84,205" stroke="${top}" stroke-width="15" stroke-linecap="round"/>
+    <path d="M112,${sy+62} L116,205" stroke="${top}" stroke-width="15" stroke-linecap="round"/>
+    ${arms}
+    <!-- torso -->
+    <path d="M${100-sh},${sy} C${100-sh-3},${sy+24} ${100-19},${sy+48} ${100-17},${sy+66} L${100+17},${sy+66} C${100+19},${sy+48} ${100+sh+3},${sy+24} ${100+sh},${sy} C${100+sh*0.6},${sy-7} ${100-sh*0.6},${sy-7} ${100-sh},${sy} Z" fill="${top}"/>
+    <!-- collo + testa -->
+    <rect x="94" y="${hy+14}" width="12" height="12" fill="${skin}"/>
+    <circle cx="100" cy="${hy}" r="21" fill="${skin}"/>
+    <!-- barba -->
+    <path d="M81,${hy+2} C81,${hy+22} 90,${hy+27} 100,${hy+27} C110,${hy+27} 119,${hy+22} 119,${hy+2} C116,${hy+13} 112,${hy+14} 100,${hy+14} C88,${hy+14} 84,${hy+13} 81,${hy+2} Z" fill="${beard}"/>
+    <!-- occhi e sopracciglia -->
+    <circle cx="92" cy="${hy-2}" r="2" fill="#1a1408"/>
+    <circle cx="108" cy="${hy-2}" r="2" fill="#1a1408"/>
+    <path d="M87,${hy-8+browTilt} L96,${hy-9}" stroke="${beard}" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M104,${hy-9} L113,${hy-8+browTilt}" stroke="${beard}" stroke-width="2.4" stroke-linecap="round"/>
+    <!-- bocca -->
+    <path d="M93,${hy+11} Q100,${hy+11+mouth} 107,${hy+11}" stroke="#e8c9a8" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* ───────────────── RUOTA ───────────────── */
+function arcWedge(cx, cy, r0, r1, a0, a1) {
+  const p = (r, a) => [cx + r * Math.cos(a * Math.PI / 180), cy + r * Math.sin(a * Math.PI / 180)];
+  const [x0, y0] = p(r1, a0), [x1, y1] = p(r1, a1), [x2, y2] = p(r0, a1), [x3, y3] = p(r0, a0);
+  const large = (a1 - a0) > 180 ? 1 : 0;
+  return `M${x0},${y0} A${r1},${r1} 0 ${large} 1 ${x1},${y1} L${x2},${y2} A${r0},${r0} 0 ${large} 0 ${x3},${y3} Z`;
+}
+
+function renderRuota() {
+  const xp = totalXP();
+  const { lvl, cur, need } = levelInfo(xp);
+  $('po-level').textContent = `Livello ${lvl}`;
+  $('po-xpbar').style.width = Math.min(100, cur / need * 100) + '%';
+  $('po-xpcur').textContent = `${xp} XP totali`;
+  $('po-xpnext').textContent = `${need - cur} XP al livello ${lvl + 1}`;
+
+  const f = formaGlobale();
+  const si = statoIdx(f);
+  $('po-avatar').innerHTML = avatarSVG(si);
+  $('po-stato').textContent = STATI[si].nome;
+  $('po-stato-desc').textContent = STATI[si].desc;
+
+  $('mig-banner').classList.toggle('hidden', poReady);
+  $('corpo-locked').classList.toggle('hidden', poReady);
+  $('corpo-main').classList.toggle('hidden', !poReady);
+  $('disc-locked').classList.toggle('hidden', poReady);
+  $('disc-main').classList.toggle('hidden', !poReady);
+
+  // ruota
+  const cx = 120, cy = 120, r0 = 36, rMax = 90;
+  const scores = [];
+  let svg = '';
+  AREAS.forEach((a, i) => {
+    const a0 = i * 45 - 90 + 2, a1 = (i + 1) * 45 - 90 - 2;
+    const sc = areaScore(a);
+    scores.push(sc);
+    svg += `<path d="${arcWedge(cx, cy, r0, rMax, a0, a1)}" fill="${a.color}" opacity="0.13"/>`;
+    if (sc !== null && sc > 0) {
+      const r = r0 + (rMax - r0) * sc / 10;
+      svg += `<path d="${arcWedge(cx, cy, r0, r, a0, a1)}" fill="${a.color}" opacity="0.85"/>`;
+    }
+    const mid = (a0 + a1) / 2 * Math.PI / 180;
+    svg += `<text x="${cx + (rMax + 14) * Math.cos(mid)}" y="${cy + (rMax + 14) * Math.sin(mid) + 5}" text-anchor="middle" font-size="14">${a.emoji}</text>`;
+    svg += `<path d="${arcWedge(cx, cy, r0, rMax, a0, a1)}" fill="transparent" data-area="${a.key}" style="cursor:pointer"/>`;
+  });
+  const filled = scores.filter(s => s !== null);
+  const overall = filled.length ? (filled.reduce((s, v) => s + v, 0) / filled.length).toFixed(1) : '—';
+  svg += `<text x="${cx}" y="${cy - 2}" text-anchor="middle" font-size="22" font-weight="800" fill="#f5d27a">${overall}</text>
+          <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="9" letter-spacing="1.5" fill="#8a94ad">FORMA</text>`;
+  $('po-wheel').innerHTML = `<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+
+  $('po-legend').innerHTML = AREAS.map((a, i) => {
+    const sc = scores[i];
+    return `<div><span class="swatch" style="background:${a.color}"></span>${a.emoji} ${a.label}<b>${sc === null ? 'vota' : sc}</b></div>`;
+  }).join('');
+
+  document.querySelectorAll('[data-area]').forEach(el => el.onclick = () => onAreaTap(el.dataset.area));
+
+  // coach (cache)
+  const cached = coachCache();
+  $('po-coach').textContent = cached ? cached.text : (getKey() ? 'Tocca il bottone per il primo discorso del coach.' : 'Salva la chiave API in ⚙️ Altro per attivare il coach.');
+}
+
+async function onAreaTap(key) {
+  const a = AREAS.find(a => a.key === key);
+  if (a.type === 'auto') { show(key === 'corpo' ? 'corpo' : key === 'mente' ? 'mente' : 'disciplina'); return; }
+  const cur = manualScore(key);
+  const v = prompt(`${a.emoji} ${a.label} — come stai in quest'area questo mese? Voto da 1 a 10${cur ? ` (ultimo: ${cur})` : ''}`);
+  if (!v) return;
+  const score = parseInt(v, 10);
+  if (!(score >= 1 && score <= 10)) { alert('Serve un numero da 1 a 10.'); return; }
+  await sb.from('po_wheel').upsert(
+    { user_id: user.id, area: key, month: thisMonth(), score },
+    { onConflict: 'user_id,area,month' });
+  await loadAll(); renderAll();
+}
+
+/* ───────────────── COACH AI ───────────────── */
+const coachCache = () => { try { return JSON.parse(localStorage.getItem('po_coach') || 'null'); } catch { return null; } };
+
+function coachContext() {
+  const last7 = lastNDays(7);
+  const wDays = last7.filter(d => workoutLogs.some(l => l.day === d));
+  const ciDays = last7.filter(d => checkins.some(c => c.day === d));
+  const attivo = books.find(b => b.status === 'attivo');
+  const discAvg = (last7.reduce((s, d) => s + dayPoints(d), 0) / 7).toFixed(1);
+  // boss più saltate negli ultimi 7 giorni
+  const bossFails = habits.filter(h => h.tier === 'boss').map(h => {
+    const fails = habitDays.filter(d => d.habit_id === h.id && last7.includes(d.day) && !d.done).length;
+    return { name: h.name, fails };
+  }).filter(b => b.fails > 0).sort((a, b) => b.fails - a.fails);
+  const { sessions, prs } = poReady ? corpoStats() : { sessions: 0, prs: 0 };
+  return `Ultimi 7 giorni di Fabrizio:
+- Palestra: ${wDays.length} allenamenti (totale storico: ${sessions}, PR totali: ${prs})
+- Lettura: ${ciDays.length} check-in${attivo ? `, libro attivo "${attivo.title}"` : ', NESSUN libro attivo'}
+- Disciplina: media ${discAvg}/21 punti al giorno${bossFails.length ? `; boss saltate: ${bossFails.map(b => b.name + ' ×' + b.fails).join(', ')}` : ''}
+- Forma aree (0-10): Corpo ${scoreCorpo()}, Mente ${scoreMente()}, Disciplina ${scoreDisciplina()}
+- Stato personaggio: ${STATI[statoIdx(formaGlobale())].nome}
+Obiettivi 2026: 75 kg / 8-10% BF entro agosto; avviare Herbalife (World Team entro novembre); 24 libri; diventare padre a dicembre — la scadenza è reale.`;
+}
+
+const COACH_SYSTEM = `Sei il coach di "Player One", l'app dove Fabrizio (31 anni, Roma) tratta la sua vita da videogioco per diventare il più forte possibile.
+Ricevi i suoi dati reali degli ultimi 7 giorni. Scrivi un discorso breve: 3-4 frasi, in italiano, dando del tu.
+Regole: diretto e asciutto, mai da guru, niente esclamativi motivazionali, niente moralismi. Una osservazione concreta sui dati (cosa va, cosa scivola) + UNA direttiva precisa per oggi. Se sta mollando, riportalo ai fondamentali senza giudicare: contano i fatti. Se sta andando bene, alza l'asticella.`;
+
+async function runCoach() {
+  const apiKey = getKey();
+  if (!apiKey) { $('coach-err').textContent = 'Prima salva la chiave API in ⚙️ Altro.'; return; }
+  $('coach-err').textContent = '';
+  $('btn-coach').disabled = true;
+  $('po-coach').textContent = 'Il coach sta guardando i tuoi numeri…';
+  try {
+    const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+    const resp = await client.messages.create({
+      model: MODEL, max_tokens: 300, system: COACH_SYSTEM,
+      messages: [{ role: 'user', content: coachContext() }],
+    });
+    if (resp.stop_reason === 'refusal') throw new Error('Il coach ha rifiutato. Riprova.');
+    const text = resp.content.find(b => b.type === 'text')?.text?.trim() || '…';
+    localStorage.setItem('po_coach', JSON.stringify({ day: today(), text }));
+    $('po-coach').textContent = text;
+  } catch (e) {
+    $('coach-err').textContent = e.message || 'Errore coach.';
+    $('po-coach').textContent = coachCache()?.text || '…';
+  } finally {
+    $('btn-coach').disabled = false;
+  }
+}
+$('btn-coach').onclick = runCoach;
+
+/* ───────────────── CORPO ───────────────── */
+const dayNames = () => [...new Set(exercises.filter(e => e.active).sort((a, b) => a.day_order - b.day_order).map(e => e.day_name))];
+
+function parseSets(str) {
+  const out = [];
+  const re = /(\d+(?:[.,]\d+)?)\s*[x(×]\s*(\d+)/g;
+  let m;
+  while ((m = re.exec(str))) out.push({ w: parseFloat(m[1].replace(',', '.')), r: parseInt(m[2], 10) });
+  return out;
+}
+const fmtSets = sets => (sets || []).map(s => `${s.w}x${s.r}`).join(', ');
+
+function renderCorpo() {
+  if (!poReady) return;
+  $('co-days').innerHTML = dayNames().map(d =>
+    `<span class="chip ${d === selDay ? 'on' : ''}" data-day="${esc(d)}">${esc(d)}</span>`).join('');
+  document.querySelectorAll('#co-days .chip').forEach(ch => ch.onclick = () => {
+    selDay = ch.dataset.day; localStorage.setItem('po_selday', selDay); renderCorpo();
+  });
+
+  $('co-daytitle').textContent = selDay || 'Esercizi';
+  const exs = exercises.filter(e => e.active && e.day_name === selDay)
+    .sort((a, b) => a.position - b.position);
+
+  $('co-exlist').innerHTML = exs.map(e => {
+    const logs = workoutLogs.filter(l => l.exercise_id === e.id).sort((a, b) => a.day < b.day ? 1 : -1);
+    const last = logs[0];
+    const best = Math.max(0, ...logs.map(l => maxW(l.sets)));
+    const todayLog = logs.find(l => l.day === today());
+    const hist = openHistory === e.id
+      ? `<div class="history">${logs.slice(0, 5).map(l => `${l.day} — ${fmtSets(l.sets)}`).join('<br>') || 'Nessuna sessione registrata.'}</div>` : '';
+    return `<div class="ex">
+      <div class="exhead" data-hist="${e.id}">
+        <span class="name">${esc(e.name)}</span><span class="scheme">${esc(e.scheme || '')}</span>
+        <span class="del" data-del="${e.id}">✕</span>
+      </div>
+      <div class="lastbest">${todayLog ? `oggi: <b>${fmtSets(todayLog.sets)}</b> · ` : ''}${last && !todayLog ? `ultima: ${fmtSets(last.sets)} (${last.day}) · ` : ''}${best ? `best: <span class="pr-tag">${best} kg</span>` : 'mai registrato'}</div>
+      ${todayLog ? '' : `<input class="sets" data-ex="${e.id}" placeholder="es. 90x7, 95x6, 95x6" inputmode="text">`}
+      ${hist}
+    </div>`;
+  }).join('') || '<p class="muted">Nessun esercizio in questa giornata.</p>';
+
+  document.querySelectorAll('[data-hist]').forEach(el => el.onclick = ev => {
+    if (ev.target.dataset.del) return;
+    openHistory = openHistory === el.dataset.hist ? null : el.dataset.hist;
+    renderCorpo();
+  });
+  document.querySelectorAll('[data-del]').forEach(el => el.onclick = async ev => {
+    ev.stopPropagation();
+    const e = exercises.find(x => x.id === el.dataset.del);
+    if (!confirm(`Togliere "${e.name}" dalla scheda? Lo storico resta.`)) return;
+    await sb.from('po_exercises').update({ active: false }).eq('id', e.id);
+    await loadAll(); renderAll();
+  });
+
+  // settimana
+  const giorni = ['dom','lun','mar','mer','gio','ven','sab'];
+  $('co-week').innerHTML = lastNDays(7).map(ds => {
+    const hit = workoutLogs.some(l => l.day === ds);
+    const d = new Date(ds + 'T12:00');
+    return `<div class="day ${hit ? 'hit' : ''}"><i>${hit ? '✓' : ''}</i><span>${giorni[d.getDay()]}</span></div>`;
+  }).join('');
+}
+
+$('btn-saveworkout').onclick = async () => {
+  $('co-err').textContent = ''; $('co-msg').textContent = '';
+  const inputs = [...document.querySelectorAll('input.sets[data-ex]')];
+  const rows = [];
+  let prCount = 0;
+  for (const inp of inputs) {
+    const val = inp.value.trim();
+    if (!val) continue;
+    const sets = parseSets(val);
+    if (!sets.length) { $('co-err').textContent = `Formato non capito: "${val}". Usa peso x reps, es. 90x7.`; return; }
+    const exId = inp.dataset.ex;
+    const prevBest = Math.max(0, ...workoutLogs.filter(l => l.exercise_id === exId).map(l => maxW(l.sets)));
+    if (prevBest > 0 && maxW(sets) > prevBest) prCount++;
+    rows.push({ user_id: user.id, exercise_id: exId, day: today(), sets });
+  }
+  if (!rows.length) { $('co-err').textContent = 'Compila almeno un esercizio.'; return; }
+  $('btn-saveworkout').disabled = true;
+  try {
+    const { error } = await sb.from('po_workout_logs').insert(rows);
+    if (error) throw new Error(error.message);
+    // l'allenamento spunta da solo la boss habit Palestra
+    const hPalestra = habits.find(h => h.name === 'Palestra');
+    if (hPalestra) await sb.from('po_habit_days').upsert(
+      { user_id: user.id, habit_id: hPalestra.id, day: today(), done: true },
+      { onConflict: 'user_id,habit_id,day' });
+    await loadAll(); renderAll();
+    $('co-msg').textContent = `Registrato ✓ +10 XP${prCount ? ` · ${prCount} PR! +${prCount * 2} XP` : ''} · Boss "Palestra" spuntata`;
+  } catch (e) {
+    $('co-err').textContent = e.message;
+  } finally {
+    $('btn-saveworkout').disabled = false;
+  }
+};
+
+$('btn-addex').onclick = async () => {
+  const name = $('co-newname').value.trim(), scheme = $('co-newscheme').value.trim();
+  if (!name || !selDay) return;
+  const exs = exercises.filter(e => e.day_name === selDay);
+  const day_order = exs[0]?.day_order ?? 0;
+  const position = Math.max(0, ...exs.map(e => e.position)) + 1;
+  await sb.from('po_exercises').insert({ user_id: user.id, day_name: selDay, day_order, name, scheme, position });
+  $('co-newname').value = ''; $('co-newscheme').value = '';
+  await loadAll(); renderAll();
+};
+
+/* ───────────────── DISCIPLINA ───────────────── */
+function renderDisciplina() {
+  if (!poReady) return;
+  const t = today();
+  const stateOf = h => {
+    const d = habitDays.find(x => x.habit_id === h.id && x.day === t);
+    return d ? (d.done ? 'yes' : 'no') : '';
+  };
+  const tiers = ['boss', 'standard', 'secondaria', 'dispersione'];
+  $('di-list').innerHTML = tiers.map(tier => {
+    const hs = habits.filter(h => h.active && h.tier === tier).sort((a, b) => a.position - b.position);
+    if (!hs.length) return '';
+    return `<div class="hgroup"><div class="gtitle">${TIER_LABEL[tier]}</div>` + hs.map(h => {
+      const st = stateOf(h);
+      return `<div class="habit">
+        <span class="hname">${h.emoji} ${esc(h.name)}</span>
+        <span class="hpts">${h.points} pt</span>
+        <span class="tog ${st === 'yes' ? 'yes' : ''}" data-h="${h.id}" data-set="yes">✓</span>
+        <span class="tog ${st === 'no' ? 'no' : ''}" data-h="${h.id}" data-set="no">✗</span>
+      </div>`;
+    }).join('') + '</div>';
+  }).join('');
+
+  document.querySelectorAll('.tog').forEach(el => el.onclick = async () => {
+    const habitId = el.dataset.h, want = el.dataset.set === 'yes';
+    const cur = habitDays.find(x => x.habit_id === habitId && x.day === t);
+    if (cur && cur.done === want) {
+      await sb.from('po_habit_days').delete().eq('id', cur.id);
+    } else {
+      await sb.from('po_habit_days').upsert(
+        { user_id: user.id, habit_id: habitId, day: t, done: want },
+        { onConflict: 'user_id,habit_id,day' });
+    }
+    await loadAll(); renderAll();
+  });
+
+  $('di-today-pts').textContent = `${dayPoints(t)}/${MAX_DAY_PTS} pt oggi`;
+
+  // mese
+  const monthDays = habitDays.filter(d => d.day.startsWith(thisMonth()));
+  const days = [...new Set(monthDays.map(d => d.day))];
+  const monthPts = days.reduce((s, d) => s + dayPoints(d), 0);
+  const perfect = days.filter(d => dayPoints(d) >= MAX_DAY_PTS).length;
+  const lvl = MESE_LIVELLI.find(([, min]) => monthPts >= min);
+  $('di-month-pts').textContent = monthPts;
+  $('di-month-lvl').textContent = lvl ? lvl[0] : '—';
+  $('di-perfect').textContent = perfect;
+  $('di-bar').style.width = Math.min(100, monthPts / MAX_MONTH_PTS * 100) + '%';
+}
+
+/* ───────────────── MENTE (render) ───────────────── */
+function renderMente() {
   const pts = totalPoints();
   const { cur, next } = categoria(pts);
   $('h-cat').textContent = cur.nome;
@@ -354,8 +983,6 @@ function render() {
     $('h-from').textContent = 'Mentore'; $('h-to').textContent = 'Vetta raggiunta';
   }
   renderOggi(); renderLibri(); renderPercorso();
-  $('cfg-email').textContent = user.email;
-  $('cfg-key-status').textContent = getKey() ? 'Chiave salvata ✓ (***' + getKey().slice(-4) + ')' : 'Nessuna chiave salvata.';
 }
 
 function renderOggi() {
@@ -399,7 +1026,7 @@ function renderLibri() {
   document.querySelectorAll('[data-conq]').forEach(btn => btn.onclick = async () => {
     if (!confirm('Libro finito e capito? Segna come conquistato (+' + BOOK_CONQUEST_BONUS + ' punti).')) return;
     await sb.from('pm_books').update({ status: 'conquistato', finished_at: new Date().toISOString() }).eq('id', btn.dataset.conq);
-    await loadAll(); render();
+    await loadAll(); renderAll();
   });
 }
 
@@ -411,14 +1038,11 @@ function renderPercorso() {
     return `<li class="${cls}"><span class="dot"></span>${c.nome} <span style="margin-left:auto;font-size:12px">${c.min} pt</span></li>`;
   }).join('');
   const giorni = ['dom','lun','mar','mer','gio','ven','sab'];
-  let html = '';
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const ds = d.toLocaleDateString('sv-SE');
+  $('week').innerHTML = lastNDays(7).map(ds => {
     const hit = checkins.some(c => c.day === ds);
-    html += `<div class="day ${hit ? 'hit' : ''}"><i>${hit ? '✓' : ''}</i><span>${giorni[d.getDay()]}</span></div>`;
-  }
-  $('week').innerHTML = html;
+    const d = new Date(ds + 'T12:00');
+    return `<div class="day ${hit ? 'hit' : ''}"><i>${hit ? '✓' : ''}</i><span>${giorni[d.getDay()]}</span></div>`;
+  }).join('');
   $('numbers').innerHTML = `Sessioni totali: <b>${checkins.length}</b><br>
     Media punteggio: <b>${checkins.length ? (checkins.reduce((s,c)=>s+c.score,0)/checkins.length).toFixed(1) : '—'}</b><br>
     Libri attivi: <b>${books.filter(b=>b.status==='attivo').length}</b> · conquistati: <b>${books.filter(b=>b.status==='conquistato').length}</b>`;
@@ -432,15 +1056,15 @@ $('btn-addbook').onclick = async () => {
   const { error } = await sb.from('pm_books').insert({ user_id: user.id, title, author });
   if (error) { $('nb-err').textContent = error.message; return; }
   $('nb-title').value = ''; $('nb-author').value = '';
-  await loadAll(); render();
+  await loadAll(); renderAll();
 };
 
-/* ───────────────── CLAUDE — VALUTAZIONE ───────────────── */
+/* ───────────────── CLAUDE — VALUTAZIONE LETTURA ───────────────── */
 const getKey = () => localStorage.getItem('pm_anthropic_key') || '';
 $('btn-savekey').onclick = () => {
   const k = $('cfg-key').value.trim();
   if (k) { localStorage.setItem('pm_anthropic_key', k); $('cfg-key').value = ''; }
-  render();
+  renderAll();
 };
 
 const SCHEMA = {
@@ -457,7 +1081,7 @@ const SCHEMA = {
   additionalProperties: false
 };
 
-const SYSTEM = `Sei il coach della "Palestra Mentale" di Fabrizio: un'app personale dove guadagna punti solo dimostrando di aver CAPITO ciò che legge.
+const SYSTEM = `Sei il coach della "Palestra Mentale", il modulo Mente di Player One: l'app dove Fabrizio guadagna punti solo dimostrando di aver CAPITO ciò che legge.
 Il tuo compito: valutare il riassunto di lettura di oggi.
 Criteri:
 - Sostanza vs fuffa: frasi generiche valide per qualsiasi libro ("molto interessante", "insegna a migliorare") = punteggio basso. Idee specifiche del libro, esempi, collegamenti personali = punteggio alto.
@@ -506,7 +1130,15 @@ $('btn-checkin').onclick = async () => {
     });
     if (error) throw new Error('Salvataggio fallito: ' + error.message);
 
-    await loadAll(); render();
+    // il check-in lettura spunta da solo l'abitudine Lettura
+    if (poReady) {
+      const hLettura = habits.find(h => h.name.startsWith('Lettura'));
+      if (hLettura) await sb.from('po_habit_days').upsert(
+        { user_id: user.id, habit_id: hLettura.id, day: today(), done: true },
+        { onConflict: 'user_id,habit_id,day' });
+    }
+
+    await loadAll(); renderAll();
     ['oggi-done','oggi-form'].forEach(id => $(id).classList.add('hidden'));
     $('oggi-result').classList.remove('hidden');
     $('res-score').textContent = out.score;
@@ -528,10 +1160,19 @@ $('btn-checkin').onclick = async () => {
 /* ───────────────── UTIL & BOOT ───────────────── */
 function esc(s) { return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
+function renderAll() {
+  renderRuota(); renderCorpo(); renderDisciplina(); renderMente();
+  $('cfg-email').textContent = user.email;
+  $('cfg-key-status').textContent = getKey() ? 'Chiave salvata ✓ (***' + getKey().slice(-4) + ')' : 'Nessuna chiave salvata.';
+}
+
 async function boot() {
   await loadAll();
-  render();
-  show('oggi');
+  renderAll();
+  show('ruota');
+  // discorso del coach: massimo uno automatico al giorno
+  const cached = coachCache();
+  if (getKey() && poReady && (!cached || cached.day !== today())) runCoach();
 }
 
 const { data: { session } } = await sb.auth.getSession();

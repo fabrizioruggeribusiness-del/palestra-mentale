@@ -1,5 +1,5 @@
 // Service worker minimale — cache offline della shell
-const CACHE = 'palestra-mentale-v1';
+const CACHE = 'player-one-v1';
 const ASSETS = ['index.html', 'manifest.json', 'icon.png'];
 
 self.addEventListener('install', e => {
