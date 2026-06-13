@@ -1,6 +1,7 @@
 // Service worker minimale — cache offline della shell
-const CACHE = 'player-one-v3';
-const ASSETS = ['index.html', 'manifest.json', 'icon.png'];
+const CACHE = 'player-one-v4';
+const ASSETS = ['index.html', 'manifest.json', 'icon.png',
+  'avatar-0.png', 'avatar-1.png', 'avatar-2.png', 'avatar-3.png', 'avatar-4.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
