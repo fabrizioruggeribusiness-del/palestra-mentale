@@ -77,18 +77,9 @@
   .avatarwrap { text-align:center; margin-top: 4px; }
   .avatarwrap img { width: 180px; height: auto; image-rendering: pixelated; display:block; margin:0 auto; }
 
-  /* ── Avatar animations per stato ── */
-  @keyframes av-spento { 0%,100%{transform:rotate(-4deg) translateY(3px)} 50%{transform:rotate(4deg) translateY(0)} }
-  @keyframes av-basso  { 0%,100%{transform:translateY(0)}  50%{transform:translateY(-4px)} }
-  @keyframes av-stabile{ 0%,100%{transform:scale(1)}        50%{transform:scale(1.03)} }
-  @keyframes av-informo{ 0%,100%{transform:translateY(0)}   50%{transform:translateY(-9px)} }
-  @keyframes av-inarr  { 0%,100%{transform:scale(1);    filter:drop-shadow(0 0 6px #ffdf80) drop-shadow(0 0 12px #ffb800)}
-                           50%{transform:scale(1.08); filter:drop-shadow(0 0 22px #ffe040) drop-shadow(0 0 40px #ff8c00)} }
-  .av-0 { animation: av-spento  3.5s ease-in-out infinite; transform-origin: bottom center; }
-  .av-1 { animation: av-basso   4.2s ease-in-out infinite; }
-  .av-2 { animation: av-stabile 3.0s ease-in-out infinite; transform-origin: bottom center; }
-  .av-3 { animation: av-informo 1.5s ease-in-out infinite; }
-  .av-4 { animation: av-inarr   1.1s ease-in-out infinite; }
+  /* ── Glow aggiuntivo per stato INARRESTABILE ── */
+  @keyframes av-glow { 0%,100%{filter:drop-shadow(0 0 8px #ffdf80)} 50%{filter:drop-shadow(0 0 24px #ffe040) drop-shadow(0 0 44px #ff8c00)} }
+  .av-4 { animation: av-glow 1.0s ease-in-out infinite; }
   .stato-label { font-size: 16px; font-weight: 800; color: var(--gold2); margin-top: -6px; }
   .stato-desc { font-size: 12px; color: var(--dim); margin-top: 2px; }
   .wheelwrap { display:flex; justify-content:center; margin-top: 10px; }
@@ -746,10 +737,26 @@ function formaGlobale() {
 const statoIdx = f => f < 2 ? 0 : f < 4 ? 1 : f < 6.5 ? 2 : f < 8.5 ? 3 : 4;
 
 /* ───────────────── AVATAR ─────────────────
-   Usa le immagini PNG generate con Gemini (avatar-0.png … avatar-4.png)
-   invece degli sprite SVG precedenti. */
-function avatarSVG(st) { // st = 0..4
-  return `<img src="avatar-${st}.png" class="av-${st}" alt="avatar stato ${st}" draggable="false">`;
+   Frame multipli per animazione vera del personaggio.
+   avatar-{st}-{a|b|c}.png — sfondo trasparente, libro in mano. */
+const AV_FRAMES = [['a','b'],['a','b'],['a','b'],['a','b'],['a','b','c']];
+const AV_SPEED  = [1400, 1100, 900, 380, 220]; // ms per frame
+
+let _avTimer = null, _avSt = -1, _avIdx = 0;
+
+function avatarSVG(st) { // chiamata da renderRuota()
+  if (_avSt !== st) {
+    _avSt = st; _avIdx = 0;
+    clearInterval(_avTimer);
+    const frames = AV_FRAMES[st];
+    const el = () => document.querySelector('#po-avatar img');
+    _avTimer = setInterval(() => {
+      _avIdx = (_avIdx + 1) % frames.length;
+      const img = el();
+      if (img) img.src = `avatar-${st}-${frames[_avIdx]}.png`;
+    }, AV_SPEED[st]);
+  }
+  return `<img src="avatar-${st}-a.png" class="av-${st}" alt="avatar stato ${st}" draggable="false">`;
 }
 
 /* ───────────────── RUOTA ───────────────── */
