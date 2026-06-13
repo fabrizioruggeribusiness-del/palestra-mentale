@@ -74,7 +74,20 @@
 
   /* ── ruota ── */
   .avatarwrap { text-align:center; margin-top: 4px; }
-  .avatarwrap svg { width: 170px; height: auto; }
+  .avatarwrap img { width: 180px; height: auto; image-rendering: pixelated; display:block; margin:0 auto; }
+
+  /* ── Avatar animations per stato ── */
+  @keyframes av-spento { 0%,100%{transform:rotate(-4deg) translateY(3px)} 50%{transform:rotate(4deg) translateY(0)} }
+  @keyframes av-basso  { 0%,100%{transform:translateY(0)}  50%{transform:translateY(-4px)} }
+  @keyframes av-stabile{ 0%,100%{transform:scale(1)}        50%{transform:scale(1.03)} }
+  @keyframes av-informo{ 0%,100%{transform:translateY(0)}   50%{transform:translateY(-9px)} }
+  @keyframes av-inarr  { 0%,100%{transform:scale(1);    filter:drop-shadow(0 0 6px #ffdf80) drop-shadow(0 0 12px #ffb800)}
+                           50%{transform:scale(1.08); filter:drop-shadow(0 0 22px #ffe040) drop-shadow(0 0 40px #ff8c00)} }
+  .av-0 { animation: av-spento  3.5s ease-in-out infinite; transform-origin: bottom center; }
+  .av-1 { animation: av-basso   4.2s ease-in-out infinite; }
+  .av-2 { animation: av-stabile 3.0s ease-in-out infinite; transform-origin: bottom center; }
+  .av-3 { animation: av-informo 1.5s ease-in-out infinite; }
+  .av-4 { animation: av-inarr   1.1s ease-in-out infinite; }
   .stato-label { font-size: 16px; font-weight: 800; color: var(--gold2); margin-top: -6px; }
   .stato-desc { font-size: 12px; color: var(--dim); margin-top: 2px; }
   .wheelwrap { display:flex; justify-content:center; margin-top: 10px; }
@@ -731,118 +744,11 @@ function formaGlobale() {
 }
 const statoIdx = f => f < 2 ? 0 : f < 4 ? 1 : f < 6.5 ? 2 : f < 8.5 ? 3 : 4;
 
-/* ───────────────── AVATAR (pixel art stile JRPG retrò) ─────────────────
-   o outline · s/S pelle · e occhi · b/m barba · t/T canotta · p pantaloni · k scarpe */
-const SPRITE_NEUTRAL = [
-'.........oooooo.........',
-'........osssssso........',
-'........osssssso........',
-'........osesseso........',
-'........osssssso........',
-'........obssssbo........',
-'........obsmmsbo........',
-'.........obbbbo.........',
-'..........osso..........',
-'.......oooooooooo.......',
-'......osttttttttso......',
-'.....osSttttttttSso.....',
-'.....osottttttttoso.....',
-'.....osottttttttoso.....',
-'.....oSottttttttoSo.....',
-'.....osoTttttttToso.....',
-'......ooottttttooo......',
-'........oppppppo........',
-'........oppppppo........',
-'........oppooppo........',
-'........oppooppo........',
-'........ossoosso........',
-'........ossoosso........',
-'........oSSooSSo........',
-'.......okkko..okkko.....',
-];
-const SPRITE_SLUMP = [
-'........................',
-'.........oooooo.........',
-'........osssssso........',
-'........osssssso........',
-'........osesseso........',
-'........osssssso........',
-'........obssssbo........',
-'........obsmmsbo........',
-'.........obbbbo.........',
-'........oooooooo........',
-'.......osttttttso.......',
-'......osottttttoso......',
-'......osottttttoso......',
-'......osottttttoso......',
-'......oSottttttoSo......',
-'......osoTTTTTToso......',
-'........oppppppo........',
-'........oppppppo........',
-'........oppooppo........',
-'........oppooppo........',
-'........ossoosso........',
-'........ossoosso........',
-'........oSSooSSo........',
-'.......okkko..okkko.....',
-'........................',
-];
-const SPRITE_FLEX = [
-'.........oooooo.........',
-'..oo....osssssso....oo..',
-'.osso...osssssso...osso.',
-'.osso...osesseso...osso.',
-'.oSso...osssssso...osSo.',
-'..osso..obssssbo..osso..',
-'..oSso..obsmmsbo..osSo..',
-'...osso..obbbbo..osso...',
-'....oso...osso...oso....',
-'....oooooooooooooooo....',
-'.....osttttttttttso.....',
-'.....oSttttttttttSo.....',
-'......otttttttttto......',
-'......oTttttttttTo......',
-'......otttttttttto......',
-'......ooTTTTTTTToo......',
-'........oppppppo........',
-'........oppppppo........',
-'........oppooppo........',
-'........oppooppo........',
-'........ossoosso........',
-'........ossoosso........',
-'........oSSooSSo........',
-'.......okkko..okkko.....',
-];
-
+/* ───────────────── AVATAR ─────────────────
+   Usa le immagini PNG generate con Gemini (avatar-0.png … avatar-4.png)
+   invece degli sprite SVG precedenti. */
 function avatarSVG(st) { // st = 0..4
-  const grid = st <= 1 ? SPRITE_SLUMP : st === 4 ? SPRITE_FLEX : SPRITE_NEUTRAL;
-  const pal = {
-    o: '#10131f',
-    s: ['#a8866a','#c49473','#d99e6b','#e0a673','#eab07a'][st],
-    S: ['#84684f','#a87c5c','#b8804f','#c08a55','#cc955c'][st],
-    e: '#0e0e12',
-    b: '#34281d', m: '#221a11',
-    t: ['#3a4150','#3f4f6e','#27486b','#2a5e46','#a8842a'][st],
-    T: ['#2e3440','#344158','#1f3a57','#224c39','#8a6a1e'][st],
-    p: ['#2b303f','#2a3248','#2a3248','#2a3248','#33405e'][st],
-    k: '#1c2233',
-  };
-  const auraOp = [0, .15, .35, .6, .95][st];
-  const aura = ['#5a647e', '#8a94ad', '#e8b84b', '#f5d27a', '#ffdf80'][st];
-  let px = '';
-  grid.forEach((row, y) => [...row].forEach((ch, x) => {
-    if (ch !== '.' && pal[ch]) px += `<rect x="${x}" y="${y}" width="1" height="1" fill="${pal[ch]}"/>`;
-  }));
-  // scintille per lo stato massimo
-  const sparks = st === 4
-    ? [[2,11],[21,12],[4,18],[19,20],[12,0]].map(([x,y]) => `<rect x="${x}" y="${y}" width="1" height="1" fill="#ffe9a8" opacity=".9"/>`).join('')
-    : '';
-  const h = grid.length;
-  return `<svg viewBox="0 0 24 ${h}" xmlns="http://www.w3.org/2000/svg">
-    <defs><radialGradient id="aura"><stop offset="0%" stop-color="${aura}" stop-opacity=".55"/><stop offset="100%" stop-color="${aura}" stop-opacity="0"/></radialGradient></defs>
-    <ellipse cx="12" cy="${h / 2}" rx="13" ry="${h / 2 + 1}" fill="url(#aura)" opacity="${auraOp}"/>
-    <g shape-rendering="crispEdges">${px}${sparks}</g>
-  </svg>`;
+  return `<img src="avatar-${st}.png" class="av-${st}" alt="avatar stato ${st}" draggable="false">`;
 }
 
 /* ───────────────── RUOTA ───────────────── */
