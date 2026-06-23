@@ -114,6 +114,11 @@
   .tog { width: 42px; height: 36px; border-radius: 10px; background: var(--bg2); border:1px solid var(--line); font-size: 16px; line-height: 34px; text-align:center; cursor:pointer; color: var(--dim); }
   .tog.yes { background: rgba(94,201,124,.18); border-color: var(--green); color: var(--green); }
   .tog.no  { background: rgba(224,108,108,.18); border-color: var(--red); color: var(--red); }
+  .habit .hname { display:flex; flex-direction:column; gap:1px; }
+  .htitle { font-size:15px; display:flex; align-items:center; gap:5px; }
+  .streak { color:var(--gold2); font-size:11px; font-weight:700; }
+  .habit-month { font-size:11px; color:var(--dim); }
+  .boss-done { background:rgba(232,184,75,.1); border:1px solid rgba(232,184,75,.35); border-radius:12px; padding:10px 14px; text-align:center; font-weight:700; color:var(--gold2); font-size:14px; margin-top:10px; }
 
   /* ── result card (mente) ── */
   .score-big { font-size: 52px; font-weight: 800; text-align:center; color: var(--gold2); line-height: 1.1; }
@@ -340,6 +345,7 @@
       <div class="card">
         <h2 id="di-check-title">Check <small>— ✅ fatto · ❌ saltato · sulle dispersioni ✅ = hai resistito</small></h2>
         <div class="chips" id="di-days"></div>
+        <div id="di-boss-banner" class="hidden"></div>
         <div id="di-list"></div>
       </div>
       <div class="card">
@@ -366,6 +372,10 @@
         </select>
         <button id="btn-addhabit" class="ghost">Aggiungi</button>
       </div>
+      <div class="card">
+        <h2>Andamento annuale</h2>
+        <div id="di-annual"><p class="muted">Caricamento…</p></div>
+      </div>
     </div>
   </div>
 
@@ -376,6 +386,12 @@
       <h2>Account</h2>
       <p class="muted" id="cfg-email"></p>
       <button id="btn-logout" class="ghost">Esci</button>
+    </div>
+    <div class="card">
+      <h2>Esporta dati</h2>
+      <p class="muted" style="margin-bottom:8px">Storico completo abitudini in Markdown — pronto da caricare in Obsidian.</p>
+      <button id="btn-export" class="ghost">⬇ Esporta storico</button>
+      <div id="export-msg" class="ok-msg"></div>
     </div>
   </div>
 
@@ -720,6 +736,124 @@ function scoreDisciplina() {
   const avg = days.reduce((s, d) => s + dayPoints(d), 0) / days.length;
   return Math.min(10, +(avg / maxDayPts() * 10).toFixed(1));
 }
+
+function habitStreak(habitId) {
+  const doneDays = habitDays
+    .filter(d => d.habit_id === habitId && d.done)
+    .map(d => d.day).sort().reverse();
+  if (!doneDays.length) return 0;
+  const start = doneDays[0] === today() ? today() : doneDays[0] === yesterday() ? yesterday() : null;
+  if (!start) return 0;
+  let streak = 0, cur = start;
+  for (const d of doneDays) {
+    if (d === cur) {
+      streak++;
+      const dt = new Date(cur + 'T12:00'); dt.setDate(dt.getDate() - 1);
+      cur = dt.toLocaleDateString('sv-SE');
+    } else if (d < cur) break;
+  }
+  return streak;
+}
+
+function habitMonthStats(habitId) {
+  const ym = thisMonth();
+  const elapsed = parseInt(today().slice(8), 10);
+  const done = habitDays.filter(d => d.habit_id === habitId && d.done && d.day.startsWith(ym)).length;
+  return { done, total: elapsed };
+}
+
+function renderHabitAnnual() {
+  if (!poReady) return;
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+    months.push(d.toLocaleDateString('sv-SE').slice(0, 7));
+  }
+  const relevantMonths = months.filter(ym => habitDays.some(d => d.day.startsWith(ym)));
+  if (!relevantMonths.length) {
+    $('di-annual').innerHTML = '<p class="muted">Nessun dato storico ancora.</p>';
+    return;
+  }
+  const activeHabits = habits.filter(h => h.active);
+  const pct = (habitId, ym) => {
+    const total = ym === thisMonth() ? parseInt(today().slice(8), 10) : daysInMonth(ym);
+    const done = habitDays.filter(d => d.habit_id === habitId && d.done && d.day.startsWith(ym)).length;
+    return total ? Math.round(done / total * 100) : 0;
+  };
+  const mLabel = ym => MESI_IT[+ym.slice(5) - 1].slice(0, 3);
+  const col = p => p >= 80 ? 'var(--green)' : p >= 50 ? 'var(--gold2)' : p > 0 ? 'var(--dim)' : 'var(--line)';
+  let html = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr><th style="text-align:left;padding:4px 6px;color:var(--dim);min-width:90px">Abitudine</th>`;
+  for (const ym of relevantMonths)
+    html += `<th style="text-align:center;padding:4px 3px;color:var(--dim)">${mLabel(ym)}</th>`;
+  html += '</tr></thead><tbody>';
+  for (const h of activeHabits) {
+    html += `<tr><td style="padding:6px 6px;font-size:13px;white-space:nowrap">${h.emoji} ${esc(h.name)}</td>`;
+    for (const ym of relevantMonths) {
+      const p = pct(h.id, ym);
+      html += `<td style="text-align:center;padding:6px 3px;color:${col(p)};font-weight:${p >= 80 ? '700' : '400'}">${p > 0 ? p + '%' : '—'}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+  $('di-annual').innerHTML = html;
+}
+
+function exportMarkdown() {
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+    months.push(d.toLocaleDateString('sv-SE').slice(0, 7));
+  }
+  const relevantMonths = months.filter(ym => habitDays.some(d => d.day.startsWith(ym)));
+  const activeHabits = habits.filter(h => h.active);
+  const mName = ym => MESI_IT[+ym.slice(5) - 1] + ' ' + ym.slice(0, 4);
+  const doneFn = (habitId, ym) => habitDays.filter(d => d.habit_id === habitId && d.done && d.day.startsWith(ym)).length;
+  const totalFn = ym => ym === thisMonth() ? parseInt(today().slice(8), 10) : daysInMonth(ym);
+  const pctFn = (done, total) => total ? Math.round(done / total * 100) : 0;
+
+  let md = `# Storico Abitudini — Player One\n*Esportato: ${today()}*\n\n`;
+  md += `> Fonte: Supabase \`po_habit_days\`. Aggiorna importando il file più recente in Obsidian.\n\n`;
+  md += `## Riepilogo mensile\n\n`;
+  md += `| Abitudine | ` + relevantMonths.map(mName).join(' | ') + ' |\n';
+  md += `|---|` + relevantMonths.map(() => '---').join('|') + '|\n';
+  for (const h of activeHabits) {
+    md += `| ${h.emoji} ${h.name} | `;
+    for (const ym of relevantMonths) {
+      const total = totalFn(ym), done = doneFn(h.id, ym), p = pctFn(done, total);
+      md += `${done}/${total} (${p}%) | `;
+    }
+    md += '\n';
+  }
+  md += `\n## Dettaglio per abitudine\n\n`;
+  for (const h of activeHabits) {
+    md += `### ${h.emoji} ${h.name}\n*${h.tier} — ${h.points} pt/giorno*\n\n`;
+    for (const ym of relevantMonths) {
+      const total = totalFn(ym), done = doneFn(h.id, ym), p = pctFn(done, total);
+      const bar = '█'.repeat(Math.round(p / 10)) + '░'.repeat(10 - Math.round(p / 10));
+      md += `- **${mName(ym)}:** ${bar} ${p}% (${done}/${total}g)\n`;
+    }
+    md += '\n';
+  }
+  md += `## Ultimi 30 giorni\n\n`;
+  const last30 = lastNDays(30).reverse();
+  md += `| Data | ` + activeHabits.map(h => `${h.emoji} ${h.name}`).join(' | ') + ' |\n';
+  md += `|---|` + activeHabits.map(() => '---').join('|') + '|\n';
+  for (const day of last30) {
+    md += `| ${day} | `;
+    for (const h of activeHabits) {
+      const d = habitDays.find(x => x.habit_id === h.id && x.day === day);
+      md += (!d ? '·' : d.done ? '✅' : '❌') + ' | ';
+    }
+    md += '\n';
+  }
+  const blob = new Blob([md], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `habit-history-${today()}.md`; a.click();
+  URL.revokeObjectURL(url);
+  $('export-msg').textContent = 'File scaricato ✓';
+  setTimeout(() => { $('export-msg').textContent = ''; }, 3000);
+}
 function manualScore(area) {
   const entries = wheel.filter(w => w.area === area);
   return entries.length ? entries[entries.length - 1].score : null;
@@ -1025,23 +1159,34 @@ async function setHabitState(habitId, day, state, silent) {
 function renderDisciplina() {
   if (!poReady) return;
   const t = diDay;
-  const giorniLabel = { [today()]: 'Oggi', [yesterday()]: 'Ieri' };
-  $('di-days').innerHTML = [today(), yesterday()].map(d =>
-    `<span class="chip ${d === diDay ? 'on' : ''}" data-diday="${d}">${giorniLabel[d]}</span>`).join('');
+  const recentDays = lastNDays(3).reverse();
+  const dayChipLabel = (_, i) => i === 0 ? 'Oggi' : i === 1 ? 'Ieri' : '2 gg fa';
+  $('di-days').innerHTML = recentDays.map((d, i) =>
+    `<span class="chip ${d === diDay ? 'on' : ''}" data-diday="${d}">${dayChipLabel(d, i)}</span>`).join('');
   document.querySelectorAll('[data-diday]').forEach(ch => ch.onclick = () => { diDay = ch.dataset.diday; renderDisciplina(); });
 
   const stateOf = h => {
     const d = habitDays.find(x => x.habit_id === h.id && x.day === t);
     return d ? (d.done ? 'yes' : 'no') : '';
   };
+  const bossHabits = habits.filter(h => h.active && h.tier === 'boss');
+  const allBossComplete = bossHabits.length > 0 && bossHabits.every(h => stateOf(h) === 'yes');
+  const bossBanner = $('di-boss-banner');
+  if (allBossComplete) { bossBanner.className = 'boss-done'; bossBanner.textContent = '⭐ Boss completate — giornata solida'; }
+  else { bossBanner.className = 'hidden'; }
   const tiers = ['boss', 'standard', 'secondaria', 'dispersione'];
   $('di-list').innerHTML = tiers.map(tier => {
     const hs = habits.filter(h => h.active && h.tier === tier).sort((a, b) => a.position - b.position);
     if (!hs.length) return '';
     return `<div class="hgroup"><div class="gtitle">${TIER_LABEL[tier]}</div>` + hs.map(h => {
       const st = stateOf(h);
+      const streak = habitStreak(h.id);
+      const { done: mDone, total: mTotal } = habitMonthStats(h.id);
       return `<div class="habit">
-        <span class="hname">${h.emoji} ${esc(h.name)}</span>
+        <span class="hname">
+          <span class="htitle">${h.emoji} ${esc(h.name)}${streak >= 2 ? `<span class="streak">🔥${streak}</span>` : ''}</span>
+          <span class="habit-month">${mDone}/${mTotal}g questo mese</span>
+        </span>
         <span class="hpts">${h.points} pt</span>
         <span class="tog ${st === 'yes' ? 'yes' : ''}" data-h="${h.id}" data-set="yes">✓</span>
         <span class="tog ${st === 'no' ? 'no' : ''}" data-h="${h.id}" data-set="no">✗</span>
@@ -1097,7 +1242,10 @@ function renderDisciplina() {
       alert(isNetErr(e) ? 'Serve la rete per archiviare. Riprova dopo.' : 'Errore: ' + e.message);
     }
   });
+  renderHabitAnnual();
 }
+
+$('btn-export').onclick = exportMarkdown;
 
 $('btn-addhabit').onclick = async () => {
   const name = $('dh-name').value.trim(), tier = $('dh-tier').value;
