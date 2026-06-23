@@ -88,7 +88,6 @@
   .wheel-legend div { display:flex; align-items:center; gap:7px; color: var(--dim); }
   .wheel-legend b { color: var(--txt); margin-left:auto; }
   .wheel-legend .swatch { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
-  .coach { background: var(--bg2); border-left: 3px solid var(--gold); border-radius: 0 10px 10px 0; padding: 12px 14px; margin-top: 12px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
 
   /* ── corpo ── */
   .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top: 4px; }
@@ -182,7 +181,24 @@
       <input id="auth-pass" type="password" autocomplete="current-password" placeholder="password">
       <button id="btn-login">Entra</button>
       <button id="btn-signup" class="ghost">Prima volta? Crea l'account</button>
+      <button id="btn-reset" class="ghost" style="font-size:13px;padding:9px;margin-top:6px">Password dimenticata?</button>
       <div id="auth-err" class="err"></div>
+    </div>
+  </div>
+
+  <!-- ════ RESET PASSWORD ════ -->
+  <div id="v-newpass" class="view">
+    <div class="hero" style="padding-top:48px">
+      <div class="cat">Player One</div>
+      <h1>Nuova password</h1>
+    </div>
+    <div class="card">
+      <label>Nuova password</label>
+      <input id="np-pass" type="password" placeholder="minimo 6 caratteri">
+      <label>Conferma password</label>
+      <input id="np-pass2" type="password" placeholder="ripeti la password">
+      <button id="btn-newpass">Salva nuova password</button>
+      <div id="np-err" class="err"></div>
     </div>
   </div>
 
@@ -212,12 +228,6 @@
       <p class="muted" style="margin-top:10px">Corpo, Mente e Disciplina si muovono da soli con le tue azioni. Le altre aree le voti tu, una volta al mese (1–10).</p>
     </div>
 
-    <div class="card">
-      <h2 id="coach-title">Il coach</h2>
-      <div class="coach" id="po-coach">…</div>
-      <button id="btn-coach" class="ghost">🎙️ Nuovo discorso del coach</button>
-      <div id="coach-err" class="err"></div>
-    </div>
   </div>
 
   <!-- ════ CORPO ════ -->
@@ -278,7 +288,6 @@
     <div id="oggi-done" class="card hidden">
       <h2>Allenamento di oggi ✓</h2>
       <div class="score-big"><span id="done-score"></span><small>/10</small></div>
-      <div class="coach" id="done-comment"></div>
       <p class="muted" style="margin-top:12px">Torna domani. La forma si costruisce un giorno alla volta.</p>
     </div>
 
@@ -287,26 +296,21 @@
       <h2>Check-in <small>— 2 minuti, poi chiudi il telefono</small></h2>
       <label>Libro</label>
       <select id="ci-book"></select>
-      <div id="ci-recall-box" class="hidden">
-        <label>🧠 Richiamo — dalla sessione precedente</label>
-        <div class="coach" id="ci-recall-q" style="margin-top:0"></div>
-        <textarea id="ci-recall-a" style="min-height:60px" placeholder="Rispondi a memoria (bonus punti se corretto, salta pure se vuoi)"></textarea>
-      </div>
       <label>Cosa ho capito oggi</label>
-      <textarea id="ci-summary" placeholder="3–5 frasi con la sostanza di quello che hai letto. Niente frasi generiche: il coach se ne accorge."></textarea>
+      <textarea id="ci-summary" placeholder="3–5 frasi con la sostanza di quello che hai letto."></textarea>
       <label>Come lo applico</label>
       <textarea id="ci-apply" style="min-height:60px" placeholder="Un'azione concreta, tua."></textarea>
-      <button id="btn-checkin">Valuta l'allenamento</button>
-      <div id="ci-wait" class="hidden center"><div class="spinner"></div><p class="muted" style="margin-top:8px">Il coach sta leggendo…</p></div>
+      <label>Autovalutazione (1–10)</label>
+      <input id="ci-score" type="number" min="1" max="10" value="7" inputmode="numeric">
+      <button id="btn-checkin">Salva sessione</button>
+      <div id="ci-wait" class="hidden center"><div class="spinner"></div></div>
       <div id="ci-err" class="err"></div>
     </div>
 
     <!-- risultato appena valutato -->
     <div id="oggi-result" class="card hidden">
-      <h2>Verdetto del coach</h2>
+      <h2>Sessione salvata ✓</h2>
       <div class="score-big"><span id="res-score"></span><small>/10</small></div>
-      <div id="res-recall" class="center" style="margin-top:8px"></div>
-      <div class="coach" id="res-comment"></div>
       <p class="muted center" style="margin-top:12px">+<span id="res-points"></span> punti</p>
     </div>
 
@@ -369,14 +373,6 @@
   <div id="v-config" class="view">
     <div class="hero"><div class="cat">Impostazioni</div><h1>⚙️</h1></div>
     <div class="card">
-      <h2>Chiave API Claude</h2>
-      <p class="muted">Serve per la valutazione AI e il coach. Si crea su console.anthropic.com → API Keys. Resta solo su questo dispositivo.</p>
-      <label>API Key</label>
-      <input id="cfg-key" type="password" placeholder="sk-ant-...">
-      <button id="btn-savekey">Salva chiave</button>
-      <p class="muted center" id="cfg-key-status" style="margin-top:10px"></p>
-    </div>
-    <div class="card">
       <h2>Account</h2>
       <p class="muted" id="cfg-email"></p>
       <button id="btn-logout" class="ghost">Esci</button>
@@ -395,12 +391,10 @@
 
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import Anthropic from 'https://esm.sh/@anthropic-ai/sdk';
 
 /* ───────────────── CONFIG ───────────────── */
-const SUPABASE_URL = 'https://gnrrcbhmimwwytndpxtm.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_7ZrPs4Ak_HNCsU2FfBMgWQ_biy0wGEt'; // chiave pubblica per design (RLS) — gitleaks:allow
-const MODEL = 'claude-haiku-4-5';
+const SUPABASE_URL = 'https://opgqjqztmwujcqtmtlxs.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wZ3FqcXp0bXd1amNxdG10bHhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjQ5MDYsImV4cCI6MjA5NzgwMDkwNn0.SAOwxPEmd-PcCabXTjxzqIVSnzWSLkUjUQmQ8Skdkd8'; // anon key — gitleaks:allow
 const BOOK_CONQUEST_BONUS = 30;
 const CATEGORIE = [
   { nome: 'Novizio',    min: 0    },
@@ -570,6 +564,13 @@ document.querySelectorAll('nav a').forEach(a => a.onclick = e => { e.preventDefa
 /* ───────────────── AUTH ───────────────── */
 $('btn-login').onclick = () => auth('login');
 $('btn-signup').onclick = () => auth('signup');
+$('btn-reset').onclick = async () => {
+  const email = $('auth-email').value.trim();
+  if (!email) { $('auth-err').textContent = 'Inserisci prima la tua email.'; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href });
+  $('auth-err').style.color = error ? 'var(--red)' : 'var(--green)';
+  $('auth-err').textContent = error ? error.message : 'Mail di reset inviata. Controlla la casella.';
+};
 async function auth(mode) {
   $('auth-err').textContent = '';
   const email = $('auth-email').value.trim(), password = $('auth-pass').value;
@@ -817,10 +818,6 @@ function renderRuota() {
 
   document.querySelectorAll('[data-area]').forEach(el => el.onclick = () => onAreaTap(el.dataset.area));
 
-  // coach (cache)
-  const cached = coachCache();
-  $('po-coach').textContent = cached ? cached.text : (getKey() ? 'Tocca il bottone per il primo discorso del coach.' : 'Salva la chiave API in ⚙️ Altro per attivare il coach.');
-  $('coach-title').textContent = cached?.recap && cached.day === today() ? 'Recap della settimana 🏁' : 'Il coach';
 }
 
 async function onAreaTap(key) {
@@ -842,80 +839,6 @@ async function onAreaTap(key) {
   }
   renderAll();
 }
-
-/* ───────────────── COACH AI ───────────────── */
-const coachCache = () => { try { return JSON.parse(localStorage.getItem('po_coach') || 'null'); } catch { return null; } };
-const isSunday = () => new Date().getDay() === 0;
-
-function periodStats(days) {
-  return {
-    workouts: days.filter(d => workoutLogs.some(l => l.day === d)).length,
-    reads: days.filter(d => checkins.some(c => c.day === d)).length,
-    discAvg: +(days.reduce((s, d) => s + dayPoints(d), 0) / days.length).toFixed(1),
-  };
-}
-
-function coachContext(recap) {
-  const last7 = lastNDays(7);
-  const cur = periodStats(last7);
-  const attivo = books.find(b => b.status === 'attivo');
-  // boss più saltate negli ultimi 7 giorni
-  const bossFails = habits.filter(h => h.tier === 'boss').map(h => {
-    const fails = habitDays.filter(d => d.habit_id === h.id && last7.includes(d.day) && !d.done).length;
-    return { name: h.name, fails };
-  }).filter(b => b.fails > 0).sort((a, b) => b.fails - a.fails);
-  const { sessions, prs } = poReady ? corpoStats() : { sessions: 0, prs: 0 };
-  let ctx = `Ultimi 7 giorni di Fabrizio:
-- Palestra: ${cur.workouts} allenamenti (totale storico: ${sessions}, PR totali: ${prs})
-- Lettura: ${cur.reads} check-in${attivo ? `, libro attivo "${attivo.title}"` : ', NESSUN libro attivo'}
-- Disciplina: media ${cur.discAvg}/${maxDayPts()} punti al giorno${bossFails.length ? `; boss saltate: ${bossFails.map(b => b.name + ' ×' + b.fails).join(', ')}` : ''}
-- Forma aree (0-10): Corpo ${scoreCorpo()}, Mente ${scoreMente()}, Disciplina ${scoreDisciplina()}
-- Stato personaggio: ${STATI[statoIdx(formaGlobale())].nome}`;
-  if (recap) {
-    const prev = periodStats(lastNDays(14).slice(0, 7));
-    ctx += `
-Settimana precedente (per confronto): ${prev.workouts} allenamenti, ${prev.reads} check-in lettura, media disciplina ${prev.discAvg}/${maxDayPts()}.`;
-  }
-  ctx += `
-Obiettivi 2026: 75 kg / 8-10% BF entro agosto; avviare Herbalife (World Team entro novembre); 24 libri; diventare padre a dicembre — la scadenza è reale.`;
-  return ctx;
-}
-
-const COACH_RULES = `Regole: diretto e asciutto, mai da guru, niente esclamativi motivazionali, niente moralismi. Se sta mollando, riportalo ai fondamentali senza giudicare: contano i fatti. Se sta andando bene, alza l'asticella.`;
-const COACH_SYSTEM = `Sei il coach di "Player One", l'app dove Fabrizio (31 anni, Roma) tratta la sua vita da videogioco per diventare il più forte possibile.
-Ricevi i suoi dati reali degli ultimi 7 giorni. Scrivi un discorso breve: 3-4 frasi, in italiano, dando del tu.
-Una osservazione concreta sui dati (cosa va, cosa scivola) + UNA direttiva precisa per oggi. ${COACH_RULES}`;
-const COACH_SYSTEM_RECAP = `Sei il coach di "Player One", l'app dove Fabrizio (31 anni, Roma) tratta la sua vita da videogioco per diventare il più forte possibile.
-È domenica: fai il discorso di fine settimana, come un allenatore negli spogliatoi. 5-7 frasi, in italiano, dando del tu.
-Struttura: bilancio della settimana area per area confrontando con la settimana precedente (meglio/peggio, con i numeri), poi UNA direttiva chiara per la settimana che inizia. ${COACH_RULES}`;
-
-async function runCoach() {
-  const apiKey = getKey();
-  if (!apiKey) { $('coach-err').textContent = 'Prima salva la chiave API in ⚙️ Altro.'; return; }
-  const recap = isSunday();
-  $('coach-err').textContent = '';
-  $('btn-coach').disabled = true;
-  $('po-coach').textContent = 'Il coach sta guardando i tuoi numeri…';
-  try {
-    const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-    const resp = await client.messages.create({
-      model: MODEL, max_tokens: recap ? 600 : 300,
-      system: recap ? COACH_SYSTEM_RECAP : COACH_SYSTEM,
-      messages: [{ role: 'user', content: coachContext(recap) }],
-    });
-    if (resp.stop_reason === 'refusal') throw new Error('Il coach ha rifiutato. Riprova.');
-    const text = resp.content.find(b => b.type === 'text')?.text?.trim() || '…';
-    localStorage.setItem('po_coach', JSON.stringify({ day: today(), text, recap }));
-    $('po-coach').textContent = text;
-    $('coach-title').textContent = recap ? 'Recap della settimana 🏁' : 'Il coach';
-  } catch (e) {
-    $('coach-err').textContent = e.message || 'Errore coach.';
-    $('po-coach').textContent = coachCache()?.text || '…';
-  } finally {
-    $('btn-coach').disabled = false;
-  }
-}
-$('btn-coach').onclick = runCoach;
 
 /* ───────────────── CORPO ───────────────── */
 const dayNames = () => [...new Set(exercises.filter(e => e.active).sort((a, b) => a.day_order - b.day_order).map(e => e.day_name))];
@@ -1220,7 +1143,6 @@ function renderOggi() {
   if (doneToday) {
     $('oggi-done').classList.remove('hidden');
     $('done-score').textContent = doneToday.score;
-    $('done-comment').textContent = doneToday.coach_comment;
   } else if (!attivi.length) {
     $('oggi-nobook').classList.remove('hidden');
   } else {
@@ -1229,13 +1151,7 @@ function renderOggi() {
     onBookChange();
   }
 }
-$('ci-book') && ($('ci-book').onchange = onBookChange);
-function onBookChange() {
-  const bookId = $('ci-book').value;
-  const prev = [...checkins].reverse().find(c => c.book_id === bookId && c.recall_question);
-  $('ci-recall-box').classList.toggle('hidden', !prev);
-  if (prev) { $('ci-recall-q').textContent = prev.recall_question; $('ci-recall-box').dataset.q = prev.recall_question; }
-}
+function onBookChange() {}
 
 function renderLibri() {
   const row = (b) => {
@@ -1287,78 +1203,25 @@ $('btn-addbook').onclick = async () => {
   await loadAll(); renderAll();
 };
 
-/* ───────────────── CLAUDE — VALUTAZIONE LETTURA ───────────────── */
-const getKey = () => localStorage.getItem('pm_anthropic_key') || '';
-$('btn-savekey').onclick = () => {
-  const k = $('cfg-key').value.trim();
-  if (k) { localStorage.setItem('pm_anthropic_key', k); $('cfg-key').value = ''; }
-  renderAll();
-};
-
-const SCHEMA = {
-  type: 'object',
-  properties: {
-    score: { type: 'integer', enum: [1,2,3,4,5,6,7,8,9,10],
-      description: 'Quanto il riassunto dimostra comprensione reale: 1-3 fuffa generica, 4-6 superficiale ma onesto, 7-8 sostanza vera, 9-10 comprensione profonda con collegamento personale' },
-    coach_comment: { type: 'string', description: 'Commento da coach in italiano, 2-3 frasi: diretto, sfidante, mai da guru. Dai del tu.' },
-    recall_result: { type: 'string', enum: ['corretto','parziale','sbagliato','non_valutato'],
-      description: 'Valutazione della risposta alla domanda di richiamo; non_valutato se non c era domanda o risposta' },
-    recall_question: { type: 'string', description: 'UNA domanda di richiamo sul contenuto di OGGI, da fare alla prossima sessione. In italiano, specifica, risposta in 1-2 frasi.' }
-  },
-  required: ['score','coach_comment','recall_result','recall_question'],
-  additionalProperties: false
-};
-
-const SYSTEM = `Sei il coach della "Palestra Mentale", il modulo Mente di Player One: l'app dove Fabrizio guadagna punti solo dimostrando di aver CAPITO ciò che legge.
-Il tuo compito: valutare il riassunto di lettura di oggi.
-Criteri:
-- Sostanza vs fuffa: frasi generiche valide per qualsiasi libro ("molto interessante", "insegna a migliorare") = punteggio basso. Idee specifiche del libro, esempi, collegamenti personali = punteggio alto.
-- L'applicazione pratica conta: un'azione concreta e personale alza il voto, una vaga lo abbassa.
-- Se c'è una domanda di richiamo con risposta, valutala: corretto/parziale/sbagliato.
-Tono del commento: diretto, asciutto, sfidante ma mai umiliante. Niente linguaggio da guru, niente esclamativi motivazionali. Come un coach in palestra che rispetti: ti dice cosa va e cosa manca. Dagli del tu.`;
-
+/* ───────────────── CHECK-IN LETTURA ───────────────── */
 $('btn-checkin').onclick = async () => {
   $('ci-err').textContent = '';
-  const apiKey = getKey();
-  if (!apiKey) { $('ci-err').textContent = 'Prima salva la chiave API in ⚙️ Altro.'; return; }
   const summary = $('ci-summary').value.trim();
   const apply = $('ci-apply').value.trim();
   if (summary.length < 40) { $('ci-err').textContent = 'Troppo corto. Minimo qualche frase vera.'; return; }
   const bookId = $('ci-book').value;
-  const book = books.find(b => b.id === bookId);
-  const recallQ = $('ci-recall-box').classList.contains('hidden') ? '' : $('ci-recall-box').dataset.q;
-  const recallA = $('ci-recall-a').value.trim();
-
-  let userMsg = `Libro: "${book.title}"${book.author ? ' di ' + book.author : ''}\n\n`;
-  if (recallQ) userMsg += `DOMANDA DI RICHIAMO (dalla sessione precedente): ${recallQ}\nRISPOSTA DI FABRIZIO: ${recallA || '(nessuna risposta)'}\n\n`;
-  userMsg += `COSA HO CAPITO OGGI:\n${summary}\n\nCOME LO APPLICO:\n${apply || '(non indicato)'}`;
+  const score = Math.min(10, Math.max(1, parseInt($('ci-score').value, 10) || 7));
+  const points = score;
 
   $('btn-checkin').disabled = true; $('ci-wait').classList.remove('hidden');
   try {
-    const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-    const resp = await client.messages.create({
-      model: MODEL,
-      max_tokens: 1000,
-      system: SYSTEM,
-      output_config: { format: { type: 'json_schema', schema: SCHEMA } },
-      messages: [{ role: 'user', content: userMsg }],
-    });
-    if (resp.stop_reason === 'refusal') throw new Error('Il coach ha rifiutato la richiesta. Riprova.');
-    const out = JSON.parse(resp.content.find(b => b.type === 'text').text);
-
-    const bonus = out.recall_result === 'corretto' ? 3 : out.recall_result === 'parziale' ? 1 : 0;
-    const points = out.score + bonus;
     const { error } = await sb.from('pm_checkins').insert({
       user_id: user.id, book_id: bookId, day: today(),
       summary, application: apply,
-      score: out.score, coach_comment: out.coach_comment,
-      recall_question: out.recall_question,
-      recall_answer: recallA || null, recall_result: out.recall_result,
-      points,
+      score, points,
     });
     if (error) throw new Error('Salvataggio fallito: ' + error.message);
 
-    // il check-in lettura spunta da solo l'abitudine Lettura
     if (poReady) {
       const hLettura = habits.find(h => h.name.startsWith('Lettura'));
       if (hLettura) await setHabitState(hLettura.id, today(), 'yes', true);
@@ -1367,17 +1230,11 @@ $('btn-checkin').onclick = async () => {
     await loadAll(); renderAll();
     ['oggi-done','oggi-form'].forEach(id => $(id).classList.add('hidden'));
     $('oggi-result').classList.remove('hidden');
-    $('res-score').textContent = out.score;
-    $('res-comment').textContent = out.coach_comment;
+    $('res-score').textContent = score;
     $('res-points').textContent = points;
-    $('res-recall').innerHTML = recallQ
-      ? { corretto: '<span class="badge ok">Richiamo corretto +3</span>',
-          parziale: '<span class="badge mid">Richiamo parziale +1</span>',
-          sbagliato: '<span class="badge ko">Richiamo sbagliato</span>' }[out.recall_result] || ''
-      : '';
-    $('ci-summary').value = ''; $('ci-apply').value = ''; $('ci-recall-a').value = '';
+    $('ci-summary').value = ''; $('ci-apply').value = '';
   } catch (e) {
-    $('ci-err').textContent = e.message || 'Errore. Controlla connessione e chiave API.';
+    $('ci-err').textContent = e.message || 'Errore. Controlla la connessione.';
   } finally {
     $('btn-checkin').disabled = false; $('ci-wait').classList.add('hidden');
   }
@@ -1389,7 +1246,6 @@ function esc(s) { return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&
 function renderAll() {
   renderRuota(); renderCorpo(); renderDisciplina(); renderMente();
   $('cfg-email').textContent = user.email;
-  $('cfg-key-status').textContent = getKey() ? 'Chiave salvata ✓ (***' + getKey().slice(-4) + ')' : 'Nessuna chiave salvata.';
 }
 
 async function boot() {
@@ -1397,10 +1253,30 @@ async function boot() {
   await qFlush(); // svuota la coda offline se c'è rete
   renderAll();
   show('ruota');
-  // discorso del coach: massimo uno automatico al giorno (la domenica è il recap)
-  const cached = coachCache();
-  if (getKey() && poReady && navigator.onLine && (!cached || cached.day !== today())) runCoach();
 }
+
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    user = session.user;
+    show('newpass');
+  }
+});
+
+$('btn-newpass').onclick = async () => {
+  $('np-err').style.color = 'var(--red)';
+  $('np-err').textContent = '';
+  const p1 = $('np-pass').value;
+  const p2 = $('np-pass2').value;
+  if (p1.length < 6) { $('np-err').textContent = 'Minimo 6 caratteri.'; return; }
+  if (p1 !== p2) { $('np-err').textContent = 'Le password non coincidono.'; return; }
+  $('btn-newpass').disabled = true;
+  const { error } = await sb.auth.updateUser({ password: p1 });
+  $('btn-newpass').disabled = false;
+  if (error) { $('np-err').textContent = error.message; return; }
+  $('np-err').style.color = 'var(--green)';
+  $('np-err').textContent = 'Password aggiornata. Accesso in corso…';
+  await boot();
+};
 
 const { data: { session } } = await sb.auth.getSession();
 if (session) { user = session.user; await boot(); } else { show('auth'); }
