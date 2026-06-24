@@ -1238,7 +1238,9 @@ function renderDisciplina() {
     setHabitState(habitId, t, curState === want ? 'unset' : want);
   });
 
-  $('di-today-pts').textContent = `${dayPoints(t)}/${maxDayPts()} pt ${giorniLabel[t].toLowerCase()}`;
+  const tIdx = recentDays.indexOf(t);
+  const tLabel = tIdx >= 0 ? dayChipLabel(t, tIdx) : new Date(t + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long' });
+  $('di-today-pts').textContent = `${dayPoints(t)}/${maxDayPts()} pt ${tLabel.toLowerCase()}`;
 
   // mese corrente
   const monthDays = habitDays.filter(d => d.day.startsWith(thisMonth()));
