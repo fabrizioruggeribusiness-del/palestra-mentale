@@ -123,6 +123,7 @@
   .habit.is-boss .htitle { color:var(--gold2); }
   .hgroup-boss > .habit.is-boss:not(:last-child) { border-bottom:1px solid rgba(232,184,75,.12); }
   .day-empty-warn { background:rgba(224,108,108,.1); border:1px solid rgba(224,108,108,.3); border-radius:10px; padding:8px 12px; font-size:13px; color:var(--red); margin-top:8px; }
+  .habit-edit { padding:10px 0; border-bottom:1px solid var(--line); }
   .next-level-hint { font-size:12px; color:var(--dim); margin-top:6px; }
   .tog.resist { background: rgba(122,162,247,.18); border-color: var(--blue); color: var(--blue); }
   .hgroup-dispersione .gtitle { color: var(--blue); }
@@ -541,6 +542,7 @@ let poReady = true, exercises = [], workoutLogs = [], habits = [], habitDays = [
 let selDay = localStorage.getItem('po_selday') || '';
 let openHistory = null;
 let diDay = today();
+let editingHabit = null; // id dell'abitudine in modifica inline (Gestisci abitudini)
 
 /* ───────────────── CODA OFFLINE ─────────────────
    In palestra senza campo i salvataggi finiscono qui e
@@ -1329,10 +1331,44 @@ function renderDisciplina() {
     return `${MESI_IT[+mm - 1]} ${y} — <b>${pts} pt</b>${l ? ' · ' + l[0] : ''}`;
   }).join('<br>') : '';
 
-  // gestione abitudini attive
-  $('di-manage').innerHTML = habits.filter(h => h.active).sort((a, b) => a.position - b.position).map(h =>
-    `<div class="habit"><span class="hname">${h.emoji} ${esc(h.name)}</span><span class="hpts">${TIER_LABEL[h.tier].split(' — ')[0]}</span><span class="del" data-archh="${h.id}">✕</span></div>`
-  ).join('');
+  // gestione abitudini attive (con modifica inline)
+  const tierOpts = (sel) => ['boss', 'standard', 'secondaria', 'dispersione'].map(t =>
+    `<option value="${t}"${t === sel ? ' selected' : ''}>${TIER_LABEL[t].split(' — ')[0]} (${t === 'boss' ? '3' : '1'} pt)</option>`).join('');
+  $('di-manage').innerHTML = habits.filter(h => h.active).sort((a, b) => a.position - b.position).map(h => {
+    if (editingHabit === h.id) {
+      return `<div class="habit-edit">
+        <div style="display:flex;gap:8px">
+          <input class="he-emoji" value="${esc(h.emoji || '')}" maxlength="4" style="width:54px;flex-shrink:0;text-align:center;font-size:20px;padding:8px 4px">
+          <input class="he-name" value="${esc(h.name)}" style="flex:1">
+        </div>
+        <select class="he-tier" style="margin-top:8px">${tierOpts(h.tier)}</select>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="mini" data-savehabit="${h.id}">Salva</button>
+          <button class="mini ghost" data-canceledit="1">Annulla</button>
+        </div>
+      </div>`;
+    }
+    return `<div class="habit"><span class="hname">${h.emoji} ${esc(h.name)}</span><span class="hpts">${TIER_LABEL[h.tier].split(' — ')[0]}</span><span class="del" data-edith="${h.id}" title="Modifica" style="font-size:15px">✎</span><span class="del" data-archh="${h.id}" title="Archivia">✕</span></div>`;
+  }).join('');
+  document.querySelectorAll('[data-edith]').forEach(el => el.onclick = () => { editingHabit = el.dataset.edith; renderDisciplina(); });
+  document.querySelectorAll('[data-canceledit]').forEach(el => el.onclick = () => { editingHabit = null; renderDisciplina(); });
+  document.querySelectorAll('[data-savehabit]').forEach(el => el.onclick = async () => {
+    const id = el.dataset.savehabit;
+    const name = document.querySelector('.he-name').value.trim();
+    const emojiRaw = document.querySelector('.he-emoji').value.trim();
+    const tier = document.querySelector('.he-tier').value;
+    if (!name) { alert('Il nome serve.'); return; }
+    try {
+      const { error } = await sb.from('po_habits')
+        .update({ name, emoji: emojiRaw || TIER_EMOJI[tier], tier, points: tier === 'boss' ? 3 : 1 })
+        .eq('id', id);
+      if (error) throw new Error(error.message);
+      editingHabit = null;
+      await loadAll(); renderAll();
+    } catch (e) {
+      alert(isNetErr(e) ? 'Serve la rete per modificare. Riprova dopo.' : 'Errore: ' + e.message);
+    }
+  });
   document.querySelectorAll('[data-archh]').forEach(el => el.onclick = async () => {
     const h = habits.find(x => x.id === el.dataset.archh);
     if (!confirm(`Archiviare "${h.name}"? Lo storico e i punti già presi restano.`)) return;
