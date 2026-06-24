@@ -419,6 +419,9 @@
       <button id="btn-export" class="ghost">⬇ Esporta storico (Markdown)</button>
       <p class="muted" style="margin:14px 0 8px">Backup completo di TUTTI i dati (abitudini, allenamenti, letture, ruota) in JSON — copia di sicurezza re-importabile.</p>
       <button id="btn-export-json" class="ghost">⬇ Backup completo (JSON)</button>
+      <p class="muted" style="margin:14px 0 8px">Ripristina tutti i dati da un file di backup JSON (problemi, nuovo dispositivo o account). Le righe con lo stesso id vengono sovrascritte.</p>
+      <button id="btn-restore" class="ghost">⬆ Ripristina da backup (JSON)</button>
+      <input id="restore-file" type="file" accept="application/json,.json" class="hidden">
       <div id="export-msg" class="ok-msg"></div>
     </div>
   </div>
@@ -1211,19 +1214,12 @@ async function setHabitState(habitId, day, state, silent) {
   if (state !== 'unset') habitDays.push({ id: 'tmp-' + habitId + day, user_id: user.id, habit_id: habitId, day, done: state === 'yes' });
   if (!silent) renderAll();
   try {
-    if (state === 'unset') {
-      const { error } = await sb.from('po_habit_days').delete().match({ user_id: user.id, habit_id: habitId, day });
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await sb.from('po_habit_days').upsert(
-        { user_id: user.id, habit_id: habitId, day, done: state === 'yes' },
-        { onConflict: 'user_id,habit_id,day' });
-      if (error) throw new Error(error.message);
-    }
-    if (!silent) { await loadAll(); renderAll(); }
+    await runOp({ kind: 'habit', habit_id: habitId, day, state });
+    // successo: lo stato ottimistico è già corretto → niente reload completo (check-in istantaneo)
   } catch (e) {
-    if (isNetErr(e)) qPush({ kind: 'habit', habit_id: habitId, day, state }); // UI già aggiornata
+    if (isNetErr(e)) { qPush({ kind: 'habit', habit_id: habitId, day, state }); if (!silent) renderAll(); } // mostra "in attesa"
     else if (!silent) { alert('Errore: ' + e.message); await loadAll(); renderAll(); }
+    // silent + errore non di rete: si riconcilia al prossimo loadAll del chiamante
   }
 }
 
@@ -1395,6 +1391,39 @@ function exportJSON() {
   setTimeout(() => { $('export-msg').textContent = ''; }, 3000);
 }
 $('btn-export-json').onclick = exportJSON;
+
+// Ripristino da backup JSON (in-app o dal backup-player-one.mjs): chiude il cerchio dei dati.
+// Ordine: prima le tabelle "padre", poi quelle con foreign key. Upsert per id (idempotente).
+const RESTORE_ORDER = ['po_habits', 'po_exercises', 'pm_books', 'po_habit_days', 'po_workout_logs', 'po_wheel', 'pm_checkins'];
+async function restoreFromJSON(file) {
+  $('export-msg').textContent = '';
+  let parsed;
+  try { parsed = JSON.parse(await file.text()); } catch { alert('File non valido: JSON non leggibile.'); return; }
+  const tables = parsed.tables;
+  if (!tables || typeof tables !== 'object') { alert('Backup non riconosciuto: manca il campo "tables".'); return; }
+  const counts = Object.fromEntries(RESTORE_ORDER.map(t => [t, Array.isArray(tables[t]) ? tables[t].length : 0]));
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  if (!total) { alert('Il backup non contiene righe da ripristinare.'); return; }
+  if (!confirm(`Ripristinare ${total} righe?\n\n` +
+    Object.entries(counts).filter(([, n]) => n).map(([k, n]) => `• ${k}: ${n}`).join('\n') +
+    `\n\nLe righe con lo stesso id verranno sovrascritte.`)) return;
+  try {
+    for (const t of RESTORE_ORDER) {
+      const rows = (tables[t] || []).map(r => ({ ...r, user_id: user.id })); // riassegna all'account corrente
+      for (let i = 0; i < rows.length; i += 500) { // a blocchi, per dataset grandi
+        const { error } = await sb.from(t).upsert(rows.slice(i, i + 500), { onConflict: 'id' });
+        if (error) throw new Error(`${t}: ${error.message}`);
+      }
+    }
+    await loadAll(); renderAll();
+    $('export-msg').textContent = `Ripristino completato ✓ (${total} righe)`;
+    setTimeout(() => { $('export-msg').textContent = ''; }, 4000);
+  } catch (e) {
+    alert('Ripristino interrotto: ' + e.message + '\n\nI dati già ripristinati restano: puoi rilanciare lo stesso file senza creare duplicati.');
+  }
+}
+$('btn-restore').onclick = () => $('restore-file').click();
+$('restore-file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) restoreFromJSON(f); };
 
 $('btn-addhabit').onclick = async () => {
   const name = $('dh-name').value.trim(), tier = $('dh-tier').value;
