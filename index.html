@@ -175,9 +175,17 @@
   @keyframes spin { to { transform: rotate(360deg);} }
   .center { text-align:center; }
   .hidden { display:none !important; }
+
+  /* ── stato sincronizzazione ── */
+  #sync-bar { position: fixed; left:0; right:0; top: var(--safe-top); z-index: 20; text-align:center; font-size:12px; padding:8px 12px; font-weight:600; }
+  #sync-bar.pending { background:#2b3654; color:var(--gold2); }
+  #sync-bar.dead { background:#c44; color:#fff; }
+  #sync-bar button { width:auto; display:inline-block; margin:0 0 0 10px; padding:3px 11px; font-size:12px; background:rgba(255,255,255,.18); color:#fff; border:1px solid rgba(255,255,255,.4); font-weight:700; }
+  .pending-flag { color: var(--blue); font-size:12px; margin-left:4px; }
 </style>
 </head>
 <body>
+<div id="sync-bar" class="hidden"></div>
 <div id="app">
 
   <!-- ════ AUTH ════ -->
@@ -407,8 +415,10 @@
     </div>
     <div class="card">
       <h2>Esporta dati</h2>
-      <p class="muted" style="margin-bottom:8px">Storico completo abitudini in Markdown — pronto da caricare in Obsidian.</p>
-      <button id="btn-export" class="ghost">⬇ Esporta storico</button>
+      <p class="muted" style="margin-bottom:8px">Storico abitudini in Markdown — pronto da caricare in Obsidian.</p>
+      <button id="btn-export" class="ghost">⬇ Esporta storico (Markdown)</button>
+      <p class="muted" style="margin:14px 0 8px">Backup completo di TUTTI i dati (abitudini, allenamenti, letture, ruota) in JSON — copia di sicurezza re-importabile.</p>
+      <button id="btn-export-json" class="ghost">⬇ Backup completo (JSON)</button>
       <div id="export-msg" class="ok-msg"></div>
     </div>
   </div>
@@ -521,40 +531,62 @@ let diDay = today();
    ripartono da soli appena torna la rete. */
 const qGet = () => { try { return JSON.parse(localStorage.getItem('po_queue') || '[]'); } catch { return []; } };
 const qSet = q => localStorage.setItem('po_queue', JSON.stringify(q));
+// Dead-letter: operazioni che falliscono ripetutamente per motivi NON di rete.
+// Non vengono MAI buttate via in silenzio: restano qui finché non si risolvono.
+const MAX_TRIES = 5;
+const dlGet = () => { try { return JSON.parse(localStorage.getItem('po_deadletter') || '[]'); } catch { return []; } };
+const dlSet = q => localStorage.setItem('po_deadletter', JSON.stringify(q));
 function qPush(op) {
   let q = qGet();
   if (op.kind === 'habit') q = q.filter(o => !(o.kind === 'habit' && o.habit_id === op.habit_id && o.day === op.day));
   if (op.kind === 'wheel') q = q.filter(o => !(o.kind === 'wheel' && o.row.area === op.row.area && o.row.month === op.row.month));
   q.push(op); qSet(q);
 }
+// Esegue una singola operazione contro Supabase. Lancia in caso di errore.
+async function runOp(op) {
+  if (op.kind === 'workout') {
+    const { error } = await sb.from('po_workout_logs').insert(op.rows.map(({ _tmp, ...r }) => r)); if (error) throw error;
+  } else if (op.kind === 'habit') {
+    if (op.state === 'unset') {
+      const { error } = await sb.from('po_habit_days').delete().match({ user_id: user.id, habit_id: op.habit_id, day: op.day }); if (error) throw error;
+    } else {
+      const { error } = await sb.from('po_habit_days').upsert(
+        { user_id: user.id, habit_id: op.habit_id, day: op.day, done: op.state === 'yes' },
+        { onConflict: 'user_id,habit_id,day' }); if (error) throw error;
+    }
+  } else if (op.kind === 'wheel') {
+    const { error } = await sb.from('po_wheel').upsert(op.row, { onConflict: 'user_id,area,month' }); if (error) throw error;
+  }
+}
 async function qFlush() {
   const q = qGet();
   if (!q.length || !user) return;
-  const rest = [];
+  const rest = [], dead = [];
   for (const op of q) {
     try {
-      if (op.kind === 'workout') {
-        const { error } = await sb.from('po_workout_logs').insert(op.rows.map(({ _tmp, ...r }) => r)); if (error) throw error;
-      } else if (op.kind === 'habit') {
-        if (op.state === 'unset') {
-          const { error } = await sb.from('po_habit_days').delete().match({ user_id: user.id, habit_id: op.habit_id, day: op.day }); if (error) throw error;
-        } else {
-          const { error } = await sb.from('po_habit_days').upsert(
-            { user_id: user.id, habit_id: op.habit_id, day: op.day, done: op.state === 'yes' },
-            { onConflict: 'user_id,habit_id,day' }); if (error) throw error;
-        }
-      } else if (op.kind === 'wheel') {
-        const { error } = await sb.from('po_wheel').upsert(op.row, { onConflict: 'user_id,area,month' }); if (error) throw error;
-      }
+      await runOp(op);
     } catch (e) {
-      if (isNetErr(e)) { rest.push(op); } // rete ancora giù: ritenta dopo
-      // errore non di rete: scarta l'operazione per non bloccare la coda
+      if (isNetErr(e)) { rest.push(op); continue; }      // rete giù: ritenta dopo, operazione intatta
+      op.tries = (op.tries || 0) + 1;
+      if (op.tries < MAX_TRIES) rest.push(op);            // errore transitorio: ritenta
+      else dead.push(op);                                 // fallisce da troppo: in dead-letter, MAI persa in silenzio
     }
   }
   qSet(rest);
-  if (rest.length < q.length) { await loadAll(); renderAll(); }
+  if (dead.length) dlSet([...dlGet(), ...dead]);
+  if (rest.length < q.length || dead.length) { await loadAll(); renderAll(); }
 }
 window.addEventListener('online', qFlush);
+
+// Ritenta manualmente le operazioni finite in dead-letter (dal banner di avviso).
+async function retryDeadLetter() {
+  const dead = dlGet();
+  if (!dead.length) return;
+  dlSet([]);
+  for (const op of dead) { delete op.tries; qPush(op); applyQueueLocally(); }
+  await qFlush();
+  renderAll();
+}
 
 // riapplica localmente le operazioni in coda (così l'UI riflette anche ciò che è offline)
 function applyQueueLocally() {
@@ -824,7 +856,9 @@ function exportMarkdown() {
     months.push(d.toLocaleDateString('sv-SE').slice(0, 7));
   }
   const relevantMonths = months.filter(ym => habitDays.some(d => d.day.startsWith(ym)));
-  const activeHabits = habits.filter(h => h.active);
+  // backup completo: anche le abitudini archiviate (lo storico non va perso)
+  const activeHabits = [...habits].sort((a, b) => a.position - b.position);
+  const hLabel = h => `${h.emoji} ${h.name}${h.active ? '' : ' (archiviata)'}`;
   const mName = ym => MESI_IT[+ym.slice(5) - 1] + ' ' + ym.slice(0, 4);
   const doneFn = (habitId, ym) => habitDays.filter(d => d.habit_id === habitId && d.done && d.day.startsWith(ym)).length;
   const totalFn = ym => ym === thisMonth() ? parseInt(today().slice(8), 10) : daysInMonth(ym);
@@ -836,7 +870,7 @@ function exportMarkdown() {
   md += `| Abitudine | ` + relevantMonths.map(mName).join(' | ') + ' |\n';
   md += `|---|` + relevantMonths.map(() => '---').join('|') + '|\n';
   for (const h of activeHabits) {
-    md += `| ${h.emoji} ${h.name} | `;
+    md += `| ${hLabel(h)} | `;
     for (const ym of relevantMonths) {
       const total = totalFn(ym), done = doneFn(h.id, ym), p = pctFn(done, total);
       md += `${done}/${total} (${p}%) | `;
@@ -845,7 +879,7 @@ function exportMarkdown() {
   }
   md += `\n## Dettaglio per abitudine\n\n`;
   for (const h of activeHabits) {
-    md += `### ${h.emoji} ${h.name}\n*${h.tier} — ${h.points} pt/giorno*\n\n`;
+    md += `### ${hLabel(h)}\n*${h.tier} — ${h.points} pt/giorno*\n\n`;
     for (const ym of relevantMonths) {
       const total = totalFn(ym), done = doneFn(h.id, ym), p = pctFn(done, total);
       const bar = '█'.repeat(Math.round(p / 10)) + '░'.repeat(10 - Math.round(p / 10));
@@ -855,7 +889,7 @@ function exportMarkdown() {
   }
   md += `## Ultimi 30 giorni\n\n`;
   const last30 = lastNDays(30).reverse();
-  md += `| Data | ` + activeHabits.map(h => `${h.emoji} ${h.name}`).join(' | ') + ' |\n';
+  md += `| Data | ` + activeHabits.map(hLabel).join(' | ') + ' |\n';
   md += `|---|` + activeHabits.map(() => '---').join('|') + '|\n';
   for (const day of last30) {
     md += `| ${day} | `;
@@ -1214,6 +1248,7 @@ function renderDisciplina() {
     $('di-boss-banner').insertAdjacentElement('afterend', w);
   }
 
+  const pendingFor = id => qGet().some(o => o.kind === 'habit' && o.habit_id === id && o.day === t);
   const tiers = ['boss', 'standard', 'secondaria', 'dispersione'];
   $('di-list').innerHTML = tiers.map(tier => {
     const hs = habits.filter(h => h.active && h.tier === tier).sort((a, b) => a.position - b.position);
@@ -1227,7 +1262,7 @@ function renderDisciplina() {
       const yesClass = st === 'yes' ? (isDisp ? 'resist' : 'yes') : '';
       return `<div class="habit${isBoss ? ' is-boss' : ''}">
         <span class="hname">
-          <span class="htitle">${h.emoji} ${esc(h.name)}${streak >= 1 ? `<span class="streak">🔥${streak}</span>` : ''}</span>
+          <span class="htitle">${h.emoji} ${esc(h.name)}${streak >= 1 ? `<span class="streak">🔥${streak}</span>` : ''}${pendingFor(h.id) ? '<span class="pending-flag" title="in attesa di sincronizzazione">📴</span>' : ''}</span>
           <span class="habit-month">${mDone}/${mTotal}g questo mese</span>
         </span>
         <span class="hpts">${h.points} pt</span>
@@ -1328,6 +1363,25 @@ function renderDisciplina() {
 }
 
 $('btn-export').onclick = exportMarkdown;
+
+// Backup completo re-importabile: tutti i dati grezzi attualmente in memoria.
+function exportJSON() {
+  const payload = {
+    exported_at: new Date().toISOString(),
+    user_email: user?.email || null,
+    counts: { books: books.length, checkins: checkins.length, exercises: exercises.length,
+      workoutLogs: workoutLogs.length, habits: habits.length, habitDays: habitDays.length, wheel: wheel.length },
+    tables: { pm_books: books, pm_checkins: checkins, po_exercises: exercises,
+      po_workout_logs: workoutLogs, po_habits: habits, po_habit_days: habitDays, po_wheel: wheel },
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `player-one-backup-${today()}.json`; a.click();
+  URL.revokeObjectURL(url);
+  $('export-msg').textContent = 'Backup JSON scaricato ✓';
+  setTimeout(() => { $('export-msg').textContent = ''; }, 3000);
+}
+$('btn-export-json').onclick = exportJSON;
 
 $('btn-addhabit').onclick = async () => {
   const name = $('dh-name').value.trim(), tier = $('dh-tier').value;
@@ -1475,8 +1529,24 @@ $('btn-checkin').onclick = async () => {
 /* ───────────────── UTIL & BOOT ───────────────── */
 function esc(s) { return (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
+function renderSyncStatus() {
+  const bar = $('sync-bar');
+  const pending = qGet().length, dead = dlGet().length;
+  if (dead) {
+    bar.className = 'dead';
+    bar.innerHTML = `⚠️ ${dead} ${dead === 1 ? 'modifica non salvata' : 'modifiche non salvate'} <button id="btn-retry-sync">Riprova</button>`;
+    $('btn-retry-sync').onclick = retryDeadLetter;
+  } else if (pending) {
+    bar.className = 'pending';
+    bar.textContent = `📴 ${pending} ${pending === 1 ? 'modifica in attesa di sincronizzazione' : 'modifiche in attesa di sincronizzazione'}`;
+  } else {
+    bar.className = 'hidden';
+  }
+}
+
 function renderAll() {
   renderRuota(); renderCorpo(); renderDisciplina(); renderMente();
+  renderSyncStatus();
   $('cfg-email').textContent = user.email;
 }
 
