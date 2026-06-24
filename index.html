@@ -504,9 +504,22 @@ const HABITS_SEED = [
 const TIER_LABEL = { boss:'⭐ Boss — 3 pt', standard:'Standard — 1 pt', secondaria:'Secondarie — 1 pt', dispersione:'Dispersioni — ✅ = resistito, 1 pt' };
 const TIER_EMOJI = { boss:'⭐', standard:'▫️', secondaria:'▫️', dispersione:'🚫' };
 // massimi dinamici: cambiano se aggiungi/archivi abitudini
-const maxDayPts = () => habits.filter(h => h.active).reduce((s, h) => s + h.points, 0) || 21;
+// Un'abitudine "esisteva" in un dato giorno se creata entro quel giorno e non ancora
+// archiviata. Così lo storico è immutabile: aggiungere un'abitudine oggi NON riscrive
+// i giorni e i mesi passati. (archived_at è opzionale: valorizzato solo se presente.)
+const habitExistedOn = (h, day) => {
+  const created = (h.created_at || '').slice(0, 10);
+  if (created && created > day) return false;
+  if (h.active) return true;
+  const archived = (h.archived_at || '').slice(0, 10);
+  return archived ? archived > day : false;
+};
+const dayMax = day => habits.filter(h => habitExistedOn(h, day)).reduce((s, h) => s + h.points, 0);
+const sumMax = days => days.reduce((s, d) => s + dayMax(d), 0);
+const maxDayPts = () => dayMax(today()) || 21;
 const daysInMonth = ym => { const [y, m] = ym.split('-').map(Number); return new Date(y, m, 0).getDate(); };
-const maxMonthPts = ym => maxDayPts() * daysInMonth(ym);
+const daysOfMonth = ym => Array.from({ length: daysInMonth(ym) }, (_, i) => `${ym}-${String(i + 1).padStart(2, '0')}`);
+const maxMonthPts = ym => sumMax(daysOfMonth(ym)) || (21 * daysInMonth(ym));
 // soglie tarate sul tracker originale (630/mese), riscalate sul massimo attuale
 const MESE_LIVELLI = [ ['👑 Campione', 610], ['🥇 Oro', 540], ['🥈 Argento', 420], ['🥉 Bronzo', 280] ];
 const livelliScalati = ym => { const k = maxMonthPts(ym) / 630; return MESE_LIVELLI.map(([n, v]) => [n, Math.round(v * k)]); };
@@ -1281,20 +1294,20 @@ function renderDisciplina() {
 
   const tIdx = recentDays.indexOf(t);
   const tLabel = tIdx >= 0 ? dayChipLabel(t, tIdx) : new Date(t + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long' });
-  $('di-today-pts').textContent = `${dayPoints(t)}/${maxDayPts()} pt ${tLabel.toLowerCase()}`;
+  $('di-today-pts').textContent = `${dayPoints(t)}/${dayMax(t) || maxDayPts()} pt ${tLabel.toLowerCase()}`;
 
   // mese corrente
   const monthDays = habitDays.filter(d => d.day.startsWith(thisMonth()));
   const days = [...new Set(monthDays.map(d => d.day))];
   const monthPts = days.reduce((s, d) => s + dayPoints(d), 0);
-  const perfect = days.filter(d => dayPoints(d) >= maxDayPts()).length;
+  const perfect = days.filter(d => { const m = dayMax(d); return m > 0 && dayPoints(d) >= m; }).length;
   const soglie = livelliScalati(thisMonth());
   const lvl = soglie.find(([, min]) => monthPts >= min);
   $('di-month-pts').textContent = monthPts;
   $('di-month-lvl').textContent = lvl ? lvl[0] : '—';
   $('di-perfect').textContent = perfect;
   const elapsedDays = parseInt(today().slice(8), 10);
-  const elapsedMax = maxDayPts() * elapsedDays;
+  const elapsedMax = sumMax(daysOfMonth(thisMonth()).slice(0, elapsedDays));
   $('di-bar').style.width = elapsedMax > 0 ? Math.min(100, monthPts / elapsedMax * 100) + '%' : '0%';
   const [camp, oro, arg, bro] = soglie;
   $('di-levels-label').innerHTML = `<span>🥉 ${bro[1]} · 🥈 ${arg[1]} · 🥇 ${oro[1]} (+50€)</span><span>👑 ${camp[1]} (+100€)</span>`;
@@ -1306,7 +1319,7 @@ function renderDisciplina() {
   // settimana corrente
   const weekDays = lastNDays(7);
   const weekPts = weekDays.reduce((s, d) => s + dayPoints(d), 0);
-  const weekMax = maxDayPts() * 7;
+  const weekMax = sumMax(weekDays);
   const weekPct = weekMax > 0 ? Math.round(weekPts / weekMax * 100) : 0;
   $('di-week-summary').textContent = `Ultimi 7 giorni: ${weekPts}/${weekMax} pt (${weekPct}%)`;
 
