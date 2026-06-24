@@ -255,6 +255,14 @@
       <p class="muted" style="margin-top:8px;font-size:12px">Il grafico si riempie mese dopo mese con le tue azioni e i tuoi voti.</p>
     </div>
     <div class="card">
+      <h2>Disciplina <small>— questo mese</small></h2>
+      <div class="statrow" style="margin-top:4px" id="pi-disc"></div>
+    </div>
+    <div class="card">
+      <h2>Le aree nel tempo</h2>
+      <div id="pi-areas"></div>
+    </div>
+    <div class="card">
       <h2>Il piano 2026</h2>
       <div id="pi-plan"></div>
     </div>
@@ -1159,6 +1167,19 @@ function lifeChart(vita, azione) {
   const line = (arr, c) => `<polyline fill="none" stroke="${c}" stroke-width="2" points="${arr.map((s, i) => `${X(i).toFixed(1)},${Y(s.v).toFixed(1)}`).join(' ')}"/>` + arr.map((s, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(s.v).toFixed(1)}" r="2.5" fill="${c}"/>`).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${grid}${labels}${line(vita, '#f5d27a')}${line(azione, '#5ec97c')}</svg>`;
 }
+function disciplinaSummary() {
+  const ym = thisMonth();
+  const days = [...new Set(habitDays.filter(d => d.day.startsWith(ym)).map(d => d.day))];
+  const monthPts = days.reduce((s, d) => s + dayPoints(d), 0);
+  const bossDays = days.filter(bossDayComplete).length;
+  const lvl = livelliScalati(ym).find(([, min]) => monthPts >= min);
+  const bestStreak = Math.max(0, ...habits.filter(h => h.active).map(h => habitStreak(h.id)));
+  return { monthPts, level: lvl ? lvl[0] : '—', bossDays, bestStreak };
+}
+function areaScoreForMonth(a, ym) {
+  if (a.type === 'auto') { const o = daysAgoForMonth(ym); return a.key === 'salute' ? corpoAt(o) : tempoAt(o); }
+  return manualScoreMonth(a.key, ym); // null se non votata quel mese
+}
 function renderPiano() {
   // focus del mese: area più debole
   const scored = AREAS.map(a => ({ a, sc: areaScore(a) })).filter(x => x.sc !== null);
@@ -1185,6 +1206,29 @@ function renderPiano() {
     <div class="pn"><b style="color:var(--gold2)">${vN}</b><span>Vita</span>${delta(vN, vP)}</div>
     <div class="pn"><b style="color:var(--green)">${aN}</b><span>Azione</span>${delta(aN, aP)}</div>`;
   $('pi-chart').innerHTML = lifeChart(vita, azione);
+
+  // disciplina del mese
+  const ds = disciplinaSummary();
+  $('pi-disc').innerHTML = `
+    <div class="stat"><b>${ds.monthPts}</b><span>Punti mese</span></div>
+    <div class="stat"><b>${ds.level}</b><span>Livello</span></div>
+    <div class="stat"><b>${ds.bossDays}</b><span>Giorni Boss</span></div>
+    <div class="stat"><b>🔥${ds.bestStreak}</b><span>Streak top</span></div>`;
+
+  // le 8 aree nel tempo (tabella)
+  const col = p => p == null ? 'var(--dim)' : p >= 7 ? 'var(--green)' : p >= 4 ? 'var(--gold2)' : p > 0 ? 'var(--dim)' : 'var(--line)';
+  let t = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:4px 6px;color:var(--dim);min-width:96px">Area</th>`;
+  for (const ym of months) t += `<th style="text-align:center;padding:4px 3px;color:var(--dim)">${MESI_IT[+ym.slice(5) - 1].slice(0, 3)}</th>`;
+  t += '</tr></thead><tbody>';
+  for (const a of AREAS) {
+    t += `<tr><td style="padding:6px 6px;white-space:nowrap">${a.emoji} ${a.label}</td>`;
+    for (const ym of months) {
+      const s = areaScoreForMonth(a, ym);
+      t += `<td style="text-align:center;padding:6px 3px;color:${col(s)};font-weight:${s != null && s >= 7 ? '700' : '400'}">${s == null ? '—' : s}</td>`;
+    }
+    t += '</tr>';
+  }
+  $('pi-areas').innerHTML = t + '</tbody></table></div>';
 }
 
 async function onAreaTap(key) {
