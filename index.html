@@ -872,7 +872,13 @@ function exportMarkdown() {
   $('export-msg').textContent = 'File scaricato ✓';
   setTimeout(() => { $('export-msg').textContent = ''; }, 3000);
 }
+// Voto valido solo per il mese corrente: ogni mese le aree manuali tornano a "vota".
 function manualScore(area) {
+  const entry = wheel.find(w => w.area === area && w.month === thisMonth());
+  return entry ? entry.score : null;
+}
+// Ultimo voto in assoluto (anche di mesi passati) — solo come riferimento nel prompt.
+function lastManualScore(area) {
   const entries = wheel.filter(w => w.area === area);
   return entries.length ? entries[entries.length - 1].score : null;
 }
@@ -975,7 +981,7 @@ function renderRuota() {
 async function onAreaTap(key) {
   const a = AREAS.find(a => a.key === key);
   if (a.type === 'auto') { show(key === 'corpo' ? 'corpo' : key === 'mente' ? 'mente' : 'disciplina'); return; }
-  const cur = manualScore(key);
+  const cur = lastManualScore(key);
   const v = prompt(`${a.emoji} ${a.label} — come stai in quest'area questo mese? Voto da 1 a 10${cur ? ` (ultimo: ${cur})` : ''}`);
   if (!v) return;
   const score = parseInt(v, 10);
@@ -997,7 +1003,7 @@ const dayNames = () => [...new Set(exercises.filter(e => e.active).sort((a, b) =
 
 function parseSets(str) {
   const out = [];
-  const re = /(\d+(?:[.,]\d+)?)\s*[x(×]\s*(\d+)/g;
+  const re = /(\d+(?:[.,]\d+)?)\s*[xX×]\s*(\d+)/g;
   let m;
   while ((m = re.exec(str))) out.push({ w: parseFloat(m[1].replace(',', '.')), r: parseInt(m[2], 10) });
   return out;
