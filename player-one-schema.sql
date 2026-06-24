@@ -56,9 +56,10 @@ create table if not exists po_habit_days (
 create table if not exists po_wheel (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references auth.users on delete cascade,
-  area       text not null,            -- famiglia | allianz | herbalife | brand | finanze
+  area       text not null,            -- salute | crescita | tempo | famiglia | finanze | business | mindset | spirito
   month      text not null,            -- 'YYYY-MM'
-  score      int  not null check (score between 1 and 10),
+  score      int  not null check (score between 0 and 10),
+  subs       jsonb,                    -- sub-dimensioni per aree composite, es. {"Proattività":0,"Risultati":7}
   note       text,
   created_at timestamptz not null default now(),
   unique (user_id, area, month)

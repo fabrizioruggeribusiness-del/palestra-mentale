@@ -456,15 +456,18 @@ const CATEGORIE = [
   { nome: 'Mentore',    min: 2200 },
 ];
 
+// Aree allineate alla Ruota della Vita reale di Fabrizio (nota 2026-06-23).
+// auto = calcolate dalle azioni tracciate; manuale = autovalutazione mensile.
+// subs = sub-dimensioni votate singolarmente (il punteggio area = loro media).
 const AREAS = [
-  { key:'corpo',      label:'Corpo',      emoji:'🏋️', type:'auto',    color:'#e8b84b' },
-  { key:'mente',      label:'Mente',      emoji:'🧠', type:'auto',    color:'#7aa2f7' },
-  { key:'disciplina', label:'Disciplina', emoji:'⚔️', type:'auto',    color:'#5ec97c' },
-  { key:'famiglia',   label:'Famiglia',   emoji:'❤️', type:'manuale', color:'#e06c8a' },
-  { key:'allianz',    label:'Allianz',    emoji:'🛡️', type:'manuale', color:'#6cc3e0' },
-  { key:'herbalife',  label:'Herbalife',  emoji:'🌱', type:'manuale', color:'#8fd96c' },
-  { key:'brand',      label:'Brand',      emoji:'📣', type:'manuale', color:'#d98fe0' },
-  { key:'finanze',    label:'Finanze',    emoji:'💶', type:'manuale', color:'#e0b06c' },
+  { key:'salute',   label:'Salute Fisica', emoji:'🏋️', type:'auto',    color:'#e8b84b', nav:'corpo' },
+  { key:'crescita', label:'Crescita',      emoji:'🌱', type:'manuale', color:'#7aa2f7', subs:['Consapevolezza','Studio','Meditazione'] },
+  { key:'tempo',    label:'Tempo Libero',  emoji:'🎮', type:'auto',    color:'#5ec97c', nav:'disciplina' },
+  { key:'famiglia', label:'Famiglia',      emoji:'❤️', type:'manuale', color:'#e06c8a' },
+  { key:'finanze',  label:'Finanze',       emoji:'💶', type:'manuale', color:'#e0b06c' },
+  { key:'business', label:'Business',      emoji:'💼', type:'manuale', color:'#6cc3e0', subs:['Proattività','Risultati'] },
+  { key:'mindset',  label:'Mindset',       emoji:'⚡', type:'manuale', color:'#d98fe0', subs:['Emotivo','Stress','Resilienza'] },
+  { key:'spirito',  label:'Spiritualità',  emoji:'🕊️', type:'manuale', color:'#9fb0c9' },
 ];
 
 const STATI = [
@@ -948,28 +951,39 @@ function lastManualScore(area) {
   const entries = wheel.filter(w => w.area === area);
   return entries.length ? entries[entries.length - 1].score : null;
 }
+const lastManualSubs = area => { const e = wheel.filter(w => w.area === area); return e.length ? (e[e.length - 1].subs || null) : null; };
 const prevMonth = () => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toLocaleDateString('sv-SE').slice(0, 7); };
 const manualScoreMonth = (area, ym) => { const e = wheel.find(w => w.area === area && w.month === ym); return e ? e.score : null; };
+
+// Tempo Libero (auto): quanto resisti alle dispersioni negli ultimi 14 giorni (✅ = resistito).
+function tempoAt(offset) {
+  const disp = habits.filter(h => h.tier === 'dispersione' && h.active);
+  if (!disp.length) return 0;
+  const days = daysWindow(offset, 14);
+  let resisted = 0, total = 0;
+  for (const h of disp) for (const d of days) { total++; if (habitDays.some(x => x.habit_id === h.id && x.day === d && x.done)) resisted++; }
+  return total ? Math.min(10, +(resisted / total * 10).toFixed(1)) : 0;
+}
+const scoreTempoLibero = () => tempoAt(0);
+
+function areaScore(a) {
+  if (a.key === 'salute') return scoreCorpo();
+  if (a.key === 'tempo') return scoreTempoLibero();
+  return manualScore(a.key);
+}
 // Andamento: manuali = voto di questo mese vs mese scorso; auto = finestra attuale vs precedente.
 function areaTrend(a) {
-  if (a.type === 'manual') {
+  if (a.type === 'manuale') {
     const now = manualScoreMonth(a.key, thisMonth()), prev = manualScoreMonth(a.key, prevMonth());
     return (now == null || prev == null) ? null : +(now - prev).toFixed(1);
   }
-  const prevOff = a.key === 'disciplina' ? 7 : 14;
-  const prev = a.key === 'corpo' ? corpoAt(prevOff) : a.key === 'mente' ? menteAt(prevOff) : disciplinaAt(prevOff);
+  const prev = a.key === 'salute' ? corpoAt(14) : tempoAt(14);
   return +(areaScore(a) - prev).toFixed(1);
 }
-function areaScore(a) {
-  if (a.key === 'corpo') return scoreCorpo();
-  if (a.key === 'mente') return scoreMente();
-  if (a.key === 'disciplina') return scoreDisciplina();
-  return manualScore(a.key);
-}
-// Forma del personaggio: solo le aree d'azione (le autovalutazioni non muovono l'avatar)
+// "Azione" (l'avatar): solo i segnali oggettivi di esecuzione, non le autovalutazioni.
 function formaGlobale() {
-  if (!poReady) return scoreMente();
-  return +((scoreCorpo() + scoreMente() + scoreDisciplina()) / 3).toFixed(1);
+  if (!poReady) return scoreCorpo();
+  return +((scoreCorpo() + scoreTempoLibero() + scoreDisciplina()) / 3).toFixed(1);
 }
 const statoIdx = f => f < 2 ? 0 : f < 4 ? 1 : f < 6.5 ? 2 : f < 8.5 ? 3 : 4;
 
@@ -1053,7 +1067,9 @@ function renderRuota() {
     const arrow = (sc === null || tr === null || tr === 0) ? ''
       : tr > 0 ? `<span style="color:var(--green);font-size:11px">▲${tr}</span>`
                : `<span style="color:var(--red);font-size:11px">▼${Math.abs(tr)}</span>`;
-    return `<div><span class="swatch" style="background:${a.color}"></span>${a.emoji} ${a.label} ${arrow}<b>${sc === null ? 'vota' : sc}</b></div>`;
+    const row = wheel.find(w => w.area === a.key && w.month === thisMonth());
+    const title = row && row.subs ? ` title="${Object.entries(row.subs).map(([k, v]) => esc(k) + ' ' + v).join(' · ')}"` : '';
+    return `<div${title}><span class="swatch" style="background:${a.color}"></span>${a.emoji} ${a.label} ${arrow}<b>${sc === null ? 'vota' : sc}</b></div>`;
   }).join('');
 
   renderDirection();
@@ -1066,7 +1082,7 @@ function renderDirection() {
   const el = $('po-direction');
   if (!el) return;
   const scored = AREAS.map(a => ({ a, sc: areaScore(a) })).filter(x => x.sc !== null);
-  const unvoted = AREAS.filter(a => a.type === 'manual' && manualScore(a.key) === null);
+  const unvoted = AREAS.filter(a => a.type === 'manuale' && manualScore(a.key) === null);
   let html = '';
   if (scored.length) {
     const weak = scored.reduce((m, x) => x.sc < m.sc ? x : m);
@@ -1080,19 +1096,37 @@ function renderDirection() {
 
 async function onAreaTap(key) {
   const a = AREAS.find(a => a.key === key);
-  if (a.type === 'auto') { show(key === 'corpo' ? 'corpo' : key === 'mente' ? 'mente' : 'disciplina'); return; }
-  const cur = lastManualScore(key);
-  const v = prompt(`${a.emoji} ${a.label} — come stai in quest'area questo mese? Voto da 1 a 10${cur ? ` (ultimo: ${cur})` : ''}`);
-  if (!v) return;
-  const score = parseInt(v, 10);
-  if (!(score >= 1 && score <= 10)) { alert('Serve un numero da 1 a 10.'); return; }
+  if (a.type === 'auto') { show(a.nav); return; }
+  let score, subs = null;
+  if (a.subs) {
+    subs = {};
+    const prev = lastManualSubs(key);
+    for (const s of a.subs) {
+      const hint = prev && prev[s] != null ? ` (ultimo: ${prev[s]})` : '';
+      const v = prompt(`${a.emoji} ${a.label} — ${s}: voto da 0 a 10${hint}`);
+      if (!v) return;
+      const n = parseInt(v, 10);
+      if (!(n >= 0 && n <= 10)) { alert('Serve un numero da 0 a 10.'); return; }
+      subs[s] = n;
+    }
+    score = Math.round(Object.values(subs).reduce((x, y) => x + y, 0) / a.subs.length);
+  } else {
+    const cur = lastManualScore(key);
+    const v = prompt(`${a.emoji} ${a.label} — come stai in quest'area questo mese? Voto da 0 a 10${cur ? ` (ultimo: ${cur})` : ''}`);
+    if (!v) return;
+    const n = parseInt(v, 10);
+    if (!(n >= 0 && n <= 10)) { alert('Serve un numero da 0 a 10.'); return; }
+    score = n;
+  }
   const row = { user_id: user.id, area: key, month: thisMonth(), score };
+  if (subs) row.subs = subs;
   try {
     const { error } = await sb.from('po_wheel').upsert(row, { onConflict: 'user_id,area,month' });
     if (error) throw error;
     await loadAll();
   } catch (e) {
     if (isNetErr(e)) { qPush({ kind: 'wheel', row }); applyQueueLocally(); }
+    else if (/subs|column|constraint|check/i.test(e.message || '')) alert('Manca la migrazione DB. Esegui migration-wheel-subs.sql nel SQL Editor di Supabase, poi riprova.');
     else alert('Errore: ' + e.message);
   }
   renderAll();
