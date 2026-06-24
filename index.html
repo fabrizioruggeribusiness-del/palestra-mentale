@@ -457,16 +457,15 @@ const CATEGORIE = [
 ];
 
 // Aree allineate alla Ruota della Vita reale di Fabrizio (nota 2026-06-23).
-// auto = calcolate dalle azioni tracciate; manuale = autovalutazione mensile.
-// subs = sub-dimensioni votate singolarmente (il punteggio area = loro media).
+// auto = calcolate dalle azioni tracciate; manuale = autovalutazione mensile (0–10).
 const AREAS = [
   { key:'salute',   label:'Salute Fisica', emoji:'🏋️', type:'auto',    color:'#e8b84b', nav:'corpo' },
-  { key:'crescita', label:'Crescita',      emoji:'🌱', type:'manuale', color:'#7aa2f7', subs:['Consapevolezza','Studio','Meditazione'] },
+  { key:'crescita', label:'Crescita',      emoji:'🌱', type:'manuale', color:'#7aa2f7' },
   { key:'tempo',    label:'Tempo Libero',  emoji:'🎮', type:'auto',    color:'#5ec97c', nav:'disciplina' },
   { key:'famiglia', label:'Famiglia',      emoji:'❤️', type:'manuale', color:'#e06c8a' },
   { key:'finanze',  label:'Finanze',       emoji:'💶', type:'manuale', color:'#e0b06c' },
-  { key:'business', label:'Business',      emoji:'💼', type:'manuale', color:'#6cc3e0', subs:['Proattività','Risultati'] },
-  { key:'mindset',  label:'Mindset',       emoji:'⚡', type:'manuale', color:'#d98fe0', subs:['Emotivo','Stress','Resilienza'] },
+  { key:'business', label:'Business',      emoji:'💼', type:'manuale', color:'#6cc3e0' },
+  { key:'mindset',  label:'Mindset',       emoji:'⚡', type:'manuale', color:'#d98fe0' },
   { key:'spirito',  label:'Spiritualità',  emoji:'🕊️', type:'manuale', color:'#9fb0c9' },
 ];
 
@@ -951,7 +950,6 @@ function lastManualScore(area) {
   const entries = wheel.filter(w => w.area === area);
   return entries.length ? entries[entries.length - 1].score : null;
 }
-const lastManualSubs = area => { const e = wheel.filter(w => w.area === area); return e.length ? (e[e.length - 1].subs || null) : null; };
 const prevMonth = () => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toLocaleDateString('sv-SE').slice(0, 7); };
 const manualScoreMonth = (area, ym) => { const e = wheel.find(w => w.area === area && w.month === ym); return e ? e.score : null; };
 
@@ -1067,9 +1065,7 @@ function renderRuota() {
     const arrow = (sc === null || tr === null || tr === 0) ? ''
       : tr > 0 ? `<span style="color:var(--green);font-size:11px">▲${tr}</span>`
                : `<span style="color:var(--red);font-size:11px">▼${Math.abs(tr)}</span>`;
-    const row = wheel.find(w => w.area === a.key && w.month === thisMonth());
-    const title = row && row.subs ? ` title="${Object.entries(row.subs).map(([k, v]) => esc(k) + ' ' + v).join(' · ')}"` : '';
-    return `<div${title}><span class="swatch" style="background:${a.color}"></span>${a.emoji} ${a.label} ${arrow}<b>${sc === null ? 'vota' : sc}</b></div>`;
+    return `<div><span class="swatch" style="background:${a.color}"></span>${a.emoji} ${a.label} ${arrow}<b>${sc === null ? 'vota' : sc}</b></div>`;
   }).join('');
 
   renderDirection();
@@ -1097,36 +1093,19 @@ function renderDirection() {
 async function onAreaTap(key) {
   const a = AREAS.find(a => a.key === key);
   if (a.type === 'auto') { show(a.nav); return; }
-  let score, subs = null;
-  if (a.subs) {
-    subs = {};
-    const prev = lastManualSubs(key);
-    for (const s of a.subs) {
-      const hint = prev && prev[s] != null ? ` (ultimo: ${prev[s]})` : '';
-      const v = prompt(`${a.emoji} ${a.label} — ${s}: voto da 0 a 10${hint}`);
-      if (!v) return;
-      const n = parseInt(v, 10);
-      if (!(n >= 0 && n <= 10)) { alert('Serve un numero da 0 a 10.'); return; }
-      subs[s] = n;
-    }
-    score = Math.round(Object.values(subs).reduce((x, y) => x + y, 0) / a.subs.length);
-  } else {
-    const cur = lastManualScore(key);
-    const v = prompt(`${a.emoji} ${a.label} — come stai in quest'area questo mese? Voto da 0 a 10${cur ? ` (ultimo: ${cur})` : ''}`);
-    if (!v) return;
-    const n = parseInt(v, 10);
-    if (!(n >= 0 && n <= 10)) { alert('Serve un numero da 0 a 10.'); return; }
-    score = n;
-  }
-  const row = { user_id: user.id, area: key, month: thisMonth(), score };
-  if (subs) row.subs = subs;
+  const cur = lastManualScore(key);
+  const v = prompt(`${a.emoji} ${a.label} — come stai in quest'area questo mese? Voto da 0 a 10${cur != null ? ` (ultimo: ${cur})` : ''}`);
+  if (!v) return;
+  const n = parseInt(v, 10);
+  if (!(n >= 0 && n <= 10)) { alert('Serve un numero da 0 a 10.'); return; }
+  const row = { user_id: user.id, area: key, month: thisMonth(), score: n };
   try {
     const { error } = await sb.from('po_wheel').upsert(row, { onConflict: 'user_id,area,month' });
     if (error) throw error;
     await loadAll();
   } catch (e) {
     if (isNetErr(e)) { qPush({ kind: 'wheel', row }); applyQueueLocally(); }
-    else if (/subs|column|constraint|check/i.test(e.message || '')) alert('Manca la migrazione DB. Esegui migration-wheel-subs.sql nel SQL Editor di Supabase, poi riprova.');
+    else if (/constraint|check/i.test(e.message || '')) alert('Per votare 0 esegui prima migration-wheel-scale.sql nel SQL Editor di Supabase (oppure usa 1–10).');
     else alert('Errore: ' + e.message);
   }
   renderAll();

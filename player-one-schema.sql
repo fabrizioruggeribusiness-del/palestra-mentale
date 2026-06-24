@@ -59,7 +59,6 @@ create table if not exists po_wheel (
   area       text not null,            -- salute | crescita | tempo | famiglia | finanze | business | mindset | spirito
   month      text not null,            -- 'YYYY-MM'
   score      int  not null check (score between 0 and 10),
-  subs       jsonb,                    -- sub-dimensioni per aree composite, es. {"Proattività":0,"Risultati":7}
   note       text,
   created_at timestamptz not null default now(),
   unique (user_id, area, month)
