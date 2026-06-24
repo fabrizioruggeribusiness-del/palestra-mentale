@@ -370,7 +370,7 @@
         <div class="statrow" style="margin-top:4px">
           <div class="stat"><b id="di-month-pts">0</b><span>Punti mese</span></div>
           <div class="stat"><b id="di-month-lvl">—</b><span>Livello</span></div>
-          <div class="stat"><b id="di-perfect">0</b><span>Giorni pieni</span></div>
+          <div class="stat"><b id="di-perfect">0</b><span>Giorni Boss</span></div>
         </div>
         <div class="progress"><i id="di-bar" style="width:0%"></i></div>
         <div class="progress-label" id="di-levels-label"><span></span><span></span></div>
@@ -798,6 +798,11 @@ function dayPoints(day) {
     const h = habits.find(h => h.id === d.habit_id);
     return s + (h ? h.points : 0);
   }, 0);
+}
+// "Giorno pieno" = tutte le Boss esistenti quel giorno sono state fatte (non serve spuntare tutto).
+function bossDayComplete(day) {
+  const bosses = habits.filter(h => h.tier === 'boss' && habitExistedOn(h, day));
+  return bosses.length > 0 && bosses.every(h => habitDays.some(x => x.habit_id === h.id && x.day === day && x.done));
 }
 function scoreDisciplina() {
   const days = lastNDays(7);
@@ -1243,8 +1248,7 @@ function renderDisciplina() {
     const d = habitDays.find(x => x.habit_id === h.id && x.day === t);
     return d ? (d.done ? 'yes' : 'no') : '';
   };
-  const bossHabits = habits.filter(h => h.active && h.tier === 'boss');
-  const allBossComplete = bossHabits.length > 0 && bossHabits.every(h => stateOf(h) === 'yes');
+  const allBossComplete = bossDayComplete(t);
   const bossBanner = $('di-boss-banner');
   if (allBossComplete) { bossBanner.className = 'boss-done'; bossBanner.textContent = '⭐ Boss completate — giornata solida'; }
   else { bossBanner.className = 'hidden'; }
@@ -1298,7 +1302,7 @@ function renderDisciplina() {
   const monthDays = habitDays.filter(d => d.day.startsWith(thisMonth()));
   const days = [...new Set(monthDays.map(d => d.day))];
   const monthPts = days.reduce((s, d) => s + dayPoints(d), 0);
-  const perfect = days.filter(d => { const m = dayMax(d); return m > 0 && dayPoints(d) >= m; }).length;
+  const perfect = days.filter(bossDayComplete).length;
   const soglie = livelliScalati(thisMonth());
   const lvl = soglie.find(([, min]) => monthPts >= min);
   $('di-month-pts').textContent = monthPts;
