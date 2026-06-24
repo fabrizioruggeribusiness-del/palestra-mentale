@@ -19,11 +19,12 @@ PWA single-file (`index.html`) su GitHub Pages. "La vita come videogioco" — Fa
 - Hosting: GitHub Pages (branch `gh-pages`)
 - Offline: localStorage queue (`po_queue`) + snapshot (`po_snapshot`)
 
-## Struttura app (5 tab)
+## Struttura app (6 tab)
 
 | Tab | Contenuto |
 |-----|-----------|
-| Ruota | Home: Wheel of Life SVG (8 aree) + avatar pixel art + barra livello |
+| Piano | **Home** (si apre per prima): focus del mese (area debole), piano 2026 (sola lettura, `PIANO_2026`), andamento Vita/Azione nel tempo (grafico 6 mesi) |
+| Ruota | Wheel of Life SVG (8 aree) + avatar pixel art + barra livello |
 | Corpo | Log allenamento, storico, 1RM stimato (Epley), PR rilevati |
 | Mente | Check-in lettura (ex Palestra Mentale, tabelle `pm_*`) |
 | Disciplina | Tracker abitudini, chips Oggi/Ieri, storico mesi, gestione abitudini |
