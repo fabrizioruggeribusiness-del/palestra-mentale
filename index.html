@@ -119,6 +119,14 @@
   .streak { color:var(--gold2); font-size:11px; font-weight:700; }
   .habit-month { font-size:11px; color:var(--dim); }
   .boss-done { background:rgba(232,184,75,.1); border:1px solid rgba(232,184,75,.35); border-radius:12px; padding:10px 14px; text-align:center; font-weight:700; color:var(--gold2); font-size:14px; margin-top:10px; }
+  .habit.is-boss { background:rgba(232,184,75,.06); border-radius:10px; padding-left:8px; padding-right:6px; border-bottom:none; margin-bottom:2px; }
+  .habit.is-boss .htitle { color:var(--gold2); }
+  .hgroup-boss > .habit.is-boss:not(:last-child) { border-bottom:1px solid rgba(232,184,75,.12); }
+  .day-empty-warn { background:rgba(224,108,108,.1); border:1px solid rgba(224,108,108,.3); border-radius:10px; padding:8px 12px; font-size:13px; color:var(--red); margin-top:8px; }
+  .next-level-hint { font-size:12px; color:var(--dim); margin-top:6px; }
+  .tog.resist { background: rgba(122,162,247,.18); border-color: var(--blue); color: var(--blue); }
+  .hgroup-dispersione .gtitle { color: var(--blue); }
+  .di-week-row { font-size:13px; color:var(--dim); margin-top:8px; }
 
   /* ── result card (mente) ── */
   .score-big { font-size: 52px; font-weight: 800; text-align:center; color: var(--gold2); line-height: 1.1; }
@@ -357,12 +365,22 @@
         </div>
         <div class="progress"><i id="di-bar" style="width:0%"></i></div>
         <div class="progress-label" id="di-levels-label"><span></span><span></span></div>
+        <div id="di-next-hint" class="next-level-hint"></div>
+        <div id="di-week-summary" class="di-week-row"></div>
         <div id="di-history" class="muted" style="margin-top:12px"></div>
       </div>
       <div class="card">
         <h2>Gestisci abitudini <small>— l'archivio non cancella lo storico</small></h2>
         <div id="di-manage"></div>
-        <label>Nuova abitudine</label><input id="dh-name" placeholder="es. Stretching serale">
+        <div id="di-archived-wrap" class="hidden">
+          <label style="margin-top:14px">Archiviate</label>
+          <div id="di-archived"></div>
+        </div>
+        <label>Nuova abitudine</label>
+        <div style="display:flex;gap:8px">
+          <input id="dh-emoji" placeholder="🏃" style="width:60px;flex-shrink:0;text-align:center;font-size:22px;padding:8px 4px">
+          <input id="dh-name" placeholder="es. Stretching serale" style="flex:1">
+        </div>
         <label>Tipo</label>
         <select id="dh-tier">
           <option value="boss">⭐ Boss (3 pt)</option>
@@ -1159,8 +1177,13 @@ async function setHabitState(habitId, day, state, silent) {
 function renderDisciplina() {
   if (!poReady) return;
   const t = diDay;
-  const recentDays = lastNDays(3).reverse();
-  const dayChipLabel = (_, i) => i === 0 ? 'Oggi' : i === 1 ? 'Ieri' : '2 gg fa';
+  const recentDays = lastNDays(7).reverse();
+  const dayChipLabel = (d, i) => {
+    if (i === 0) return 'Oggi';
+    if (i === 1) return 'Ieri';
+    const dt = new Date(d + 'T12:00');
+    return ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'][dt.getDay()];
+  };
   $('di-days').innerHTML = recentDays.map((d, i) =>
     `<span class="chip ${d === diDay ? 'on' : ''}" data-diday="${d}">${dayChipLabel(d, i)}</span>`).join('');
   document.querySelectorAll('[data-diday]').forEach(ch => ch.onclick = () => { diDay = ch.dataset.diday; renderDisciplina(); });
@@ -1174,21 +1197,35 @@ function renderDisciplina() {
   const bossBanner = $('di-boss-banner');
   if (allBossComplete) { bossBanner.className = 'boss-done'; bossBanner.textContent = '⭐ Boss completate — giornata solida'; }
   else { bossBanner.className = 'hidden'; }
+
+  // avviso giorno vuoto (solo per giorni passati, non oggi)
+  const existingWarn = $('di-days').parentNode.querySelector('.day-empty-warn');
+  if (existingWarn) existingWarn.remove();
+  if (t !== today() && dayPoints(t) === 0) {
+    const w = document.createElement('div');
+    w.className = 'day-empty-warn';
+    w.textContent = '⚠️ Nessuna abitudine registrata per questo giorno.';
+    $('di-boss-banner').insertAdjacentElement('afterend', w);
+  }
+
   const tiers = ['boss', 'standard', 'secondaria', 'dispersione'];
   $('di-list').innerHTML = tiers.map(tier => {
     const hs = habits.filter(h => h.active && h.tier === tier).sort((a, b) => a.position - b.position);
     if (!hs.length) return '';
-    return `<div class="hgroup"><div class="gtitle">${TIER_LABEL[tier]}</div>` + hs.map(h => {
+    const isBoss = tier === 'boss';
+    const isDisp = tier === 'dispersione';
+    return `<div class="hgroup${isBoss ? ' hgroup-boss' : ''}${isDisp ? ' hgroup-dispersione' : ''}"><div class="gtitle">${TIER_LABEL[tier]}</div>` + hs.map(h => {
       const st = stateOf(h);
       const streak = habitStreak(h.id);
       const { done: mDone, total: mTotal } = habitMonthStats(h.id);
-      return `<div class="habit">
+      const yesClass = st === 'yes' ? (isDisp ? 'resist' : 'yes') : '';
+      return `<div class="habit${isBoss ? ' is-boss' : ''}">
         <span class="hname">
-          <span class="htitle">${h.emoji} ${esc(h.name)}${streak >= 2 ? `<span class="streak">🔥${streak}</span>` : ''}</span>
+          <span class="htitle">${h.emoji} ${esc(h.name)}${streak >= 1 ? `<span class="streak">🔥${streak}</span>` : ''}</span>
           <span class="habit-month">${mDone}/${mTotal}g questo mese</span>
         </span>
         <span class="hpts">${h.points} pt</span>
-        <span class="tog ${st === 'yes' ? 'yes' : ''}" data-h="${h.id}" data-set="yes">✓</span>
+        <span class="tog ${yesClass}" data-h="${h.id}" data-set="yes">${isDisp ? '💪' : '✓'}</span>
         <span class="tog ${st === 'no' ? 'no' : ''}" data-h="${h.id}" data-set="no">✗</span>
       </div>`;
     }).join('') + '</div>';
@@ -1213,9 +1250,22 @@ function renderDisciplina() {
   $('di-month-pts').textContent = monthPts;
   $('di-month-lvl').textContent = lvl ? lvl[0] : '—';
   $('di-perfect').textContent = perfect;
-  $('di-bar').style.width = Math.min(100, monthPts / maxMonthPts(thisMonth()) * 100) + '%';
+  const elapsedDays = parseInt(today().slice(8), 10);
+  const elapsedMax = maxDayPts() * elapsedDays;
+  $('di-bar').style.width = elapsedMax > 0 ? Math.min(100, monthPts / elapsedMax * 100) + '%' : '0%';
   const [camp, oro, arg, bro] = soglie;
   $('di-levels-label').innerHTML = `<span>🥉 ${bro[1]} · 🥈 ${arg[1]} · 🥇 ${oro[1]} (+50€)</span><span>👑 ${camp[1]} (+100€)</span>`;
+  const nextLvl = [...soglie].reverse().find(([, min]) => monthPts < min);
+  const hint = $('di-next-hint');
+  if (nextLvl) { hint.textContent = `Mancano ${nextLvl[1] - monthPts} pt per ${nextLvl[0]}`; hint.style.display = ''; }
+  else { hint.style.display = 'none'; }
+
+  // settimana corrente
+  const weekDays = lastNDays(7);
+  const weekPts = weekDays.reduce((s, d) => s + dayPoints(d), 0);
+  const weekMax = maxDayPts() * 7;
+  const weekPct = weekMax > 0 ? Math.round(weekPts / weekMax * 100) : 0;
+  $('di-week-summary').textContent = `Ultimi 7 giorni: ${weekPts}/${weekMax} pt (${weekPct}%)`;
 
   // storico mesi passati
   const past = [...new Set(habitDays.map(d => d.day.slice(0, 7)))].filter(m => m < thisMonth()).sort().reverse();
@@ -1227,7 +1277,7 @@ function renderDisciplina() {
     return `${MESI_IT[+mm - 1]} ${y} — <b>${pts} pt</b>${l ? ' · ' + l[0] : ''}`;
   }).join('<br>') : '';
 
-  // gestione abitudini
+  // gestione abitudini attive
   $('di-manage').innerHTML = habits.filter(h => h.active).sort((a, b) => a.position - b.position).map(h =>
     `<div class="habit"><span class="hname">${h.emoji} ${esc(h.name)}</span><span class="hpts">${TIER_LABEL[h.tier].split(' — ')[0]}</span><span class="del" data-archh="${h.id}">✕</span></div>`
   ).join('');
@@ -1242,6 +1292,30 @@ function renderDisciplina() {
       alert(isNetErr(e) ? 'Serve la rete per archiviare. Riprova dopo.' : 'Errore: ' + e.message);
     }
   });
+
+  // abitudini archiviate (riattivabili)
+  const archived = habits.filter(h => !h.active).sort((a, b) => a.position - b.position);
+  const archWrap = $('di-archived-wrap');
+  if (archived.length) {
+    archWrap.classList.remove('hidden');
+    $('di-archived').innerHTML = archived.map(h =>
+      `<div class="habit"><span class="hname" style="color:var(--dim)">${h.emoji} ${esc(h.name)}</span><span class="hpts" style="color:var(--dim)">${TIER_LABEL[h.tier].split(' — ')[0]}</span><span class="del" data-reactiveh="${h.id}" style="color:var(--green);font-size:18px" title="Riattiva">↩</span></div>`
+    ).join('');
+    document.querySelectorAll('[data-reactiveh]').forEach(el => el.onclick = async () => {
+      const h = habits.find(x => x.id === el.dataset.reactiveh);
+      if (!confirm(`Riattivare "${h.name}"?`)) return;
+      try {
+        const { error } = await sb.from('po_habits').update({ active: true }).eq('id', h.id);
+        if (error) throw new Error(error.message);
+        await loadAll(); renderAll();
+      } catch (e) {
+        alert(isNetErr(e) ? 'Serve la rete per riattivare. Riprova dopo.' : 'Errore: ' + e.message);
+      }
+    });
+  } else {
+    archWrap.classList.add('hidden');
+  }
+
   renderHabitAnnual();
 }
 
@@ -1249,15 +1323,17 @@ $('btn-export').onclick = exportMarkdown;
 
 $('btn-addhabit').onclick = async () => {
   const name = $('dh-name').value.trim(), tier = $('dh-tier').value;
+  const emojiRaw = $('dh-emoji').value.trim();
+  const emoji = emojiRaw || TIER_EMOJI[tier];
   if (!name) return;
   try {
     const { error } = await sb.from('po_habits').insert({
-      user_id: user.id, name, tier,
-      emoji: TIER_EMOJI[tier], points: tier === 'boss' ? 3 : 1,
+      user_id: user.id, name, tier, emoji,
+      points: tier === 'boss' ? 3 : 1,
       position: Math.max(0, ...habits.map(h => h.position)) + 1,
     });
     if (error) throw new Error(error.message);
-    $('dh-name').value = '';
+    $('dh-name').value = ''; $('dh-emoji').value = '';
     await loadAll(); renderAll();
   } catch (e) {
     alert(isNetErr(e) ? 'Serve la rete per aggiungere abitudini. Riprova dopo.' : 'Errore: ' + e.message);
