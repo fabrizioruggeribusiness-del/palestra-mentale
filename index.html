@@ -100,7 +100,10 @@
   .plan-now .pn span { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; }
   .chart-legend { display:flex; gap:16px; justify-content:center; font-size:12px; color:var(--dim); margin-top:6px; }
   .chart-legend i { display:inline-block; width:10px; height:10px; border-radius:99px; margin-right:5px; vertical-align:middle; }
-  .scalinata { width:100%; border-radius:16px; display:block; margin-top:8px; border:1px solid var(--line); }
+  .scalinata { width:100%; border-radius:16px; display:block; margin-top:8px; border:1px solid var(--line); animation: scal-breath 4.5s ease-in-out infinite; }
+  @keyframes scal-breath { 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.012);} }
+  .scalinata.unstoppable { animation: scal-breath 4.5s ease-in-out infinite, scal-glow 1.6s ease-in-out infinite; }
+  @keyframes scal-glow { 0%,100%{ box-shadow:0 0 0 rgba(255,224,128,0);} 50%{ box-shadow:0 0 22px rgba(255,224,64,.55);} }
 
   /* ── corpo ── */
   .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top: 4px; }
@@ -244,7 +247,8 @@
       <h1>Il tuo piano</h1>
       <div class="sub">Dove stai andando, e come stai andando.</div>
     </div>
-    <img src="scalinata.gif" alt="La scalinata della vita" class="scalinata">
+    <img id="pi-scalinata" class="scalinata" alt="La scalinata della vita">
+    <div id="pi-stato" class="muted center" style="margin-top:6px;font-size:13px"></div>
     <div id="pi-focus" class="hidden"></div>
     <div class="card">
       <h2>Andamento <small>— Vita e Azione</small></h2>
@@ -1183,6 +1187,13 @@ function areaScoreForMonth(a, ym) {
   return manualScoreMonth(a.key, ym); // null se non votata quel mese
 }
 function renderPiano() {
+  // scalinata: il frame riflette lo stato attuale (Azione) + micro-animazione
+  const si = statoIdx(formaGlobale());
+  const sc = $('pi-scalinata');
+  sc.src = `scalinata-${si}.jpg`;
+  sc.className = 'scalinata' + (si === 4 ? ' unstoppable' : '');
+  $('pi-stato').textContent = `${STATI[si].nome} · Azione ${formaGlobale()}/10`;
+
   // focus del mese: area più debole
   const scored = AREAS.map(a => ({ a, sc: areaScore(a) })).filter(x => x.sc !== null);
   const focus = $('pi-focus');
