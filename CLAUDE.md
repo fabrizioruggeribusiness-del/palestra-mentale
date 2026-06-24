@@ -2,7 +2,7 @@
 
 Repo: `fabrizioruggeribusiness-del/palestra-mentale` (GitHub)
 URL live: https://fabrizioruggeribusiness-del.github.io/palestra-mentale/
-Supabase: `gnrrcbhmimwwytndpxtm.supabase.co`
+Supabase (VIVO): `opgqjqztmwujcqtmtlxs.supabase.co` — il vecchio `gnrrcbhmimwwytndpxtm` è morto.
 Credenziali: nel `.env` del vault Obsidian (`~/Secondo Cervello Obsidian/.env`)
 
 ---
@@ -40,21 +40,25 @@ Tutto con RLS. Schema in `player-one-schema.sql`.
 
 Sprite JRPG retrò: griglie di caratteri → `<rect>` SVG con `crispEdges`.  
 3 pose (ingobbito, in piedi, doppio bicipite) × 5 palette + aura + scintille.  
-5 stati basati sulla media aree attive (Corpo/Mente/Disciplina): Spento → Inarrestabile.  
+5 stati basati sull'"Azione" = media di Salute Fisica + Tempo Libero + Disciplina: Spento → Inarrestabile.  
 Ricaduta-proof: peggiora ma non muore mai.
 
 ## Wheel of Life — 8 aree
 
+Allineata alla Ruota della Vita reale di Fabrizio (nota `~/Secondo Cervello Obsidian/08_Obiettivi/Ruota della Vita/2026-06-23.md`). Voto 0–10.
+
 | Area | Tipo |
 |------|------|
-| Corpo | Auto (da log Corpo) |
-| Mente | Auto (da check-in Mente) |
-| Disciplina | Auto (da tracker abitudini) |
-| Famiglia | Autovalutazione mensile 1–10 |
-| Allianz | Autovalutazione mensile 1–10 |
-| Herbalife | Autovalutazione mensile 1–10 |
-| Brand | Autovalutazione mensile 1–10 |
-| Finanze | Autovalutazione mensile 1–10 |
+| Salute Fisica | Auto (log Corpo) |
+| Tempo Libero | Auto (dispersioni resistite, ultimi 14gg) |
+| Crescita | Autovalutazione mensile |
+| Famiglia | Autovalutazione mensile |
+| Finanze | Autovalutazione mensile |
+| Business | Autovalutazione mensile |
+| Mindset | Autovalutazione mensile |
+| Spiritualità | Autovalutazione mensile |
+
+Avatar **"Azione"** = Salute + Tempo Libero + Disciplina (le aree d'azione). Centro ruota = **"Vita"** = media di tutte le aree votate. Legenda con trend ▲/▼ (manuali vs mese scorso, auto vs finestra precedente) + box "punto debole" e nudge sulle aree da votare.
 
 ## Scheda palestra (SCHEDA_SEED)
 
@@ -99,6 +103,16 @@ Soglie riscalate automaticamente se cambiano le abitudini attive.
 
 - Non aggiungere: feed, badge a pioggia, notifiche push aggressive, cose che trattengono nell'app
 - v2 solo dopo 2 settimane di uso reale: sync vault Corpo/Disciplina, avatar con immagini AI, moduli Allianz/Herbalife con KPI, boss fight sugli obiettivi 2026, grafici progressione
+
+## Operatività e backup
+
+- **Progetto Supabase VIVO:** `opgqjqztmwujcqtmtlxs` (app + `player-one/.env`). Vecchio `gnrrcbhmimwwytndpxtm` morto.
+- **Login app:** `fabrizioruggeri.business@gmail.com`, password nel `.env` del vault come `SUPABASE_PM_PASSWORD`.
+- **Backup automatico:** `~/Secondo Cervello Obsidian/scripts/backup-player-one.mjs`, schedulato ogni giorno alle 8:00 (launchagent `com.fabrizioruggeri.player-one-backup`). Scarica tutte le tabelle → JSON re-importabile in `assets/backups/player-one/` (rotazione 30) + `07_Abitudini/Storico Abitudini.md`. Credenziali nel `.env` del vault (`PLAYER_ONE_URL`, `PLAYER_ONE_ANON_KEY`, `SUPABASE_PM_EMAIL/PASSWORD`). Backup e storico sono gitignored nel vault.
+- **Sync note-libri:** `scripts/sync-palestra-mentale.mjs` (launchagent `palestra-sync`, 9:10) → note in `06_Crescita_Personale/Libri/`.
+- **Ripristino:** Impostazioni → "Ripristina da backup (JSON)" (upsert per id, ordine FK, idempotente).
+- **Stato dati (24/6/2026):** solo dati seed (13 abitudini, 40 esercizi), zero storico — il tracker era bloccato dal crash `giorniLabel`, risolto il 24/6.
+- **Migrazione pendente:** `migration-wheel-scale.sql` (check 0–10) da eseguire nel SQL Editor per poter votare 0.
 
 ## Sicurezza
 
