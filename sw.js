@@ -1,6 +1,6 @@
 // Service worker minimale — cache offline della shell
-const CACHE = 'player-one-v16';
-const ASSETS = ['index.html', 'manifest.json', 'icon.png',
+const CACHE = 'player-one-v17';
+const ASSETS = ['index.html', 'manifest.json', 'icon.png', 'scalinata.gif',
   'avatar-0-a.png','avatar-0-b.png',
   'avatar-1-a.png','avatar-1-b.png',
   'avatar-2-a.png','avatar-2-b.png',
