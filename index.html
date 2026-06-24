@@ -88,6 +88,8 @@
   .wheel-legend div { display:flex; align-items:center; gap:7px; color: var(--dim); }
   .wheel-legend b { color: var(--txt); margin-left:auto; }
   .wheel-legend .swatch { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+  .direction-weak { background:rgba(232,184,75,.1); border:1px solid rgba(232,184,75,.35); border-radius:10px; padding:9px 12px; font-size:13px; color:var(--gold2); margin-top:12px; }
+  .direction-vote { background:var(--bg2); border:1px solid var(--line); border-radius:10px; padding:9px 12px; font-size:13px; color:var(--dim); margin-top:8px; }
 
   /* ── corpo ── */
   .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top: 4px; }
@@ -247,7 +249,8 @@
       <h2>Ruota della Vita <small>— tocca uno spicchio</small></h2>
       <div class="wheelwrap" id="po-wheel"></div>
       <div class="wheel-legend" id="po-legend"></div>
-      <p class="muted" style="margin-top:10px">Corpo, Mente e Disciplina si muovono da soli con le tue azioni. Le altre aree le voti tu, una volta al mese (1–10).</p>
+      <div id="po-direction"></div>
+      <p class="muted" style="margin-top:10px"><b>Azione</b> (l'avatar) = Corpo, Mente, Disciplina: si muovono da soli con le tue azioni. <b>Vita</b> (centro) = tutte le aree. Le altre le voti tu una volta al mese (1–10).</p>
     </div>
 
   </div>
@@ -783,16 +786,21 @@ function levelInfo(xp) {
 }
 
 // ── Punteggi ruota (0-10) ──
-function scoreCorpo() {
+// finestra di `len` giorni che termina `offset` giorni fa (offset 0 = ultimi `len` giorni).
+// Serve per il trend: confronto la finestra attuale con quella precedente di pari durata.
+const daysWindow = (offset, len) => { const out = []; for (let i = offset; i < offset + len; i++) { const d = new Date(); d.setDate(d.getDate() - i); out.push(d.toLocaleDateString('sv-SE')); } return out; };
+function corpoAt(offset) {
   const days = new Set(workoutLogs.map(l => l.day));
-  const recent = lastNDays(14).filter(d => days.has(d)).length;
-  return Math.min(10, +(recent / 8 * 10).toFixed(1)); // target ~4 allenamenti/settimana
+  const n = daysWindow(offset, 14).filter(d => days.has(d)).length;
+  return Math.min(10, +(n / 8 * 10).toFixed(1)); // target ~4 allenamenti/settimana
 }
-function scoreMente() {
+function menteAt(offset) {
   const days = new Set(checkins.map(c => c.day));
-  const recent = lastNDays(14).filter(d => days.has(d)).length;
-  return Math.min(10, +(recent / 10 * 10).toFixed(1)); // target ~5 letture/settimana
+  const n = daysWindow(offset, 14).filter(d => days.has(d)).length;
+  return Math.min(10, +(n / 10 * 10).toFixed(1)); // target ~5 letture/settimana
 }
+const scoreCorpo = () => corpoAt(0);
+const scoreMente = () => menteAt(0);
 function dayPoints(day) {
   return habitDays.filter(d => d.day === day && d.done).reduce((s, d) => {
     const h = habits.find(h => h.id === d.habit_id);
@@ -804,11 +812,12 @@ function bossDayComplete(day) {
   const bosses = habits.filter(h => h.tier === 'boss' && habitExistedOn(h, day));
   return bosses.length > 0 && bosses.every(h => habitDays.some(x => x.habit_id === h.id && x.day === day && x.done));
 }
-function scoreDisciplina() {
-  const days = lastNDays(7);
-  const avg = days.reduce((s, d) => s + dayPoints(d), 0) / days.length;
+function disciplinaAt(offset) {
+  const w = daysWindow(offset, 7);
+  const avg = w.reduce((s, d) => s + dayPoints(d), 0) / w.length;
   return Math.min(10, +(avg / maxDayPts() * 10).toFixed(1));
 }
+const scoreDisciplina = () => disciplinaAt(0);
 
 function habitStreak(habitId) {
   const doneDays = habitDays
@@ -939,6 +948,18 @@ function lastManualScore(area) {
   const entries = wheel.filter(w => w.area === area);
   return entries.length ? entries[entries.length - 1].score : null;
 }
+const prevMonth = () => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toLocaleDateString('sv-SE').slice(0, 7); };
+const manualScoreMonth = (area, ym) => { const e = wheel.find(w => w.area === area && w.month === ym); return e ? e.score : null; };
+// Andamento: manuali = voto di questo mese vs mese scorso; auto = finestra attuale vs precedente.
+function areaTrend(a) {
+  if (a.type === 'manual') {
+    const now = manualScoreMonth(a.key, thisMonth()), prev = manualScoreMonth(a.key, prevMonth());
+    return (now == null || prev == null) ? null : +(now - prev).toFixed(1);
+  }
+  const prevOff = a.key === 'disciplina' ? 7 : 14;
+  const prev = a.key === 'corpo' ? corpoAt(prevOff) : a.key === 'mente' ? menteAt(prevOff) : disciplinaAt(prevOff);
+  return +(areaScore(a) - prev).toFixed(1);
+}
 function areaScore(a) {
   if (a.key === 'corpo') return scoreCorpo();
   if (a.key === 'mente') return scoreMente();
@@ -994,7 +1015,7 @@ function renderRuota() {
   const f = formaGlobale();
   const si = statoIdx(f);
   $('po-avatar').innerHTML = avatarSVG(si);
-  $('po-stato').textContent = STATI[si].nome;
+  $('po-stato').textContent = `${STATI[si].nome} · Azione ${f}/10`;
   $('po-stato-desc').textContent = STATI[si].desc;
 
   $('mig-banner').classList.toggle('hidden', poReady);
@@ -1023,16 +1044,38 @@ function renderRuota() {
   const filled = scores.filter(s => s !== null);
   const overall = filled.length ? (filled.reduce((s, v) => s + v, 0) / filled.length).toFixed(1) : '—';
   svg += `<text x="${cx}" y="${cy - 2}" text-anchor="middle" font-size="22" font-weight="800" fill="#f5d27a">${overall}</text>
-          <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="9" letter-spacing="1.5" fill="#8a94ad">FORMA</text>`;
+          <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="9" letter-spacing="1.5" fill="#8a94ad">VITA</text>`;
   $('po-wheel').innerHTML = `<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
 
   $('po-legend').innerHTML = AREAS.map((a, i) => {
     const sc = scores[i];
-    return `<div><span class="swatch" style="background:${a.color}"></span>${a.emoji} ${a.label}<b>${sc === null ? 'vota' : sc}</b></div>`;
+    const tr = areaTrend(a);
+    const arrow = (sc === null || tr === null || tr === 0) ? ''
+      : tr > 0 ? `<span style="color:var(--green);font-size:11px">▲${tr}</span>`
+               : `<span style="color:var(--red);font-size:11px">▼${Math.abs(tr)}</span>`;
+    return `<div><span class="swatch" style="background:${a.color}"></span>${a.emoji} ${a.label} ${arrow}<b>${sc === null ? 'vota' : sc}</b></div>`;
   }).join('');
 
+  renderDirection();
   document.querySelectorAll('[data-area]').forEach(el => el.onclick = () => onAreaTap(el.dataset.area));
 
+}
+
+// #4 — Direzione: l'area più debole su cui concentrarsi + le aree manuali ancora da votare questo mese.
+function renderDirection() {
+  const el = $('po-direction');
+  if (!el) return;
+  const scored = AREAS.map(a => ({ a, sc: areaScore(a) })).filter(x => x.sc !== null);
+  const unvoted = AREAS.filter(a => a.type === 'manual' && manualScore(a.key) === null);
+  let html = '';
+  if (scored.length) {
+    const weak = scored.reduce((m, x) => x.sc < m.sc ? x : m);
+    html += `<div class="direction-weak">🎯 Punto debole: <b>${weak.a.emoji} ${weak.a.label}</b> (${weak.sc}/10) — concentra lì questo mese.</div>`;
+  }
+  if (unvoted.length) {
+    html += `<div class="direction-vote">📝 Da votare questo mese: ${unvoted.map(a => `${a.emoji} ${a.label}`).join(' · ')}</div>`;
+  }
+  el.innerHTML = html;
 }
 
 async function onAreaTap(key) {
