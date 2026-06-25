@@ -101,6 +101,12 @@
   .oggi-row:last-child { border-bottom:none; }
   .oggi-row span { flex:1; }
   .oggi-row button.mini { margin:0; }
+  .goal-row { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .goal-row:last-child { border-bottom:none; }
+  .goal-row .gtext { flex:1; }
+  .goal-row .gtext.done { text-decoration:line-through; color:var(--dim); }
+  .goal-check { cursor:pointer; color:var(--dim); font-size:16px; }
+  .goal-check.done { color:var(--green); }
   .anno-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:10px; }
   .anno-m { text-align:center; padding:7px 2px; border-radius:8px; font-size:11px; font-weight:700; border:1px solid var(--line); line-height:1.5; color:var(--dim); }
   .anno-m.buono { background:rgba(94,201,124,.18); color:var(--green); border-color:var(--green); }
@@ -1246,6 +1252,11 @@ function weekChart(series) {
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${grid}${labels}<polyline fill="none" stroke="#5ec97c" stroke-width="2" points="${pts}"/>${dots}</svg>`;
 }
 const areaScoreForMonth = (a, ym) => manualScoreMonth(a.key, ym); // null se non votata quel mese
+// Obiettivi liberi del giorno (locali al dispositivo, per data).
+const goalsAll = () => { try { return JSON.parse(localStorage.getItem('po_daily_goals') || '{}'); } catch { return {}; } };
+const goalsForDay = d => goalsAll()[d] || [];
+const goalsSetDay = (d, arr) => { const all = goalsAll(); all[d] = arr; localStorage.setItem('po_daily_goals', JSON.stringify(all)); };
+
 // Esito di un mese del 2026: storia pre-impostata, oppure auto dai dati (≥ Bronzo = buono).
 function annoStatus(ym) {
   if (ANNO_HIST[ym]) return ANNO_HIST[ym];
@@ -1262,15 +1273,25 @@ function renderPiano() {
   sc.className = 'scalinata' + (si === 4 ? ' unstoppable' : '');
   $('pi-stato').textContent = `${STATI[si].nome} · Azione ${formaGlobale()}/10`;
 
-  // Oggi: le Boss non ancora fatte oggi (spuntabili da qui)
+  // Oggi: Boss non ancora fatte (spuntabili) + obiettivi liberi del giorno
   const td = today();
   const boss = poReady ? habits.filter(h => h.active && h.tier === 'boss').sort((a, b) => a.position - b.position) : [];
   const undone = boss.filter(h => !habitDays.some(x => x.habit_id === h.id && x.day === td && x.done));
-  const oggi = $('pi-oggi');
-  if (!boss.length) oggi.innerHTML = '<p class="muted">Nessuna Boss attiva.</p>';
-  else if (!undone.length) oggi.innerHTML = '<div class="boss-done">⭐ Boss completate — giornata solida</div>';
-  else oggi.innerHTML = undone.map(h => `<div class="oggi-row"><span>${h.emoji} ${esc(h.name)}</span><button class="mini" data-doboss="${h.id}">Fatto</button></div>`).join('');
+  let html = !boss.length ? '<p class="muted">Nessuna Boss attiva.</p>'
+    : !undone.length ? '<div class="boss-done">⭐ Boss completate — giornata solida</div>'
+    : undone.map(h => `<div class="oggi-row"><span>${h.emoji} ${esc(h.name)}</span><button class="mini" data-doboss="${h.id}">Fatto</button></div>`).join('');
+  // obiettivi del giorno
+  const goals = goalsForDay(td);
+  html += `<div class="gtitle" style="margin-top:14px">Obiettivi di oggi</div>`;
+  html += goals.map((g, i) => `<div class="goal-row"><span class="goal-check ${g.done ? 'done' : ''}" data-goal-toggle="${i}">${g.done ? '✓' : '○'}</span><span class="gtext ${g.done ? 'done' : ''}">${esc(g.t)}</span><span class="del" data-goal-del="${i}">✕</span></div>`).join('');
+  html += `<div style="display:flex;gap:8px;margin-top:8px"><input id="pi-goal-input" placeholder="aggiungi un obiettivo di oggi" style="flex:1"><button id="btn-add-goal" class="mini">Aggiungi</button></div>`;
+  $('pi-oggi').innerHTML = html;
   document.querySelectorAll('[data-doboss]').forEach(el => el.onclick = () => setHabitState(el.dataset.doboss, today(), 'yes'));
+  const addGoal = () => { const t = ($('pi-goal-input').value || '').trim(); if (!t) return; const a = goalsForDay(td); a.push({ t, done: false }); goalsSetDay(td, a); renderPiano(); };
+  $('btn-add-goal').onclick = addGoal;
+  $('pi-goal-input').onkeydown = e => { if (e.key === 'Enter') addGoal(); };
+  document.querySelectorAll('[data-goal-toggle]').forEach(el => el.onclick = () => { const a = goalsForDay(td); const i = +el.dataset.goalToggle; a[i].done = !a[i].done; goalsSetDay(td, a); renderPiano(); });
+  document.querySelectorAll('[data-goal-del]').forEach(el => el.onclick = () => { const a = goalsForDay(td); a.splice(+el.dataset.goalDel, 1); goalsSetDay(td, a); renderPiano(); });
 
   // focus del mese: area più debole (tappabile)
   const scored = AREAS.map(a => ({ a, sc: areaScore(a) })).filter(x => x.sc !== null);
