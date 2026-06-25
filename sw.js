@@ -1,5 +1,5 @@
 // Service worker minimale — cache offline della shell
-const CACHE = 'player-one-v27';
+const CACHE = 'player-one-v28';
 const ASSETS = ['index.html', 'manifest.json', 'icon.png',
   'scalinata-0.jpg','scalinata-1.jpg','scalinata-2.jpg','scalinata-3.jpg','scalinata-4.jpg',
   'avatar-0-a.png','avatar-0-b.png',

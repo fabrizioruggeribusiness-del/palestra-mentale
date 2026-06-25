@@ -589,7 +589,7 @@ const PIANO_2026 = [
   { txt: '🌱 Herbalife — avviare (obiettivo World Team) · in valutazione' },
   { txt: '📣 Personal brand — avviato, 2 post a settimana' },
   { txt: "📚 Crescita — 24 libri quest'anno",
-    prog: () => ({ done: books.filter(b => b.status === 'conquistato').length, total: 24, unit: 'libri conquistati' }) },
+    prog: () => ({ done: books.filter(b => b.status === 'conquistato' && (b.finished_at || '').startsWith(today().slice(0, 4))).length, total: 24, unit: 'libri conquistati' }) },
   { txt: '❤️ Famiglia — padre presente e stabile (bimbo dic 2026)' },
   { txt: '💶 Economico — indipendenza dal supporto familiare' },
 ];
@@ -873,24 +873,6 @@ function categoria(pts) {
     if (pts >= CATEGORIE[i].min) { cur = CATEGORIE[i]; next = CATEGORIE[i + 1] || null; }
   }
   return { cur, next };
-}
-
-// Forma lettura: cresce coi giorni consecutivi, cala (non si azzera) quando salti.
-function forma() {
-  const days = [...new Set(checkins.map(c => c.day))].sort();
-  let f = 0, prev = null;
-  for (const d of days) {
-    if (prev) {
-      const gap = Math.round((new Date(d) - new Date(prev)) / 86400000);
-      if (gap > 1) f = Math.max(0, f - 2 * (gap - 1));
-    }
-    f += 1; prev = d;
-  }
-  if (prev) {
-    const gap = Math.round((new Date(today()) - new Date(prev)) / 86400000);
-    if (gap > 1) f = Math.max(0, f - 2 * (gap - 1));
-  }
-  return f;
 }
 
 // Striscia di lettura: giorni consecutivi che terminano oggi (o ieri, se oggi non ancora fatto).
@@ -1990,7 +1972,7 @@ function renderLibri() {
       <div class="info"><div class="t">${esc(b.title)}</div><div class="a">${esc(b.author || '')} · ${n} sessioni</div></div>
       <div class="pts">${pts} pt</div>
       ${b.status === 'attivo' ? `<button class="mini" data-conq="${b.id}">🏆</button>` : ''}
-      <button class="mini" data-del="${b.id}" title="Rimuovi libro">🗑</button>
+      <button class="mini" data-delbook="${b.id}" title="Rimuovi libro">🗑</button>
     </div>`;
   };
   const rowActive = (b) => {
@@ -2016,11 +1998,11 @@ function renderLibri() {
     await sb.from('pm_books').update({ status: 'conquistato', finished_at: new Date().toISOString() }).eq('id', btn.dataset.conq);
     await loadAll(); renderAll();
   });
-  document.querySelectorAll('[data-del]').forEach(btn => btn.onclick = async () => {
-    const b = books.find(x => x.id === btn.dataset.del);
-    const n = checkins.filter(c => c.book_id === btn.dataset.del).length;
+  document.querySelectorAll('[data-delbook]').forEach(btn => btn.onclick = async () => {
+    const b = books.find(x => x.id === btn.dataset.delbook);
+    const n = checkins.filter(c => c.book_id === btn.dataset.delbook).length;
     if (!confirm(`Rimuovere «${b ? b.title : 'questo libro'}»?` + (n ? `\nSi cancellano anche ${n} check-in/estratti collegati.` : '') + `\nAzione irreversibile.`)) return;
-    await sb.from('pm_books').delete().eq('id', btn.dataset.del);
+    await sb.from('pm_books').delete().eq('id', btn.dataset.delbook);
     await loadAll(); renderAll();
   });
 }

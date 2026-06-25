@@ -81,9 +81,11 @@ Soglie riscalate automaticamente se cambiano le abitudini attive.
 - `applyQueueLocally()` — riflette op pending nel local state
 - `saveSnapshot/restoreSnapshot()` — offline boot (`po_snapshot`)
 - `livelliScalati(ym)` — soglie mensili riscalate su abitudini attive
-- `coachContext(recap)` — contesto 7 giorni per Claude; domenica aggiunge settimana precedente
-- `renderRuota/renderCorpo/renderDisciplina()` — render tab
-- `runCoach()` — prompt diverso feriale (3-4 frasi) vs domenica (5-7 frasi recap)
+- `renderPiano/renderRuota/renderCorpo/renderDisciplina/renderMente()` — render tab
+- `renderCodex/renderCodexList()` — codex (estratto del giorno + archivio sfogliabile)
+- `readStreak()` — striscia di lettura (giorni consecutivi)
+
+> Nota: il "coach AI" (runCoach/coachContext) è stato rimosso; non c'è più nessuna chiave API nell'app.
 
 ## Integrazioni automatiche
 
