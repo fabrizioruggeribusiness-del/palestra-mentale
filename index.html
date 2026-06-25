@@ -101,6 +101,11 @@
   .oggi-row:last-child { border-bottom:none; }
   .oggi-row span { flex:1; }
   .oggi-row button.mini { margin:0; }
+  .anno-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:10px; }
+  .anno-m { text-align:center; padding:7px 2px; border-radius:8px; font-size:11px; font-weight:700; border:1px solid var(--line); line-height:1.5; color:var(--dim); }
+  .anno-m.buono { background:rgba(94,201,124,.18); color:var(--green); border-color:var(--green); }
+  .anno-m.ricaduta, .anno-m.sotto { background:rgba(224,108,108,.14); color:var(--red); border-color:rgba(224,108,108,.4); }
+  .anno-m.parziale, .anno-m.corso { background:rgba(232,184,75,.15); color:var(--gold2); border-color:rgba(232,184,75,.4); }
   .plan-now { display:flex; gap:10px; }
   .plan-now .pn { flex:1; background:var(--bg2); border:1px solid var(--line); border-radius:12px; padding:12px 8px; text-align:center; }
   .plan-now .pn b { display:block; font-size:28px; line-height:1.1; }
@@ -279,6 +284,12 @@
     <div class="card">
       <h2>Scadenze <small>— il tempo conta</small></h2>
       <div id="pi-scadenze"></div>
+    </div>
+
+    <div class="card">
+      <h2>Anno 2026 <small>— conta l'anno, non il singolo giorno</small></h2>
+      <div id="pi-anno-verdict"></div>
+      <div id="pi-anno-months" class="anno-grid"></div>
     </div>
 
     <div class="card">
@@ -561,6 +572,13 @@ const PIANO_2026 = [
   { txt: '❤️ Famiglia — padre presente e stabile (bimbo dic 2026)' },
   { txt: '💶 Economico — indipendenza dal supporto familiare' },
 ];
+// Anno 2026: esito dei mesi NON tracciati dall'app (storia reale di Fabrizio).
+// I mesi da luglio in poi vengono valutati automaticamente dai dati.
+const ANNO_HIST = {
+  '2026-01': 'buono', '2026-02': 'buono', '2026-03': 'buono',
+  '2026-04': 'ricaduta', '2026-05': 'ricaduta', '2026-06': 'parziale',
+};
+const ANNO_TARGET_POSITIVI = 7; // mesi "buoni" perché l'anno sia positivo
 // Peso: punto di partenza e obiettivo (kg).
 const PESO_START = 84.5, PESO_TARGET = 75;
 // Scadenze reali con countdown.
@@ -1223,6 +1241,14 @@ function areaScoreForMonth(a, ym) {
   if (a.type === 'auto') { const o = daysAgoForMonth(ym); return a.key === 'salute' ? corpoAt(o) : tempoAt(o); }
   return manualScoreMonth(a.key, ym); // null se non votata quel mese
 }
+// Esito di un mese del 2026: storia pre-impostata, oppure auto dai dati (≥ Bronzo = buono).
+function annoStatus(ym) {
+  if (ANNO_HIST[ym]) return ANNO_HIST[ym];
+  if (ym > thisMonth()) return 'arrivo';
+  const mp = [...new Set(habitDays.filter(d => d.day.startsWith(ym)).map(d => d.day))].reduce((s, d) => s + dayPoints(d), 0);
+  if (mp >= livelliScalati(ym)[3][1]) return 'buono';
+  return ym === thisMonth() ? 'corso' : 'sotto';
+}
 function renderPiano() {
   // scalinata: il frame riflette lo stato attuale (Azione) + micro-animazione
   const si = statoIdx(formaGlobale());
@@ -1279,6 +1305,15 @@ function renderPiano() {
     const txt = g < 0 ? 'passata' : g === 0 ? 'oggi' : g < 60 ? `tra ${g} giorni` : `tra ~${Math.round(g / 30)} mesi`;
     return `<div class="plan-row">${s.icon} ${s.label}<span class="muted" style="float:right">${txt}</span></div>`;
   }).join('');
+
+  // anno 2026: storia + dati → quanti mesi positivi
+  const months12 = Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`);
+  const st = months12.map(annoStatus);
+  const positivi = st.filter(s => s === 'buono').length;
+  const mark = { buono: '✓', ricaduta: '✕', sotto: '·', parziale: '~', corso: '…', arrivo: '·' };
+  $('pi-anno-months').innerHTML = months12.map((ym, i) => `<div class="anno-m ${st[i]}">${MESI_IT[i].slice(0, 3)}<br>${mark[st[i]]}</div>`).join('');
+  const annoOk = positivi >= ANNO_TARGET_POSITIVI;
+  $('pi-anno-verdict').innerHTML = `<b style="color:${annoOk ? 'var(--green)' : 'var(--gold2)'}">${positivi}/12 mesi positivi</b> — ${annoOk ? 'anno positivo 💪' : `ne servono ${ANNO_TARGET_POSITIVI - positivi} per renderlo positivo`}`;
 
   // le 8 aree nel tempo (tabella)
   const months = monthsBack(6);
