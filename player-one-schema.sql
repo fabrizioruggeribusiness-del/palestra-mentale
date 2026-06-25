@@ -58,7 +58,7 @@ create table if not exists po_wheel (
   user_id    uuid not null references auth.users on delete cascade,
   area       text not null,            -- salute | crescita | tempo | famiglia | finanze | business | mindset | spirito
   month      text not null,            -- 'YYYY-MM'
-  score      int  not null check (score between 0 and 10),
+  score      numeric(3,1) not null check (score between 0 and 10),
   note       text,
   created_at timestamptz not null default now(),
   unique (user_id, area, month)

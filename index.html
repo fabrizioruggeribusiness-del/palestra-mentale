@@ -321,8 +321,9 @@
       <h2>Ruota della Vita <small>— tocca uno spicchio</small></h2>
       <div class="wheelwrap" id="po-wheel"></div>
       <div class="wheel-legend" id="po-legend"></div>
+      <button id="btn-wheel-compare" class="ghost mini" style="margin-top:10px">Confronta col mese scorso</button>
       <div id="po-direction"></div>
-      <p class="muted" style="margin-top:10px"><b>Azione</b> (l'avatar) = Corpo, Mente, Disciplina: si muovono da soli con le tue azioni. <b>Vita</b> (centro) = tutte le aree. Le altre le voti tu una volta al mese (1–10).</p>
+      <p class="muted" style="margin-top:10px"><b>Vita</b> (centro) = come ti valuti nelle 8 aree, le voti tu (0–10, anche decimale). <b>Azione</b> (l'avatar) = cosa fai davvero, dai dati di allenamenti, abitudini e dispersioni.</p>
     </div>
 
   </div>
@@ -539,12 +540,12 @@ const CATEGORIE = [
   { nome: 'Mentore',    min: 2200 },
 ];
 
-// Aree allineate alla Ruota della Vita reale di Fabrizio (nota 2026-06-23).
-// auto = calcolate dalle azioni tracciate; manuale = autovalutazione mensile (0–10).
+// Ruota della Vita di Fabrizio (nota 2026-06-23). Tutte le aree sono autovalutazione
+// mensile (0–10, anche decimale). L'avatar "Azione" resta guidato dai dati reali.
 const AREAS = [
-  { key:'salute',   label:'Salute Fisica', emoji:'🏋️', type:'auto',    color:'#e8b84b', nav:'corpo' },
+  { key:'salute',   label:'Salute Fisica', emoji:'🏋️', type:'manuale', color:'#e8b84b' },
   { key:'crescita', label:'Crescita',      emoji:'🌱', type:'manuale', color:'#7aa2f7' },
-  { key:'tempo',    label:'Tempo Libero',  emoji:'🎮', type:'auto',    color:'#5ec97c', nav:'disciplina' },
+  { key:'tempo',    label:'Tempo Libero',  emoji:'🎮', type:'manuale', color:'#5ec97c' },
   { key:'famiglia', label:'Famiglia',      emoji:'❤️', type:'manuale', color:'#e06c8a' },
   { key:'finanze',  label:'Finanze',       emoji:'💶', type:'manuale', color:'#e0b06c' },
   { key:'business', label:'Business',      emoji:'💼', type:'manuale', color:'#6cc3e0' },
@@ -667,6 +668,7 @@ let selDay = localStorage.getItem('po_selday') || '';
 let openHistory = null;
 let diDay = today();
 let editingHabit = null; // id dell'abitudine in modifica inline (Gestisci abitudini)
+let wheelCompare = false; // mostra il confronto col mese scorso sulla Ruota
 
 /* ───────────────── CODA OFFLINE ─────────────────
    In palestra senza campo i salvataggi finiscono qui e
@@ -1065,15 +1067,15 @@ function exportMarkdown() {
 // Voto valido solo per il mese corrente: ogni mese le aree manuali tornano a "vota".
 function manualScore(area) {
   const entry = wheel.find(w => w.area === area && w.month === thisMonth());
-  return entry ? entry.score : null;
+  return entry ? +entry.score : null;
 }
 // Ultimo voto in assoluto (anche di mesi passati) — solo come riferimento nel prompt.
 function lastManualScore(area) {
   const entries = wheel.filter(w => w.area === area);
-  return entries.length ? entries[entries.length - 1].score : null;
+  return entries.length ? +entries[entries.length - 1].score : null;
 }
 const prevMonth = () => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toLocaleDateString('sv-SE').slice(0, 7); };
-const manualScoreMonth = (area, ym) => { const e = wheel.find(w => w.area === area && w.month === ym); return e ? e.score : null; };
+const manualScoreMonth = (area, ym) => { const e = wheel.find(w => w.area === area && w.month === ym); return e ? +e.score : null; };
 
 // Tempo Libero (auto): quanto resisti alle dispersioni negli ultimi 14 giorni (✅ = resistito).
 function tempoAt(offset) {
@@ -1086,19 +1088,11 @@ function tempoAt(offset) {
 }
 const scoreTempoLibero = () => tempoAt(0);
 
-function areaScore(a) {
-  if (a.key === 'salute') return scoreCorpo();
-  if (a.key === 'tempo') return scoreTempoLibero();
-  return manualScore(a.key);
-}
-// Andamento: manuali = voto di questo mese vs mese scorso; auto = finestra attuale vs precedente.
+const areaScore = a => manualScore(a.key);
+// Andamento area: voto di questo mese vs mese scorso.
 function areaTrend(a) {
-  if (a.type === 'manuale') {
-    const now = manualScoreMonth(a.key, thisMonth()), prev = manualScoreMonth(a.key, prevMonth());
-    return (now == null || prev == null) ? null : +(now - prev).toFixed(1);
-  }
-  const prev = a.key === 'salute' ? corpoAt(14) : tempoAt(14);
-  return +(areaScore(a) - prev).toFixed(1);
+  const now = manualScoreMonth(a.key, thisMonth()), prev = manualScoreMonth(a.key, prevMonth());
+  return (now == null || prev == null) ? null : +(now - prev).toFixed(1);
 }
 // "Azione" (l'avatar): solo i segnali oggettivi di esecuzione, non le autovalutazioni.
 function formaGlobale() {
@@ -1171,6 +1165,13 @@ function renderRuota() {
       const r = r0 + (rMax - r0) * sc / 10;
       svg += `<path d="${arcWedge(cx, cy, r0, r, a0, a1)}" fill="${a.color}" opacity="0.85"/>`;
     }
+    if (wheelCompare) { // marcatore: dov'eri il mese scorso
+      const pv = manualScoreMonth(a.key, prevMonth());
+      if (pv != null && pv > 0) {
+        const rp = r0 + (rMax - r0) * pv / 10;
+        svg += `<path d="${arcWedge(cx, cy, rp - 0.8, rp + 0.8, a0, a1)}" fill="#ffffff" opacity="0.85"/>`;
+      }
+    }
     const mid = (a0 + a1) / 2 * Math.PI / 180;
     svg += `<text x="${cx + (rMax + 14) * Math.cos(mid)}" y="${cy + (rMax + 14) * Math.sin(mid) + 5}" text-anchor="middle" font-size="14">${a.emoji}</text>`;
     svg += `<path d="${arcWedge(cx, cy, r0, rMax, a0, a1)}" fill="transparent" data-area="${a.key}" style="cursor:pointer"/>`;
@@ -1183,13 +1184,21 @@ function renderRuota() {
 
   $('po-legend').innerHTML = AREAS.map((a, i) => {
     const sc = scores[i];
-    const tr = areaTrend(a);
-    const arrow = (sc === null || tr === null || tr === 0) ? ''
-      : tr > 0 ? `<span style="color:var(--green);font-size:11px">▲${tr}</span>`
-               : `<span style="color:var(--red);font-size:11px">▼${Math.abs(tr)}</span>`;
-    return `<div><span class="swatch" style="background:${a.color}"></span>${a.emoji} ${a.label} ${arrow}<b>${sc === null ? 'vota' : sc}</b></div>`;
+    let extra = '';
+    if (wheelCompare) {
+      const pv = manualScoreMonth(a.key, prevMonth());
+      extra = sc === null ? '' : pv == null ? `<span style="color:var(--dim);font-size:11px">nuovo</span>`
+        : `<span style="color:var(--dim);font-size:11px">prima ${pv}</span>`;
+    } else {
+      const tr = areaTrend(a);
+      extra = (sc === null || tr === null || tr === 0) ? ''
+        : tr > 0 ? `<span style="color:var(--green);font-size:11px">▲${tr}</span>`
+                 : `<span style="color:var(--red);font-size:11px">▼${Math.abs(tr)}</span>`;
+    }
+    return `<div><span class="swatch" style="background:${a.color}"></span>${a.emoji} ${a.label} ${extra}<b>${sc === null ? 'vota' : sc}</b></div>`;
   }).join('');
 
+  $('btn-wheel-compare').textContent = wheelCompare ? 'Nascondi confronto' : 'Confronta col mese scorso';
   renderDirection();
   document.querySelectorAll('[data-area]').forEach(el => el.onclick = () => onAreaTap(el.dataset.area));
 
@@ -1221,10 +1230,9 @@ const daysAgoForMonth = ym => {
 };
 const azioneAt = off => +((corpoAt(off) + tempoAt(off) + disciplinaAt(off)) / 3).toFixed(1);
 function vitaForMonth(ym) {
-  const o = daysAgoForMonth(ym);
-  const vals = [corpoAt(o), tempoAt(o)];
-  for (const a of AREAS.filter(x => x.type === 'manuale')) { const s = manualScoreMonth(a.key, ym); if (s != null) vals.push(s); }
-  return +(vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1);
+  const vals = [];
+  for (const a of AREAS) { const s = manualScoreMonth(a.key, ym); if (s != null) vals.push(s); }
+  return vals.length ? +(vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1) : 0;
 }
 // grafico a linea singola: Azione nelle ultime 8 settimane
 function weekChart(series) {
@@ -1237,10 +1245,7 @@ function weekChart(series) {
   const dots = series.map((v, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.5" fill="#5ec97c"/>`).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${grid}${labels}<polyline fill="none" stroke="#5ec97c" stroke-width="2" points="${pts}"/>${dots}</svg>`;
 }
-function areaScoreForMonth(a, ym) {
-  if (a.type === 'auto') { const o = daysAgoForMonth(ym); return a.key === 'salute' ? corpoAt(o) : tempoAt(o); }
-  return manualScoreMonth(a.key, ym); // null se non votata quel mese
-}
+const areaScoreForMonth = (a, ym) => manualScoreMonth(a.key, ym); // null se non votata quel mese
 // Esito di un mese del 2026: storia pre-impostata, oppure auto dai dati (≥ Bronzo = buono).
 function annoStatus(ym) {
   if (ANNO_HIST[ym]) return ANNO_HIST[ym];
@@ -1334,13 +1339,13 @@ function renderPiano() {
 
 async function onAreaTap(key) {
   const a = AREAS.find(a => a.key === key);
-  if (a.type === 'auto') { show(a.nav); return; }
   const cur = lastManualScore(key);
-  const v = prompt(`${a.emoji} ${a.label} — come stai in quest'area questo mese? Voto da 0 a 10${cur != null ? ` (ultimo: ${cur})` : ''}`);
+  const v = prompt(`${a.emoji} ${a.label} — come stai in quest'area questo mese? Voto da 0 a 10 (anche decimale, es. 6.5)${cur != null ? ` (ultimo: ${cur})` : ''}`);
   if (!v) return;
-  const n = parseInt(v, 10);
-  if (!(n >= 0 && n <= 10)) { alert('Serve un numero da 0 a 10.'); return; }
-  const row = { user_id: user.id, area: key, month: thisMonth(), score: n };
+  const n = parseFloat(v.replace(',', '.'));
+  if (!(n >= 0 && n <= 10)) { alert('Serve un numero da 0 a 10 (anche con un decimale).'); return; }
+  const score = Math.round(n * 10) / 10; // un decimale
+  const row = { user_id: user.id, area: key, month: thisMonth(), score };
   try {
     const { error } = await sb.from('po_wheel').upsert(row, { onConflict: 'user_id,area,month' });
     if (error) throw error;
@@ -1756,6 +1761,7 @@ function renderDisciplina() {
   renderHabitAnnual();
 }
 
+$('btn-wheel-compare').onclick = () => { wheelCompare = !wheelCompare; renderRuota(); };
 $('btn-export').onclick = exportMarkdown;
 
 // Backup completo re-importabile: tutti i dati grezzi attualmente in memoria.

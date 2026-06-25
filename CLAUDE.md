@@ -48,18 +48,9 @@ Ricaduta-proof: peggiora ma non muore mai.
 
 Allineata alla Ruota della Vita reale di Fabrizio (nota `~/Secondo Cervello Obsidian/08_Obiettivi/Ruota della Vita/2026-06-23.md`). Voto 0–10.
 
-| Area | Tipo |
-|------|------|
-| Salute Fisica | Auto (log Corpo) |
-| Tempo Libero | Auto (dispersioni resistite, ultimi 14gg) |
-| Crescita | Autovalutazione mensile |
-| Famiglia | Autovalutazione mensile |
-| Finanze | Autovalutazione mensile |
-| Business | Autovalutazione mensile |
-| Mindset | Autovalutazione mensile |
-| Spiritualità | Autovalutazione mensile |
+Tutte e 8 le aree (Salute Fisica, Crescita, Tempo Libero, Famiglia, Finanze, Business, Mindset, Spiritualità) sono **autovalutazione mensile manuale**, scala **0–10 decimale** (mezzi voti). `po_wheel.score` è `numeric(3,1)`.
 
-Avatar **"Azione"** = Salute + Tempo Libero + Disciplina (le aree d'azione). Centro ruota = **"Vita"** = media di tutte le aree votate. Legenda con trend ▲/▼ (manuali vs mese scorso, auto vs finestra precedente) + box "punto debole" e nudge sulle aree da votare.
+Avatar **"Azione"** = dati reali, calcolata da `corpoAt`+`tempoAt`+`disciplinaAt` (allenamenti, dispersioni, abitudini) — **indipendente** dai voti della ruota. Centro ruota = **"Vita"** = media degli 8 voti. Legenda: trend ▲/▼ vs mese scorso, oppure "prima X" col pulsante **Confronta col mese scorso** (overlay bianco sul gradino del mese scorso). Box "punto debole" + nudge sulle aree da votare.
 
 ## Scheda palestra (SCHEDA_SEED)
 
