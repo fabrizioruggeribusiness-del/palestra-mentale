@@ -94,6 +94,13 @@
   /* ── piano ── */
   .plan-row { padding:9px 0; border-bottom:1px solid var(--line); font-size:14px; }
   .plan-row:last-child { border-bottom:none; }
+  .goal-bar { height:6px; background:var(--bg2); border:1px solid var(--line); border-radius:99px; overflow:hidden; margin:6px 0 3px; }
+  .goal-bar i { display:block; height:100%; background:linear-gradient(90deg,var(--gold),var(--gold2)); border-radius:99px; }
+  .goal-sub { font-size:11px; color:var(--dim); }
+  .oggi-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); font-size:15px; }
+  .oggi-row:last-child { border-bottom:none; }
+  .oggi-row span { flex:1; }
+  .oggi-row button.mini { margin:0; }
   .plan-now { display:flex; gap:10px; }
   .plan-now .pn { flex:1; background:var(--bg2); border:1px solid var(--line); border-radius:12px; padding:12px 8px; text-align:center; }
   .plan-now .pn b { display:block; font-size:28px; line-height:1.1; }
@@ -249,28 +256,34 @@
     </div>
     <img id="pi-scalinata" class="scalinata" alt="La scalinata della vita">
     <div id="pi-stato" class="muted center" style="margin-top:6px;font-size:13px"></div>
-    <div id="pi-focus" class="hidden"></div>
+
     <div class="card">
-      <h2>Andamento <small>— Vita e Azione</small></h2>
+      <h2>Oggi <small>— le Boss decidono la giornata</small></h2>
+      <div id="pi-oggi"></div>
+    </div>
+
+    <div id="pi-focus" class="hidden"></div>
+
+    <div class="card">
+      <h2>Andamento <small>— Azione, ultime settimane</small></h2>
       <div class="plan-now" id="pi-now"></div>
       <div id="pi-chart"></div>
-      <div class="chart-legend">
-        <span><i style="background:var(--gold2)"></i>Vita</span>
-        <span><i style="background:var(--green)"></i>Azione</span>
-      </div>
-      <p class="muted" style="margin-top:8px;font-size:12px">Il grafico si riempie mese dopo mese con le tue azioni e i tuoi voti.</p>
+      <p class="muted" style="margin-top:8px;font-size:12px"><b>Azione</b> = le tue azioni (allenamenti, dispersioni, disciplina), aggiornata ogni settimana. <b>Vita</b> = media di tutte le aree (voti mensili).</p>
     </div>
+
     <div class="card">
-      <h2>Disciplina <small>— questo mese</small></h2>
-      <div class="statrow" style="margin-top:4px" id="pi-disc"></div>
+      <h2>Obiettivi 2026</h2>
+      <div id="pi-plan"></div>
     </div>
+
+    <div class="card">
+      <h2>Scadenze <small>— il tempo conta</small></h2>
+      <div id="pi-scadenze"></div>
+    </div>
+
     <div class="card">
       <h2>Le aree nel tempo</h2>
       <div id="pi-areas"></div>
-    </div>
-    <div class="card">
-      <h2>Il piano 2026</h2>
-      <div id="pi-plan"></div>
     </div>
   </div>
 
@@ -519,14 +532,23 @@ const AREAS = [
 ];
 
 // Obiettivi 2026 (sola lettura, dalla visione di Fabrizio). Modificabili qui quando cambiano.
+// Obiettivi 2026: alcuni con progresso reale dai dati (prog), altri come target.
 const PIANO_2026 = [
-  '💪 Fisico — 75 kg / 8–10% BF entro agosto',
-  '🛡️ Assicurazioni — 38k€ fatturato, +50k€ portafoglio',
-  '🌱 Herbalife — avviare (obiettivo World Team) · in valutazione',
-  '📣 Personal brand — avviato, 2 post a settimana',
-  '📚 Crescita — 24 libri, meditazione e journal stabili',
-  '❤️ Famiglia — padre presente e stabile (bimbo entro dicembre 2026)',
-  '💶 Economico — indipendenza dal supporto familiare',
+  { txt: '💪 Fisico — 75 kg / 8–10% BF (entro agosto)',
+    prog: () => ({ done: new Set(workoutLogs.filter(l => l.day.startsWith(thisMonth())).map(l => l.day)).size, total: 16, unit: 'allenamenti questo mese' }) },
+  { txt: '🛡️ Assicurazioni — 38k€ fatturato, +50k€ portafoglio' },
+  { txt: '🌱 Herbalife — avviare (obiettivo World Team) · in valutazione' },
+  { txt: '📣 Personal brand — avviato, 2 post a settimana' },
+  { txt: "📚 Crescita — 24 libri quest'anno",
+    prog: () => ({ done: books.filter(b => b.status === 'conquistato').length, total: 24, unit: 'libri conquistati' }) },
+  { txt: '❤️ Famiglia — padre presente e stabile (bimbo dic 2026)' },
+  { txt: '💶 Economico — indipendenza dal supporto familiare' },
+];
+// Scadenze reali con countdown.
+const SCADENZE = [
+  { icon: '🏋️', label: 'Forma 75 kg', date: '2026-08-31' },
+  { icon: '👶', label: 'Bambino', date: '2026-12-31' },
+  { icon: '💶', label: 'Indipendenza economica', date: '2027-06-30' },
 ];
 
 const STATI = [
@@ -1157,30 +1179,23 @@ const daysAgoForMonth = ym => {
   const [y, m] = ym.split('-').map(Number);
   return Math.max(0, Math.round((new Date(today()) - new Date(y, m, 0)) / 86400000));
 };
-const azioneForMonth = ym => { const o = daysAgoForMonth(ym); return +((corpoAt(o) + tempoAt(o) + disciplinaAt(o)) / 3).toFixed(1); };
+const azioneAt = off => +((corpoAt(off) + tempoAt(off) + disciplinaAt(off)) / 3).toFixed(1);
 function vitaForMonth(ym) {
   const o = daysAgoForMonth(ym);
   const vals = [corpoAt(o), tempoAt(o)];
   for (const a of AREAS.filter(x => x.type === 'manuale')) { const s = manualScoreMonth(a.key, ym); if (s != null) vals.push(s); }
   return +(vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1);
 }
-function lifeChart(vita, azione) {
-  const W = 320, H = 92, pl = 16, pr = 8, pt = 8, pb = 18, n = vita.length;
+// grafico a linea singola: Azione nelle ultime 8 settimane
+function weekChart(series) {
+  const W = 320, H = 92, pl = 16, pr = 8, pt = 8, pb = 18, n = series.length;
   const X = i => pl + (W - pl - pr) * (n <= 1 ? 0.5 : i / (n - 1));
   const Y = v => pt + (H - pt - pb) * (1 - v / 10);
   const grid = [0, 5, 10].map(g => `<line x1="${pl}" y1="${Y(g)}" x2="${W - pr}" y2="${Y(g)}" stroke="#2b3654"/><text x="0" y="${Y(g) + 3}" font-size="8" fill="#8a94ad">${g}</text>`).join('');
-  const labels = vita.map((s, i) => `<text x="${X(i)}" y="${H - 5}" font-size="8" fill="#8a94ad" text-anchor="middle">${MESI_IT[+s.ym.slice(5) - 1].slice(0, 3)}</text>`).join('');
-  const line = (arr, c) => `<polyline fill="none" stroke="${c}" stroke-width="2" points="${arr.map((s, i) => `${X(i).toFixed(1)},${Y(s.v).toFixed(1)}`).join(' ')}"/>` + arr.map((s, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(s.v).toFixed(1)}" r="2.5" fill="${c}"/>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${grid}${labels}${line(vita, '#f5d27a')}${line(azione, '#5ec97c')}</svg>`;
-}
-function disciplinaSummary() {
-  const ym = thisMonth();
-  const days = [...new Set(habitDays.filter(d => d.day.startsWith(ym)).map(d => d.day))];
-  const monthPts = days.reduce((s, d) => s + dayPoints(d), 0);
-  const bossDays = days.filter(bossDayComplete).length;
-  const lvl = livelliScalati(ym).find(([, min]) => monthPts >= min);
-  const bestStreak = Math.max(0, ...habits.filter(h => h.active).map(h => habitStreak(h.id)));
-  return { monthPts, level: lvl ? lvl[0] : '—', bossDays, bestStreak };
+  const labels = `<text x="${X(0)}" y="${H - 5}" font-size="8" fill="#8a94ad" text-anchor="middle">8 sett. fa</text><text x="${X(n - 1)}" y="${H - 5}" font-size="8" fill="#8a94ad" text-anchor="middle">ora</text>`;
+  const pts = series.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const dots = series.map((v, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.5" fill="#5ec97c"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${grid}${labels}<polyline fill="none" stroke="#5ec97c" stroke-width="2" points="${pts}"/>${dots}</svg>`;
 }
 function areaScoreForMonth(a, ym) {
   if (a.type === 'auto') { const o = daysAgoForMonth(ym); return a.key === 'salute' ? corpoAt(o) : tempoAt(o); }
@@ -1194,41 +1209,57 @@ function renderPiano() {
   sc.className = 'scalinata' + (si === 4 ? ' unstoppable' : '');
   $('pi-stato').textContent = `${STATI[si].nome} · Azione ${formaGlobale()}/10`;
 
-  // focus del mese: area più debole
+  // Oggi: le Boss non ancora fatte oggi (spuntabili da qui)
+  const td = today();
+  const boss = poReady ? habits.filter(h => h.active && h.tier === 'boss').sort((a, b) => a.position - b.position) : [];
+  const undone = boss.filter(h => !habitDays.some(x => x.habit_id === h.id && x.day === td && x.done));
+  const oggi = $('pi-oggi');
+  if (!boss.length) oggi.innerHTML = '<p class="muted">Nessuna Boss attiva.</p>';
+  else if (!undone.length) oggi.innerHTML = '<div class="boss-done">⭐ Boss completate — giornata solida</div>';
+  else oggi.innerHTML = undone.map(h => `<div class="oggi-row"><span>${h.emoji} ${esc(h.name)}</span><button class="mini" data-doboss="${h.id}">Fatto</button></div>`).join('');
+  document.querySelectorAll('[data-doboss]').forEach(el => el.onclick = () => setHabitState(el.dataset.doboss, today(), 'yes'));
+
+  // focus del mese: area più debole (tappabile)
   const scored = AREAS.map(a => ({ a, sc: areaScore(a) })).filter(x => x.sc !== null);
   const focus = $('pi-focus');
   if (scored.length) {
     const weak = scored.reduce((m, x) => x.sc < m.sc ? x : m);
     focus.className = 'direction-weak';
-    focus.innerHTML = `🎯 <b>Focus del mese:</b> ${weak.a.emoji} ${weak.a.label} (${weak.sc}/10) — è l'area più debole, concentra lì.`;
-  } else focus.className = 'hidden';
+    focus.style.cursor = 'pointer';
+    focus.innerHTML = `🎯 <b>Focus del mese:</b> ${weak.a.emoji} ${weak.a.label} (${weak.sc}/10) — concentra lì ›`;
+    focus.onclick = () => onAreaTap(weak.a.key);
+  } else { focus.className = 'hidden'; focus.onclick = null; }
 
-  // il piano 2026 (sola lettura)
-  $('pi-plan').innerHTML = PIANO_2026.map(o => `<div class="plan-row">${o}</div>`).join('');
-
-  // andamento Vita / Azione nel tempo
-  const months = monthsBack(6);
-  const vita = months.map(ym => ({ ym, v: vitaForMonth(ym) }));
-  const azione = months.map(ym => ({ ym, v: azioneForMonth(ym) }));
+  // andamento: Azione ultime 8 settimane + numeri Vita/Azione
+  const weeks = []; for (let w = 7; w >= 0; w--) weeks.push(azioneAt(w * 7));
+  const aN = weeks[weeks.length - 1], aP = weeks[weeks.length - 2];
+  const vita = vitaForMonth(thisMonth()), vitaPrev = vitaForMonth(prevMonth());
   const delta = (now, prev) => (prev == null || now === prev) ? ''
     : now > prev ? ` <span style="color:var(--green);font-size:13px">▲${(now - prev).toFixed(1)}</span>`
                  : ` <span style="color:var(--red);font-size:13px">▼${(prev - now).toFixed(1)}</span>`;
-  const vN = vita[vita.length - 1].v, vP = vita.length > 1 ? vita[vita.length - 2].v : null;
-  const aN = azione[azione.length - 1].v, aP = azione.length > 1 ? azione[azione.length - 2].v : null;
   $('pi-now').innerHTML = `
-    <div class="pn"><b style="color:var(--gold2)">${vN}</b><span>Vita</span>${delta(vN, vP)}</div>
+    <div class="pn"><b style="color:var(--gold2)">${vita}</b><span>Vita</span>${delta(vita, vitaPrev)}</div>
     <div class="pn"><b style="color:var(--green)">${aN}</b><span>Azione</span>${delta(aN, aP)}</div>`;
-  $('pi-chart').innerHTML = lifeChart(vita, azione);
+  $('pi-chart').innerHTML = weekChart(weeks);
 
-  // disciplina del mese
-  const ds = disciplinaSummary();
-  $('pi-disc').innerHTML = `
-    <div class="stat"><b>${ds.monthPts}</b><span>Punti mese</span></div>
-    <div class="stat"><b>${ds.level}</b><span>Livello</span></div>
-    <div class="stat"><b>${ds.bossDays}</b><span>Giorni Boss</span></div>
-    <div class="stat"><b>🔥${ds.bestStreak}</b><span>Streak top</span></div>`;
+  // obiettivi 2026 (con progresso reale dove tracciabile)
+  $('pi-plan').innerHTML = PIANO_2026.map(o => {
+    let bar = '';
+    if (o.prog) { const p = o.prog(); const pct = p.total ? Math.min(100, Math.round(p.done / p.total * 100)) : 0;
+      bar = `<div class="goal-bar"><i style="width:${pct}%"></i></div><div class="goal-sub">${p.done}/${p.total} ${p.unit}</div>`; }
+    return `<div class="plan-row">${o.txt}${bar}</div>`;
+  }).join('');
+
+  // scadenze (countdown)
+  const giorniA = d => Math.round((new Date(d + 'T12:00') - new Date(td + 'T12:00')) / 86400000);
+  $('pi-scadenze').innerHTML = SCADENZE.map(s => {
+    const g = giorniA(s.date);
+    const txt = g < 0 ? 'passata' : g === 0 ? 'oggi' : g < 60 ? `tra ${g} giorni` : `tra ~${Math.round(g / 30)} mesi`;
+    return `<div class="plan-row">${s.icon} ${s.label}<span class="muted" style="float:right">${txt}</span></div>`;
+  }).join('');
 
   // le 8 aree nel tempo (tabella)
+  const months = monthsBack(6);
   const col = p => p == null ? 'var(--dim)' : p >= 7 ? 'var(--green)' : p >= 4 ? 'var(--gold2)' : p > 0 ? 'var(--dim)' : 'var(--line)';
   let t = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:4px 6px;color:var(--dim);min-width:96px">Area</th>`;
   for (const ym of months) t += `<th style="text-align:center;padding:4px 3px;color:var(--dim)">${MESI_IT[+ym.slice(5) - 1].slice(0, 3)}</th>`;
