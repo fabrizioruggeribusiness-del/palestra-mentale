@@ -25,7 +25,7 @@ PWA single-file (`index.html`) su GitHub Pages. "La vita come videogioco" — Fa
 |-----|-----------|
 | Piano | **Home** (si apre per prima): focus del mese (area debole), piano 2026 (sola lettura, `PIANO_2026`), andamento Vita/Azione nel tempo (grafico 6 mesi) |
 | Ruota | Wheel of Life SVG (8 aree) + avatar pixel art + barra livello |
-| Corpo | Log allenamento, storico, 1RM stimato (Epley), PR rilevati |
+| Corpo | Log allenamento, 1RM stimato (Epley), PR rilevati, peso. **Storico/progressioni:** grafico 1RM+volume per esercizio, registro Record, Diario per sessione, heatmap mensile + volume settimanale |
 | Mente | Lettura come gioco: check-in giornaliero, **boss book** (barra HP pagine), **striscia** 🔥, **codex** (estratti passati a rotazione), **quest 📚 X/24** annuale. Tabelle `pm_*` |
 | Disciplina | Tracker abitudini, chips Oggi/Ieri, storico mesi, gestione abitudini |
 | Config | Chiave API, logout, info |
