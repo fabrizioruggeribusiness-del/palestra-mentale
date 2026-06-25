@@ -385,11 +385,22 @@
       <h1>Palestra Mentale</h1>
       <div class="statrow">
         <div class="stat"><b id="s-punti">0</b><span>Punti</span></div>
-        <div class="stat"><b id="s-forma">0</b><span>Forma</span></div>
-        <div class="stat"><b id="s-libri">0</b><span>Conquistati</span></div>
+        <div class="stat"><b id="s-forma">0</b><span>Striscia</span></div>
+        <div class="stat"><b id="s-libri">0/24</b><span>Quest 2026</span></div>
       </div>
       <div class="progress"><i id="h-bar" style="width:0%"></i></div>
       <div class="progress-label"><span id="h-from"></span><span id="h-to"></span></div>
+    </div>
+
+    <!-- chiamata del giorno: non perdere la striscia -->
+    <div id="streak-call" class="card hidden" style="border-color:rgba(232,184,75,.45);background:rgba(232,184,75,.08)">
+      <div id="streak-call-txt" style="color:var(--gold2);font-size:14px"></div>
+    </div>
+
+    <!-- estratto del giorno (codex) -->
+    <div id="codex" class="card hidden">
+      <h2>📜 Dal tuo codex <small>— un'idea che hai già conquistato</small></h2>
+      <div id="codex-body"></div>
     </div>
 
     <!-- nessun libro attivo -->
@@ -398,40 +409,38 @@
       <p class="muted">L'allenamento parte da un libro. Aggiungine uno qui sotto.</p>
     </div>
 
-    <!-- check-in fatto -->
-    <div id="oggi-done" class="card hidden">
-      <h2>Allenamento di oggi ✓</h2>
-      <div class="score-big"><span id="done-score"></span><small>/10</small></div>
-      <p class="muted" style="margin-top:12px">Torna domani. La forma si costruisce un giorno alla volta.</p>
+    <!-- check-in fatto (tutti i libri attivi loggati oggi) -->
+    <div id="oggi-done" class="card hidden center">
+      <h2>Letture di oggi ✓</h2>
+      <p id="done-summary" class="muted"></p>
+      <p class="muted" style="margin-top:10px">Torna domani. La forma si costruisce un giorno alla volta.</p>
     </div>
 
     <!-- form check-in -->
     <div id="oggi-form" class="card hidden">
       <h2>Check-in <small>— 2 minuti, poi chiudi il telefono</small></h2>
+      <div id="ci-donetoday" class="goal-sub" style="margin-bottom:4px"></div>
       <label>Libro</label>
       <select id="ci-book"></select>
       <label>Cosa ho capito oggi</label>
       <textarea id="ci-summary" placeholder="3–5 frasi con la sostanza di quello che hai letto."></textarea>
       <label>Come lo applico</label>
       <textarea id="ci-apply" style="min-height:60px" placeholder="Un'azione concreta, tua."></textarea>
+      <label>Pagine lette oggi</label>
+      <input id="ci-pages" type="number" min="0" value="0" inputmode="numeric">
       <label>Autovalutazione (1–10)</label>
       <input id="ci-score" type="number" min="1" max="10" value="7" inputmode="numeric">
       <button id="btn-checkin">Salva sessione</button>
+      <div id="ci-ok" class="ok-msg"></div>
       <div id="ci-wait" class="hidden center"><div class="spinner"></div></div>
       <div id="ci-err" class="err"></div>
-    </div>
-
-    <!-- risultato appena valutato -->
-    <div id="oggi-result" class="card hidden">
-      <h2>Sessione salvata ✓</h2>
-      <div class="score-big"><span id="res-score"></span><small>/10</small></div>
-      <p class="muted center" style="margin-top:12px">+<span id="res-points"></span> punti</p>
     </div>
 
     <div class="card">
       <h2>Nuovo libro</h2>
       <label>Titolo</label><input id="nb-title" placeholder="Titolo del libro">
       <label>Autore</label><input id="nb-author" placeholder="Autore">
+      <label>Pagine totali</label><input id="nb-pages" type="number" min="1" placeholder="es. 320 — per la barra di avanzamento" inputmode="numeric">
       <button id="btn-addbook">Inizia il ciclo</button>
       <div id="nb-err" class="err"></div>
     </div>
@@ -878,6 +887,20 @@ function forma() {
   }
   return f;
 }
+
+// Striscia di lettura: giorni consecutivi che terminano oggi (o ieri, se oggi non ancora fatto).
+function readStreak() {
+  const days = new Set(checkins.map(c => c.day));
+  const d = new Date();
+  if (!days.has(today())) d.setDate(d.getDate() - 1); // oggi non fatto: la striscia può reggere fino a ieri
+  let n = 0;
+  while (days.has(d.toLocaleDateString('sv-SE'))) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+// Pagine lette in totale per un libro
+const pagesRead = bookId => checkins.filter(c => c.book_id === bookId).reduce((s, c) => s + (c.pages_read || 0), 0);
+// Giorno dell'anno (1–366) per rotazioni deterministiche
+const dayOfYear = () => Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
 
 const maxW = sets => Math.max(0, ...(sets || []).map(s => +s.w || 0));
 // 1RM stimato (Epley): premia la crescita generica — più peso O più ripetizioni
@@ -1862,8 +1885,10 @@ function renderMente() {
   const { cur, next } = categoria(pts);
   $('h-cat').textContent = cur.nome;
   $('s-punti').textContent = pts;
-  $('s-forma').textContent = forma();
-  $('s-libri').textContent = books.filter(b => b.status === 'conquistato').length;
+  const streak = readStreak();
+  $('s-forma').textContent = streak ? `🔥${streak}` : '0';
+  const conqYear = books.filter(b => b.status === 'conquistato' && (b.finished_at || '').startsWith(today().slice(0, 4))).length;
+  $('s-libri').textContent = `${conqYear}/24`;
   if (next) {
     const span = next.min - cur.min;
     $('h-bar').style.width = Math.min(100, ((pts - cur.min) / span) * 100) + '%';
@@ -1873,40 +1898,80 @@ function renderMente() {
     $('h-bar').style.width = '100%';
     $('h-from').textContent = 'Mentore'; $('h-to').textContent = 'Vetta raggiunta';
   }
-  renderOggi(); renderLibri(); renderPercorso();
+  renderOggi(); renderLibri(); renderPercorso(); renderCodex(); renderStreakCall();
+}
+
+// Estratto del giorno: rimostra un tuo insight passato, a rotazione deterministica.
+function renderCodex() {
+  const past = checkins.filter(c => (c.summary || '').trim().length > 20 && c.day !== today());
+  if (!past.length) { $('codex').classList.add('hidden'); return; }
+  const c = past[dayOfYear() % past.length];
+  const b = books.find(x => x.id === c.book_id);
+  $('codex').classList.remove('hidden');
+  $('codex-body').innerHTML =
+    `<div style="color:var(--txt);font-size:14px;line-height:1.55">“${esc(c.summary)}”</div>` +
+    (c.application ? `<div style="margin-top:8px;color:var(--green);font-size:13px">→ ${esc(c.application)}</div>` : '') +
+    `<div style="margin-top:9px;font-size:12px;color:var(--dim)">${b ? esc(b.title) : 'Libro'} · ${c.day}</div>`;
+}
+
+// Chiamata del giorno: se hai una striscia viva ma non hai ancora letto oggi, ricordatelo.
+function renderStreakCall() {
+  const streak = readStreak();
+  if (streak === 0 || checkins.some(c => c.day === today())) { $('streak-call').classList.add('hidden'); return; }
+  $('streak-call').classList.remove('hidden');
+  $('streak-call-txt').innerHTML = `🔥 <b>${streak} giorni</b> di fila. Salti oggi e riparti da zero. Bastano 20 pagine.`;
 }
 
 function renderOggi() {
   const attivi = books.filter(b => b.status === 'attivo');
-  const doneToday = checkins.find(c => c.day === today());
-  ['oggi-nobook','oggi-done','oggi-form','oggi-result'].forEach(id => $(id).classList.add('hidden'));
-  if (doneToday) {
-    $('oggi-done').classList.remove('hidden');
-    $('done-score').textContent = doneToday.score;
-  } else if (!attivi.length) {
+  const doneIds = new Set(checkins.filter(c => c.day === today()).map(c => c.book_id));
+  const doneList = attivi.filter(b => doneIds.has(b.id));
+  const pending = attivi.filter(b => !doneIds.has(b.id));
+  ['oggi-nobook','oggi-done','oggi-form'].forEach(id => $(id).classList.add('hidden'));
+  $('ci-ok').textContent = '';
+  if (!attivi.length) {
     $('oggi-nobook').classList.remove('hidden');
+  } else if (!pending.length) {
+    // tutti i libri attivi loggati oggi
+    $('oggi-done').classList.remove('hidden');
+    $('done-summary').textContent = `Oggi hai allenato ${doneList.length} ${doneList.length === 1 ? 'libro' : 'libri'}: ` + doneList.map(b => b.title).join(' · ');
   } else {
     $('oggi-form').classList.remove('hidden');
-    $('ci-book').innerHTML = attivi.map(b => `<option value="${b.id}">${esc(b.title)}</option>`).join('');
+    $('ci-book').innerHTML = pending.map(b => `<option value="${b.id}">${esc(b.title)}</option>`).join('');
+    $('ci-donetoday').innerHTML = doneList.length ? '✓ Già letti oggi: ' + doneList.map(b => esc(b.title)).join(' · ') : '';
     onBookChange();
   }
 }
 function onBookChange() {}
 
 function renderLibri() {
-  const row = (b) => {
+  const head = (b) => {
     const pts = checkins.filter(c => c.book_id === b.id).reduce((s, c) => s + (c.points || 0), 0);
     const n = checkins.filter(c => c.book_id === b.id).length;
-    return `<div class="book">
+    return `<div style="display:flex;align-items:center;gap:12px">
       <div class="info"><div class="t">${esc(b.title)}</div><div class="a">${esc(b.author || '')} · ${n} sessioni</div></div>
       <div class="pts">${pts} pt</div>
       ${b.status === 'attivo' ? `<button class="mini" data-conq="${b.id}">🏆</button>` : ''}
     </div>`;
   };
+  const rowActive = (b) => {
+    let bar = '';
+    if (b.pages) {
+      const read = pagesRead(b.id);
+      const hp = Math.min(100, Math.round(read / b.pages * 100));
+      const left = Math.max(0, b.pages - read);
+      bar = `<div class="goal-bar" style="margin-top:8px"><i style="width:${hp}%"></i></div>
+        <div class="goal-sub">📖 pag ${Math.min(read, b.pages)}/${b.pages} · ${hp}%${left ? ` · ne mancano ${left}` : ' · finito, conquistalo 🏆'}</div>`;
+    } else {
+      bar = `<div class="goal-sub" style="margin-top:6px">Nessun totale pagine: aggiungilo a un nuovo libro per la barra HP.</div>`;
+    }
+    return `<div class="book" style="display:block">${head(b)}${bar}</div>`;
+  };
+  const rowConq = (b) => `<div class="book">${head(b)}</div>`;
   const attivi = books.filter(b => b.status === 'attivo');
   const conq = books.filter(b => b.status === 'conquistato');
-  $('list-attivi').innerHTML = attivi.length ? attivi.map(row).join('') : '<p class="muted">Nessun libro attivo.</p>';
-  $('list-conq').innerHTML = conq.length ? conq.map(row).join('') : '<p class="muted">Ancora nessuno. Il primo è il più importante.</p>';
+  $('list-attivi').innerHTML = attivi.length ? attivi.map(rowActive).join('') : '<p class="muted">Nessun libro attivo.</p>';
+  $('list-conq').innerHTML = conq.length ? conq.map(rowConq).join('') : '<p class="muted">Ancora nessuno. Il primo è il più importante.</p>';
   document.querySelectorAll('[data-conq]').forEach(btn => btn.onclick = async () => {
     if (!confirm('Libro finito e capito? Segna come conquistato (+' + BOOK_CONQUEST_BONUS + ' punti).')) return;
     await sb.from('pm_books').update({ status: 'conquistato', finished_at: new Date().toISOString() }).eq('id', btn.dataset.conq);
@@ -1927,19 +1992,25 @@ function renderPercorso() {
     const d = new Date(ds + 'T12:00');
     return `<div class="day ${hit ? 'hit' : ''}"><i>${hit ? '✓' : ''}</i><span>${giorni[d.getDay()]}</span></div>`;
   }).join('');
-  $('numbers').innerHTML = `Sessioni totali: <b>${checkins.length}</b><br>
+  const yr = today().slice(0, 4);
+  const conqYear = books.filter(b => b.status === 'conquistato' && (b.finished_at || '').startsWith(yr)).length;
+  const doy = dayOfYear();
+  const pace = doy ? Math.round(conqYear / doy * 365) : 0;
+  $('numbers').innerHTML = `Quest libri ${yr}: <b>${conqYear}/24</b> · a questo ritmo ~<b>${pace}</b> entro dicembre<br>
+    Sessioni totali: <b>${checkins.length}</b><br>
     Media punteggio: <b>${checkins.length ? (checkins.reduce((s,c)=>s+c.score,0)/checkins.length).toFixed(1) : '—'}</b><br>
-    Libri attivi: <b>${books.filter(b=>b.status==='attivo').length}</b> · conquistati: <b>${books.filter(b=>b.status==='conquistato').length}</b>`;
+    Libri attivi: <b>${books.filter(b=>b.status==='attivo').length}</b> · conquistati totali: <b>${books.filter(b=>b.status==='conquistato').length}</b>`;
 }
 
 /* ───────────────── LIBRERIA ───────────────── */
 $('btn-addbook').onclick = async () => {
   $('nb-err').textContent = '';
   const title = $('nb-title').value.trim(), author = $('nb-author').value.trim();
+  const pages = parseInt($('nb-pages').value, 10) || null;
   if (!title) { $('nb-err').textContent = 'Il titolo serve.'; return; }
-  const { error } = await sb.from('pm_books').insert({ user_id: user.id, title, author });
+  const { error } = await sb.from('pm_books').insert({ user_id: user.id, title, author, pages });
   if (error) { $('nb-err').textContent = error.message; return; }
-  $('nb-title').value = ''; $('nb-author').value = '';
+  $('nb-title').value = ''; $('nb-author').value = ''; $('nb-pages').value = '';
   await loadAll(); renderAll();
 };
 
@@ -1952,13 +2023,14 @@ $('btn-checkin').onclick = async () => {
   const bookId = $('ci-book').value;
   const score = Math.min(10, Math.max(1, parseInt($('ci-score').value, 10) || 7));
   const points = score;
+  const pages_read = Math.max(0, parseInt($('ci-pages').value, 10) || 0);
 
   $('btn-checkin').disabled = true; $('ci-wait').classList.remove('hidden');
   try {
     const { error } = await sb.from('pm_checkins').insert({
       user_id: user.id, book_id: bookId, day: today(),
       summary, application: apply,
-      score, points,
+      score, points, pages_read,
     });
     if (error) throw new Error('Salvataggio fallito: ' + error.message);
 
@@ -1967,12 +2039,11 @@ $('btn-checkin').onclick = async () => {
       if (hLettura) await setHabitState(hLettura.id, today(), 'yes', true);
     }
 
+    $('ci-summary').value = ''; $('ci-apply').value = ''; $('ci-pages').value = '0';
     await loadAll(); renderAll();
-    ['oggi-done','oggi-form'].forEach(id => $(id).classList.add('hidden'));
-    $('oggi-result').classList.remove('hidden');
-    $('res-score').textContent = score;
-    $('res-points').textContent = points;
-    $('ci-summary').value = ''; $('ci-apply').value = '';
+    // renderOggi mostra il form per il prossimo libro in sospeso, o la card "fatto" se finiti tutti.
+    const restano = books.filter(b => b.status === 'attivo' && !checkins.some(c => c.day === today() && c.book_id === b.id)).length;
+    $('ci-ok').textContent = `✓ Sessione salvata · +${points} punti.` + (restano ? ` Restano ${restano} ${restano === 1 ? 'libro' : 'libri'} oggi.` : '');
   } catch (e) {
     $('ci-err').textContent = e.message || 'Errore. Controlla la connessione.';
   } finally {

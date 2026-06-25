@@ -26,7 +26,7 @@ PWA single-file (`index.html`) su GitHub Pages. "La vita come videogioco" — Fa
 | Piano | **Home** (si apre per prima): focus del mese (area debole), piano 2026 (sola lettura, `PIANO_2026`), andamento Vita/Azione nel tempo (grafico 6 mesi) |
 | Ruota | Wheel of Life SVG (8 aree) + avatar pixel art + barra livello |
 | Corpo | Log allenamento, storico, 1RM stimato (Epley), PR rilevati |
-| Mente | Check-in lettura (ex Palestra Mentale, tabelle `pm_*`) |
+| Mente | Lettura come gioco: check-in giornaliero, **boss book** (barra HP pagine), **striscia** 🔥, **codex** (estratti passati a rotazione), **quest 📚 X/24** annuale. Tabelle `pm_*` |
 | Disciplina | Tracker abitudini, chips Oggi/Ieri, storico mesi, gestione abitudini |
 | Config | Chiave API, logout, info |
 
@@ -104,7 +104,7 @@ Soglie riscalate automaticamente se cambiano le abitudini attive.
 - **Sync note-libri:** `scripts/sync-palestra-mentale.mjs` (launchagent `palestra-sync`, 9:10) → note in `06_Crescita_Personale/Libri/`.
 - **Ripristino:** Impostazioni → "Ripristina da backup (JSON)" (upsert per id, ordine FK, idempotente).
 - **Stato dati (24/6/2026):** solo dati seed (13 abitudini, 40 esercizi), zero storico — il tracker era bloccato dal crash `giorniLabel`, risolto il 24/6.
-- **Migrazione pendente:** `migration-wheel-scale.sql` (check 0–10) da eseguire nel SQL Editor per poter votare 0.
+- **Migrazione pendente:** `migration-mente-pages.sql` — aggiunge `pm_books.pages` e `pm_checkins.pages_read` (boss book HP). Da eseguire nel SQL Editor prima di usare le pagine nella Mente.
 
 ## Sicurezza
 
