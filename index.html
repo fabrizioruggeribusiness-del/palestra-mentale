@@ -1477,12 +1477,19 @@ const dayNames = () => [...new Set(exercises.filter(e => e.active).sort((a, b) =
 
 function parseSets(str) {
   const out = [];
-  const re = /(\d+(?:[.,]\d+)?)\s*[xX×]\s*(\d+)/g;
+  // peso x ripetizioni, con RPE opzionale: 90x7  oppure  90x7@8 / 90x7@8.5
+  const re = /(\d+(?:[.,]\d+)?)\s*[xX×]\s*(\d+)\s*(?:@\s*(\d+(?:[.,]\d+)?))?/g;
   let m;
-  while ((m = re.exec(str))) out.push({ w: parseFloat(m[1].replace(',', '.')), r: parseInt(m[2], 10) });
+  while ((m = re.exec(str))) {
+    const s = { w: parseFloat(m[1].replace(',', '.')), r: parseInt(m[2], 10) };
+    if (m[3] != null) { const rpe = parseFloat(m[3].replace(',', '.')); if (rpe >= 1 && rpe <= 10) s.rpe = rpe; }
+    out.push(s);
+  }
   return out;
 }
-const fmtSets = sets => (sets || []).map(s => `${s.w}x${s.r}`).join(', ');
+const fmtSets = sets => (sets || []).map(s => `${s.w}x${s.r}${s.rpe ? `@${s.rpe}` : ''}`).join(', ');
+// RPE medio di una sessione (solo sulle serie che ce l'hanno)
+const avgRpe = sets => { const r = (sets || []).filter(s => s.rpe).map(s => s.rpe); return r.length ? +(r.reduce((a, b) => a + b, 0) / r.length).toFixed(1) : null; };
 // Volume di una sessione: somma di peso×ripetizioni (tonnellaggio)
 const volume = sets => (sets || []).reduce((s, x) => s + (+x.w || 0) * (+x.r || 0), 0);
 // Grafico a linea generico, autoscalato. vals = array di numeri (cronologico).
@@ -1557,7 +1564,8 @@ function renderCorpo() {
       return `<div class="ex">
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <input class="ee-name" value="${esc(e.name)}" placeholder="nome" style="flex:1;min-width:120px">
-          <input class="ee-scheme" value="${esc(e.scheme || '')}" placeholder="schema" style="width:96px">
+          <input class="ee-scheme" value="${esc(e.scheme || '')}" placeholder="schema" style="width:84px">
+          <input class="ee-ss" value="${esc(e.superset_group || '')}" placeholder="🔗SS" maxlength="2" title="Super serie: stessa lettera = stesso gruppo" style="width:56px;text-transform:uppercase;text-align:center">
         </div>
         <div style="display:flex;gap:8px;margin-top:8px">
           <button class="mini" data-saveex="${e.id}">Salva</button>
@@ -1584,9 +1592,9 @@ function renderCorpo() {
       hist = `<div class="history">${chart}<div style="max-height:170px;overflow:auto;margin-top:6px">${list}</div></div>`;
     }
     const inputVal = draft[e.id] ?? (todayLog && !pending ? fmtSets(todayLog.sets) : '');
-    return `<div class="ex">
+    return `<div class="ex"${e.superset_group ? ' style="border-left:3px solid var(--gold);padding-left:9px"' : ''}>
       <div class="exhead" data-hist="${e.id}">
-        <span class="name">${esc(e.name)}</span><span class="scheme">${esc(e.scheme || '')}</span>
+        <span class="name">${esc(e.name)}</span><span class="scheme">${esc(e.scheme || '')}</span>${e.superset_group ? ` <span class="scheme" style="color:var(--gold)">🔗${esc(e.superset_group)}</span>` : ''}
         <span class="exctl" data-up="${e.id}" title="su">▲</span>
         <span class="exctl" data-down="${e.id}" title="giù">▼</span>
         <span class="exctl" data-edex="${e.id}" title="modifica">✎</span>
@@ -1595,7 +1603,7 @@ function renderCorpo() {
       <div class="lastbest">${last ? `ultima: ${fmtSets(last.sets)} (${last.day}) · ` : ''}${bs && bs.w ? `best: <span class="pr-tag">${bs.w}x${bs.r} (≈${Math.round(est1rm(bs))} 1RM)</span>` : 'mai registrato'}</div>
       ${pending
         ? '<div class="lastbest">oggi: <b>' + esc(fmtSets(todayLog.sets)) + '</b> 📴 in attesa di rete</div>'
-        : `<input class="sets" data-ex="${e.id}" ${todayLog ? `data-logid="${todayLog.id}"` : ''} value="${esc(inputVal)}" placeholder="es. 90x7, 95x6, 95x6" inputmode="text">`}
+        : `<input class="sets" data-ex="${e.id}" ${todayLog ? `data-logid="${todayLog.id}"` : ''} value="${esc(inputVal)}" placeholder="es. 90x7@8, 95x6@9 (l'@RPE è facoltativo)" inputmode="text">`}
       ${hist}
     </div>`;
   }).join('') || '<p class="muted">Nessun esercizio in questa giornata.</p>';
@@ -1619,9 +1627,10 @@ function renderCorpo() {
     const id = el.dataset.saveex;
     const name = document.querySelector('.ee-name').value.trim();
     const scheme = document.querySelector('.ee-scheme').value.trim();
+    const ss = document.querySelector('.ee-ss').value.trim().toUpperCase();
     if (!name) { alert('Il nome serve.'); return; }
     try {
-      const { error } = await sb.from('po_exercises').update({ name, scheme: scheme || null }).eq('id', id);
+      const { error } = await sb.from('po_exercises').update({ name, scheme: scheme || null, superset_group: ss || null }).eq('id', id);
       if (error) throw new Error(error.message);
       editingEx = null; await loadAll(); renderCorpo();
     } catch (e) { alert(isNetErr(e) ? 'Serve la rete per modificare. Riprova dopo.' : 'Errore: ' + e.message); }
