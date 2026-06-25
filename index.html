@@ -137,6 +137,11 @@
   .ex input.sets { margin-top: 7px; font-size: 15px; padding: 9px 11px; }
   .ex .history { margin-top: 8px; font-size: 12px; color: var(--dim); line-height: 1.7; border-left: 2px solid var(--line); padding-left: 10px; }
   .pr-tag { color: var(--green); font-weight:700; }
+  .rec-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .rec-row span:first-child { flex:1; min-width:0; }
+  .hm-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .hm-cell { aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:10px; border-radius:5px; background:var(--bg2); border:1px solid var(--line); color:var(--dim); }
+  .hm-cell.on { background:rgba(94,201,124,.25); border-color:var(--green); color:var(--green); font-weight:700; }
 
   /* ── disciplina ── */
   .hgroup { margin-top: 14px; }
@@ -368,6 +373,19 @@
       <div class="card">
         <h2>Ultimi 7 giorni</h2>
         <div class="week" id="co-week"></div>
+      </div>
+      <div class="card">
+        <h2>Andamento <small>— mese + volume</small></h2>
+        <div id="co-heatmap"></div>
+        <div id="co-volume" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h2>Record 💪 <small>— massimali per esercizio</small></h2>
+        <div id="co-records"></div>
+      </div>
+      <div class="card">
+        <h2>Diario allenamenti</h2>
+        <div id="co-diario" style="max-height:320px;overflow:auto"></div>
       </div>
       <div class="card">
         <h2>Aggiungi esercizio <small>— alla giornata selezionata</small></h2>
@@ -1453,6 +1471,30 @@ function parseSets(str) {
   return out;
 }
 const fmtSets = sets => (sets || []).map(s => `${s.w}x${s.r}`).join(', ');
+// Volume di una sessione: somma di peso×ripetizioni (tonnellaggio)
+const volume = sets => (sets || []).reduce((s, x) => s + (+x.w || 0) * (+x.r || 0), 0);
+// Grafico a linea generico, autoscalato. vals = array di numeri (cronologico).
+function lineSvg(vals, color) {
+  const W = 300, H = 80, pl = 28, pr = 8, pt = 8, pb = 14, n = vals.length;
+  if (n < 2) return '<div class="muted" style="font-size:11px">Servono almeno 2 sessioni per il grafico.</div>';
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (hi === lo) { hi = lo + 1; lo = Math.max(0, lo - 1); }
+  const pad = (hi - lo) * 0.12; const loP = lo - pad, hiP = hi + pad;
+  const X = i => pl + (W - pl - pr) * (i / (n - 1));
+  const Y = v => pt + (H - pt - pb) * (1 - (v - loP) / (hiP - loP));
+  const pts = vals.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const dots = vals.map((v, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.2" fill="${color}"/>`).join('');
+  const yl = `<text x="0" y="${(Y(hi) + 3).toFixed(1)}" font-size="8" fill="#8a94ad">${Math.round(hi)}</text><text x="0" y="${(Y(lo) + 3).toFixed(1)}" font-size="8" fill="#8a94ad">${Math.round(lo)}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto"><polyline fill="none" stroke="${color}" stroke-width="2" points="${pts}"/>${dots}${yl}</svg>`;
+}
+// Grafico a barre generico, autoscalato.
+function barSvg(vals, color) {
+  const W = 300, H = 64, pl = 8, pr = 8, pt = 8, pb = 4, n = vals.length;
+  if (!n) return '';
+  const hi = Math.max(1, ...vals), gap = (W - pl - pr) / n, bw = gap * 0.66;
+  const bars = vals.map((v, i) => { const h = (H - pt - pb) * (v / hi); const x = pl + gap * i + (gap - bw) / 2; const y = pt + (H - pt - pb) - h; return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0, h).toFixed(1)}" fill="${color}" rx="1"/>`; }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${bars}</svg>`;
+}
 
 function weightChart(entries) {
   const W = 320, H = 90, pl = 22, pr = 8, pt = 8, pb = 16, n = entries.length;
@@ -1505,10 +1547,18 @@ function renderCorpo() {
     const bs = bestLog ? bestSet(bestLog.sets) : null;
     const todayLog = logs.find(l => l.day === today());
     const pending = todayLog && String(todayLog.id).startsWith('tmp');
-    const hist = openHistory === e.id
-      ? `<div class="history">${logs.slice(0, 6).map(l =>
-          `${l.day} — ${fmtSets(l.sets)}${String(l.id).startsWith('tmp') ? ' 📴' : ` <span class="del" data-dellog="${l.id}" title="elimina">🗑</span>`}`
-        ).join('<br>') || 'Nessuna sessione registrata.'}</div>` : '';
+    let hist = '';
+    if (openHistory === e.id) {
+      const asc = [...logs].sort((a, b) => a.day < b.day ? -1 : 1);
+      const chart = asc.length >= 2
+        ? `<div class="muted" style="font-size:11px">1RM stimato nel tempo</div>${lineSvg(asc.map(l => Math.round(best1rm(l.sets))), '#7aa2f7')}
+           <div class="muted" style="font-size:11px;margin-top:4px">Volume (kg) nel tempo</div>${lineSvg(asc.map(l => Math.round(volume(l.sets))), '#5ec97c')}`
+        : '';
+      const list = logs.length
+        ? logs.map(l => `${l.day} — ${fmtSets(l.sets)} · ${Math.round(volume(l.sets))}kg · ≈${Math.round(best1rm(l.sets))}${String(l.id).startsWith('tmp') ? ' 📴' : ` <span class="del" data-dellog="${l.id}" title="elimina">🗑</span>`}`).join('<br>')
+        : 'Nessuna sessione registrata.';
+      hist = `<div class="history">${chart}<div style="max-height:170px;overflow:auto;margin-top:6px">${list}</div></div>`;
+    }
     const inputVal = draft[e.id] ?? (todayLog && !pending ? fmtSets(todayLog.sets) : '');
     return `<div class="ex">
       <div class="exhead" data-hist="${e.id}">
@@ -1554,6 +1604,51 @@ function renderCorpo() {
     const d = new Date(ds + 'T12:00');
     return `<div class="day ${hit ? 'hit' : ''}"><i>${hit ? '✓' : ''}</i><span>${giorni[d.getDay()]}</span></div>`;
   }).join('');
+
+  renderTrends(); renderRecords(); renderDiario();
+}
+
+// D — heatmap allenamenti del mese + volume settimanale (ultime 8 settimane)
+function renderTrends() {
+  const ym = thisMonth(), dim = daysInMonth(ym);
+  const trained = new Set(workoutLogs.filter(l => l.day.startsWith(ym)).map(l => l.day));
+  let cells = '';
+  for (let d = 1; d <= dim; d++) { const ds = `${ym}-${String(d).padStart(2, '0')}`; cells += `<div class="hm-cell${trained.has(ds) ? ' on' : ''}">${d}</div>`; }
+  $('co-heatmap').innerHTML = `<div class="muted" style="font-size:11px;margin-bottom:5px">${MESI_IT[+ym.slice(5) - 1]} · ${trained.size} allenamenti</div><div class="hm-grid">${cells}</div>`;
+  const weeks = [];
+  for (let w = 7; w >= 0; w--) { const days = daysWindow(w * 7, 7); weeks.push(Math.round(workoutLogs.filter(l => days.includes(l.day)).reduce((s, l) => s + volume(l.sets), 0))); }
+  $('co-volume').innerHTML = `<div class="muted" style="font-size:11px">Volume settimanale (kg) · ultime 8 sett.</div>${barSvg(weeks, '#5ec97c')}<div class="goal-sub">questa settimana: <b>${weeks[weeks.length - 1]}</b> kg</div>`;
+}
+
+// B — registro record: miglior set per esercizio, con data, più recenti in alto
+function renderRecords() {
+  const rows = [];
+  for (const e of exercises) {
+    const logs = workoutLogs.filter(l => l.exercise_id === e.id);
+    if (!logs.length) continue;
+    const bestLog = logs.reduce((b, l) => best1rm(l.sets) > best1rm(b.sets) ? l : b);
+    const bs = bestSet(bestLog.sets);
+    if (!bs.w) continue;
+    rows.push({ name: e.name, w: bs.w, r: bs.r, orm: Math.round(est1rm(bs)), day: bestLog.day });
+  }
+  rows.sort((a, b) => a.day < b.day ? 1 : -1);
+  $('co-records').innerHTML = rows.length
+    ? rows.map(r => `<div class="rec-row"><span>${esc(r.name)}</span><span class="pr-tag">${r.w}x${r.r} ≈${r.orm}</span><span class="muted" style="font-size:11px">${r.day}</span></div>`).join('')
+    : '<p class="muted">Ancora nessun record. Registra il primo allenamento.</p>';
+}
+
+// C — diario per sessione: cosa ho fatto ogni giorno di allenamento
+function renderDiario() {
+  const days = [...new Set(workoutLogs.map(l => l.day))].sort().reverse().slice(0, 20);
+  $('co-diario').innerHTML = days.length
+    ? days.map(d => {
+        const ls = workoutLogs.filter(l => l.day === d);
+        const vol = Math.round(ls.reduce((s, l) => s + volume(l.sets), 0));
+        const items = ls.map(l => { const e = exercises.find(x => x.id === l.exercise_id); return `${esc(e ? e.name : '?')}: ${fmtSets(l.sets)}`; }).join('<br>');
+        const wd = new Date(d + 'T12:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+        return `<div class="plan-row"><b>${wd}</b> · ${ls.length} es · ${vol} kg<div class="muted" style="font-size:12px;margin-top:3px">${items}</div></div>`;
+      }).join('')
+    : '<p class="muted">Nessun allenamento registrato.</p>';
 }
 
 $('btn-saveworkout').onclick = async () => {
