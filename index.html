@@ -326,6 +326,16 @@
     <div id="corpo-locked" class="warn hidden">⚠️ Esegui prima la migrazione SQL (vedi Ruota).</div>
     <div id="corpo-main">
       <div class="card">
+        <h2>Peso <small>— obiettivo 75 kg</small></h2>
+        <div id="co-weight-now" class="muted"></div>
+        <div id="co-weight-chart" style="margin-top:8px"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <input id="co-weight-input" type="number" step="0.1" inputmode="decimal" placeholder="peso di oggi, es. 82.4" style="flex:1">
+          <button id="btn-saveweight" class="mini">Registra</button>
+        </div>
+        <div id="co-weight-msg" class="ok-msg"></div>
+      </div>
+      <div class="card">
         <h2>Giornata</h2>
         <div class="chips" id="co-days"></div>
       </div>
@@ -535,7 +545,14 @@ const AREAS = [
 // Obiettivi 2026: alcuni con progresso reale dai dati (prog), altri come target.
 const PIANO_2026 = [
   { txt: '💪 Fisico — 75 kg / 8–10% BF (entro agosto)',
-    prog: () => ({ done: new Set(workoutLogs.filter(l => l.day.startsWith(thisMonth())).map(l => l.day)).size, total: 16, unit: 'allenamenti questo mese' }) },
+    prog: () => {
+      if (weights.length) {
+        const cur = +weights[weights.length - 1].kg;
+        const done = +Math.max(0, Math.min(PESO_START - PESO_TARGET, PESO_START - cur)).toFixed(1);
+        return { done, total: +(PESO_START - PESO_TARGET).toFixed(1), unit: `kg verso 75 (ora ${cur} kg)` };
+      }
+      return { done: new Set(workoutLogs.filter(l => l.day.startsWith(thisMonth())).map(l => l.day)).size, total: 16, unit: 'allenamenti questo mese (registra il peso per il progresso reale)' };
+    } },
   { txt: '🛡️ Assicurazioni — 38k€ fatturato, +50k€ portafoglio' },
   { txt: '🌱 Herbalife — avviare (obiettivo World Team) · in valutazione' },
   { txt: '📣 Personal brand — avviato, 2 post a settimana' },
@@ -544,6 +561,8 @@ const PIANO_2026 = [
   { txt: '❤️ Famiglia — padre presente e stabile (bimbo dic 2026)' },
   { txt: '💶 Economico — indipendenza dal supporto familiare' },
 ];
+// Peso: punto di partenza e obiettivo (kg).
+const PESO_START = 84.5, PESO_TARGET = 75;
 // Scadenze reali con countdown.
 const SCADENZE = [
   { icon: '🏋️', label: 'Forma 75 kg', date: '2026-08-31' },
@@ -625,7 +644,7 @@ const isNetErr = e => !navigator.onLine || /fetch|load failed|network|connection
 const MESI_IT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
 
 let user = null, books = [], checkins = [];
-let poReady = true, exercises = [], workoutLogs = [], habits = [], habitDays = [], wheel = [];
+let poReady = true, exercises = [], workoutLogs = [], habits = [], habitDays = [], wheel = [], weights = [];
 let selDay = localStorage.getItem('po_selday') || '';
 let openHistory = null;
 let diDay = today();
@@ -710,13 +729,14 @@ function applyQueueLocally() {
 
 const SNAP_KEY = 'po_snapshot';
 function saveSnapshot() {
-  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel, poReady })); } catch {}
+  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel, weights, poReady })); } catch {}
 }
 function restoreSnapshot() {
   try {
     const s = JSON.parse(localStorage.getItem(SNAP_KEY) || 'null');
     if (!s) return false;
     ({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel } = s);
+    weights = s.weights || [];
     poReady = s.poReady;
     return true;
   } catch { return false; }
@@ -765,17 +785,19 @@ async function loadAll() {
     books = b.data || [];
     checkins = c.data || [];
 
-    const [ex, wl, h, hd, w] = await Promise.all([
+    const [ex, wl, h, hd, w, wt] = await Promise.all([
       sb.from('po_exercises').select('*').order('position'),
       sb.from('po_workout_logs').select('*').order('day'),
       sb.from('po_habits').select('*').order('position'),
       sb.from('po_habit_days').select('*'),
       sb.from('po_wheel').select('*').order('month'),
+      sb.from('po_weight').select('*').order('day'),
     ]);
     if (ex.error || h.error) { poReady = false; applyQueueLocally(); return; }
     poReady = true;
     exercises = ex.data || []; workoutLogs = wl.data || [];
     habits = h.data || []; habitDays = hd.data || []; wheel = w.data || [];
+    weights = wt.data || []; // se la tabella manca (migrazione non fatta) resta vuoto
 
     // primo avvio: semina scheda e abitudini
     if (!exercises.length) {
@@ -1308,8 +1330,36 @@ function parseSets(str) {
 }
 const fmtSets = sets => (sets || []).map(s => `${s.w}x${s.r}`).join(', ');
 
+function weightChart(entries) {
+  const W = 320, H = 90, pl = 22, pr = 8, pt = 8, pb = 16, n = entries.length;
+  if (!n) return '';
+  const kgs = entries.map(e => +e.kg);
+  let lo = Math.min(PESO_TARGET, ...kgs) - 1, hi = Math.max(...kgs) + 1;
+  if (hi - lo < 4) hi = lo + 4;
+  const X = i => pl + (W - pl - pr) * (n <= 1 ? 0.5 : i / (n - 1));
+  const Y = v => pt + (H - pt - pb) * (1 - (v - lo) / (hi - lo));
+  let svg = `<line x1="${pl}" y1="${Y(PESO_TARGET).toFixed(1)}" x2="${W - pr}" y2="${Y(PESO_TARGET).toFixed(1)}" stroke="#e8b84b" stroke-dasharray="3 3"/><text x="0" y="${Y(PESO_TARGET) + 3}" font-size="8" fill="#e8b84b">${PESO_TARGET}</text>`;
+  svg += `<polyline fill="none" stroke="#7aa2f7" stroke-width="2" points="${entries.map((e, i) => `${X(i).toFixed(1)},${Y(+e.kg).toFixed(1)}`).join(' ')}"/>`;
+  svg += entries.map((e, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(+e.kg).toFixed(1)}" r="2.5" fill="#7aa2f7"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${svg}</svg>`;
+}
+function renderPeso() {
+  if (!poReady) return;
+  const now = $('co-weight-now');
+  if (!weights.length) {
+    now.textContent = 'Nessun peso registrato. Segna il primo per attivare il grafico.';
+    $('co-weight-chart').innerHTML = '';
+    return;
+  }
+  const cur = +weights[weights.length - 1].kg, first = +weights[0].kg;
+  const dFirst = (cur - first).toFixed(1), toGo = +(cur - PESO_TARGET).toFixed(1);
+  now.innerHTML = `Ora: <b style="color:var(--txt)">${cur} kg</b> · ${dFirst} kg dall'inizio · ${toGo > 0 ? `${toGo} kg all'obiettivo` : 'obiettivo raggiunto 🎯'}`;
+  $('co-weight-chart').innerHTML = weightChart(weights);
+}
+
 function renderCorpo() {
   if (!poReady) return;
+  renderPeso();
   // non perdere quello che stavi scrivendo quando la UI si ridisegna
   const draft = {};
   document.querySelectorAll('input.sets[data-ex]').forEach(i => { if (i.value.trim()) draft[i.dataset.ex] = i.value; });
@@ -1452,6 +1502,25 @@ $('btn-addex').onclick = async () => {
   await sb.from('po_exercises').insert({ user_id: user.id, day_name: selDay, day_order, name, scheme, position });
   $('co-newname').value = ''; $('co-newscheme').value = '';
   await loadAll(); renderAll();
+};
+
+$('btn-saveweight').onclick = async () => {
+  const msg = $('co-weight-msg'); msg.className = 'ok-msg'; msg.textContent = '';
+  const kg = parseFloat(($('co-weight-input').value || '').replace(',', '.'));
+  if (!(kg > 30 && kg < 300)) { msg.className = 'err'; msg.textContent = 'Inserisci un peso valido (kg).'; return; }
+  try {
+    const { error } = await sb.from('po_weight').upsert({ user_id: user.id, day: today(), kg }, { onConflict: 'user_id,day' });
+    if (error) throw new Error(error.message);
+    $('co-weight-input').value = '';
+    await loadAll(); renderAll();
+    msg.textContent = 'Peso registrato ✓';
+    setTimeout(() => { msg.textContent = ''; }, 3000);
+  } catch (e) {
+    msg.className = 'err';
+    msg.textContent = isNetErr(e) ? 'Serve la rete per salvare il peso. Riprova dopo.'
+      : /relation|does not exist|po_weight|schema cache/i.test(e.message) ? 'Esegui prima migration-weight.sql nel SQL Editor di Supabase.'
+      : 'Errore: ' + e.message;
+  }
 };
 
 /* ───────────────── DISCIPLINA ───────────────── */
@@ -1660,9 +1729,9 @@ function exportJSON() {
     exported_at: new Date().toISOString(),
     user_email: user?.email || null,
     counts: { books: books.length, checkins: checkins.length, exercises: exercises.length,
-      workoutLogs: workoutLogs.length, habits: habits.length, habitDays: habitDays.length, wheel: wheel.length },
+      workoutLogs: workoutLogs.length, habits: habits.length, habitDays: habitDays.length, wheel: wheel.length, weights: weights.length },
     tables: { pm_books: books, pm_checkins: checkins, po_exercises: exercises,
-      po_workout_logs: workoutLogs, po_habits: habits, po_habit_days: habitDays, po_wheel: wheel },
+      po_workout_logs: workoutLogs, po_habits: habits, po_habit_days: habitDays, po_wheel: wheel, po_weight: weights },
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1675,7 +1744,7 @@ $('btn-export-json').onclick = exportJSON;
 
 // Ripristino da backup JSON (in-app o dal backup-player-one.mjs): chiude il cerchio dei dati.
 // Ordine: prima le tabelle "padre", poi quelle con foreign key. Upsert per id (idempotente).
-const RESTORE_ORDER = ['po_habits', 'po_exercises', 'pm_books', 'po_habit_days', 'po_workout_logs', 'po_wheel', 'pm_checkins'];
+const RESTORE_ORDER = ['po_habits', 'po_exercises', 'pm_books', 'po_habit_days', 'po_workout_logs', 'po_wheel', 'po_weight', 'pm_checkins'];
 async function restoreFromJSON(file) {
   $('export-msg').textContent = '';
   let parsed;

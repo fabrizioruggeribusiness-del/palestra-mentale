@@ -64,8 +64,19 @@ create table if not exists po_wheel (
   unique (user_id, area, month)
 );
 
+-- ── Tracciamento peso corporeo ──
+create table if not exists po_weight (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users on delete cascade,
+  day        date not null,
+  kg         numeric(5,2) not null check (kg > 30 and kg < 300),
+  created_at timestamptz not null default now(),
+  unique (user_id, day)
+);
+
 -- ── Sicurezza: ogni utente vede e modifica SOLO i propri dati ──
 alter table po_exercises    enable row level security;
+alter table po_weight       enable row level security;
 alter table po_workout_logs enable row level security;
 alter table po_habits       enable row level security;
 alter table po_habit_days   enable row level security;
@@ -89,4 +100,8 @@ create policy "own_habit_days" on po_habit_days
 
 drop policy if exists "own_wheel" on po_wheel;
 create policy "own_wheel" on po_wheel
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "own_weight" on po_weight;
+create policy "own_weight" on po_weight
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

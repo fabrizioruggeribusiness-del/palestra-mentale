@@ -32,7 +32,7 @@ PWA single-file (`index.html`) su GitHub Pages. "La vita come videogioco" — Fa
 
 ## Database — tabelle
 
-**Nuove (Player One):** `po_exercises`, `po_workout_logs`, `po_habits`, `po_habit_days`, `po_wheel`  
+**Nuove (Player One):** `po_exercises`, `po_workout_logs`, `po_habits`, `po_habit_days`, `po_wheel`, `po_weight`  
 **Vecchie (Palestra Mentale):** `pm_books`, `pm_checkins` — invariate, Mente le usa ancora
 
 Tutto con RLS. Schema in `player-one-schema.sql`.
