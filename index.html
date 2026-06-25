@@ -401,6 +401,11 @@
     <div id="codex" class="card hidden">
       <h2>📜 Dal tuo codex <small>— un'idea che hai già conquistato</small></h2>
       <div id="codex-body"></div>
+      <button id="btn-codex-all" class="ghost" style="margin-top:12px">📚 Sfoglia tutti gli estratti</button>
+      <div id="codex-all" class="hidden" style="margin-top:10px">
+        <select id="codex-filter"></select>
+        <div id="codex-list" style="margin-top:8px;max-height:55vh;overflow:auto"></div>
+      </div>
     </div>
 
     <!-- nessun libro attivo -->
@@ -1901,18 +1906,51 @@ function renderMente() {
   renderOggi(); renderLibri(); renderPercorso(); renderCodex(); renderStreakCall();
 }
 
+// Tutti gli estratti con testo, dal più recente. Fonte sia del codex del giorno che dell'archivio.
+const codexEntries = () => checkins
+  .filter(c => (c.summary || '').trim().length > 20)
+  .sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0));
+
 // Estratto del giorno: rimostra un tuo insight passato, a rotazione deterministica.
 function renderCodex() {
-  const past = checkins.filter(c => (c.summary || '').trim().length > 20 && c.day !== today());
-  if (!past.length) { $('codex').classList.add('hidden'); return; }
-  const c = past[dayOfYear() % past.length];
+  const all = codexEntries();
+  if (!all.length) { $('codex').classList.add('hidden'); return; }
+  // per il "del giorno" preferisci i passati (non oggi); se c'è solo oggi, mostra quello
+  const pool = all.filter(c => c.day !== today());
+  const c = (pool.length ? pool : all)[dayOfYear() % (pool.length || all.length)];
   const b = books.find(x => x.id === c.book_id);
   $('codex').classList.remove('hidden');
   $('codex-body').innerHTML =
     `<div style="color:var(--txt);font-size:14px;line-height:1.55">“${esc(c.summary)}”</div>` +
     (c.application ? `<div style="margin-top:8px;color:var(--green);font-size:13px">→ ${esc(c.application)}</div>` : '') +
     `<div style="margin-top:9px;font-size:12px;color:var(--dim)">${b ? esc(b.title) : 'Libro'} · ${c.day}</div>`;
+  // archivio: pulsante + filtro per libro
+  $('btn-codex-all').textContent = `📚 Sfoglia tutti gli estratti (${all.length})`;
+  const bookIds = [...new Set(all.map(c => c.book_id))];
+  const opts = ['<option value="">Tutti i libri</option>']
+    .concat(bookIds.map(id => { const bk = books.find(x => x.id === id); return `<option value="${id}">${esc(bk ? bk.title : 'Libro')}</option>`; }));
+  $('codex-filter').innerHTML = opts.join('');
+  renderCodexList('');
 }
+
+function renderCodexList(bookId) {
+  const list = codexEntries().filter(c => !bookId || c.book_id === bookId);
+  $('codex-list').innerHTML = list.map(c => {
+    const b = books.find(x => x.id === c.book_id);
+    return `<div class="book" style="display:block">
+      <div style="font-size:12px;color:var(--dim);margin-bottom:4px">${esc(b ? b.title : 'Libro')} · ${c.day} · voto ${c.score}/10</div>
+      <div style="font-size:14px;line-height:1.5">${esc(c.summary)}</div>
+      ${c.application ? `<div style="margin-top:6px;color:var(--green);font-size:13px">→ ${esc(c.application)}</div>` : ''}
+    </div>`;
+  }).join('') || '<p class="muted">Nessun estratto per questo libro.</p>';
+}
+
+$('btn-codex-all').onclick = () => {
+  const el = $('codex-all');
+  el.classList.toggle('hidden');
+  $('btn-codex-all').classList.toggle('active', !el.classList.contains('hidden'));
+};
+$('codex-filter').onchange = e => renderCodexList(e.target.value);
 
 // Chiamata del giorno: se hai una striscia viva ma non hai ancora letto oggi, ricordatelo.
 function renderStreakCall() {
