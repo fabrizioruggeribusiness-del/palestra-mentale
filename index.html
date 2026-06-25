@@ -1990,6 +1990,7 @@ function renderLibri() {
       <div class="info"><div class="t">${esc(b.title)}</div><div class="a">${esc(b.author || '')} · ${n} sessioni</div></div>
       <div class="pts">${pts} pt</div>
       ${b.status === 'attivo' ? `<button class="mini" data-conq="${b.id}">🏆</button>` : ''}
+      <button class="mini" data-del="${b.id}" title="Rimuovi libro">🗑</button>
     </div>`;
   };
   const rowActive = (b) => {
@@ -2013,6 +2014,13 @@ function renderLibri() {
   document.querySelectorAll('[data-conq]').forEach(btn => btn.onclick = async () => {
     if (!confirm('Libro finito e capito? Segna come conquistato (+' + BOOK_CONQUEST_BONUS + ' punti).')) return;
     await sb.from('pm_books').update({ status: 'conquistato', finished_at: new Date().toISOString() }).eq('id', btn.dataset.conq);
+    await loadAll(); renderAll();
+  });
+  document.querySelectorAll('[data-del]').forEach(btn => btn.onclick = async () => {
+    const b = books.find(x => x.id === btn.dataset.del);
+    const n = checkins.filter(c => c.book_id === btn.dataset.del).length;
+    if (!confirm(`Rimuovere «${b ? b.title : 'questo libro'}»?` + (n ? `\nSi cancellano anche ${n} check-in/estratti collegati.` : '') + `\nAzione irreversibile.`)) return;
+    await sb.from('pm_books').delete().eq('id', btn.dataset.del);
     await loadAll(); renderAll();
   });
 }
