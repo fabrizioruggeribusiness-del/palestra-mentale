@@ -1368,7 +1368,9 @@ function renderPiano() {
   // andamento: Azione ultime 8 settimane + numeri Vita/Azione
   const weeks = []; for (let w = 7; w >= 0; w--) weeks.push(azioneAt(w * 7));
   const aN = weeks[weeks.length - 1], aP = weeks[weeks.length - 2];
-  const vita = vitaForMonth(thisMonth()), vitaPrev = vitaForMonth(prevMonth());
+  const vita = vitaForMonth(thisMonth());
+  // confronto Vita solo se il mese scorso ha almeno un voto (altrimenti niente freccia fasulla)
+  const vitaPrev = AREAS.some(a => manualScoreMonth(a.key, prevMonth()) != null) ? vitaForMonth(prevMonth()) : null;
   const delta = (now, prev) => (prev == null || now === prev) ? ''
     : now > prev ? ` <span style="color:var(--green);font-size:13px">▲${(now - prev).toFixed(1)}</span>`
                  : ` <span style="color:var(--red);font-size:13px">▼${(prev - now).toFixed(1)}</span>`;
