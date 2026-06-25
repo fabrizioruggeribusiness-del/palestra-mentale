@@ -683,7 +683,7 @@ const isNetErr = e => !navigator.onLine || /fetch|load failed|network|connection
 const MESI_IT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
 
 let user = null, books = [], checkins = [];
-let poReady = true, exercises = [], workoutLogs = [], habits = [], habitDays = [], wheel = [], weights = [];
+let poReady = true, exercises = [], workoutLogs = [], habits = [], habitDays = [], wheel = [], weights = [], dailyGoals = [];
 let selDay = localStorage.getItem('po_selday') || '';
 let openHistory = null;
 let diDay = today();
@@ -704,6 +704,8 @@ function qPush(op) {
   let q = qGet();
   if (op.kind === 'habit') q = q.filter(o => !(o.kind === 'habit' && o.habit_id === op.habit_id && o.day === op.day));
   if (op.kind === 'wheel') q = q.filter(o => !(o.kind === 'wheel' && o.row.area === op.row.area && o.row.month === op.row.month));
+  if (op.kind === 'weight') q = q.filter(o => !(o.kind === 'weight' && o.row.day === op.row.day));
+  if (op.kind === 'goal_toggle') q = q.filter(o => !(o.kind === 'goal_toggle' && o.id === op.id));
   q.push(op); qSet(q);
 }
 // Esegue una singola operazione contro Supabase. Lancia in caso di errore.
@@ -720,6 +722,20 @@ async function runOp(op) {
     }
   } else if (op.kind === 'wheel') {
     const { error } = await sb.from('po_wheel').upsert(op.row, { onConflict: 'user_id,area,month' }); if (error) throw error;
+  } else if (op.kind === 'checkin') {
+    const { error } = await sb.from('pm_checkins').upsert(op.row, { onConflict: 'id' }); if (error) throw error;
+  } else if (op.kind === 'weight') {
+    const { error } = await sb.from('po_weight').upsert(op.row, { onConflict: 'user_id,day' }); if (error) throw error;
+  } else if (op.kind === 'book_add') {
+    const { error } = await sb.from('pm_books').upsert(op.row, { onConflict: 'id' }); if (error) throw error;
+  } else if (op.kind === 'book_del') {
+    const { error } = await sb.from('pm_books').delete().eq('id', op.id); if (error) throw error;
+  } else if (op.kind === 'goal_add') {
+    const { error } = await sb.from('po_daily_goals').upsert(op.row, { onConflict: 'id' }); if (error) throw error;
+  } else if (op.kind === 'goal_toggle') {
+    const { error } = await sb.from('po_daily_goals').update({ done: op.done }).eq('id', op.id); if (error) throw error;
+  } else if (op.kind === 'goal_del') {
+    const { error } = await sb.from('po_daily_goals').delete().eq('id', op.id); if (error) throw error;
   }
 }
 async function qFlush() {
@@ -763,13 +779,29 @@ function applyQueueLocally() {
     } else if (op.kind === 'wheel') {
       wheel = wheel.filter(w => !(w.area === op.row.area && w.month === op.row.month));
       wheel.push({ id: 'tmp-w', ...op.row });
+    } else if (op.kind === 'checkin') {
+      if (!checkins.some(c => c.id === op.row.id)) checkins.push(op.row);
+    } else if (op.kind === 'weight') {
+      weights = weights.filter(w => w.day !== op.row.day);
+      weights.push(op.row); weights.sort((a, b) => a.day < b.day ? -1 : 1);
+    } else if (op.kind === 'book_add') {
+      if (!books.some(b => b.id === op.row.id)) books.push(op.row);
+    } else if (op.kind === 'book_del') {
+      books = books.filter(b => b.id !== op.id);
+      checkins = checkins.filter(c => c.book_id !== op.id);
+    } else if (op.kind === 'goal_add') {
+      if (!dailyGoals.some(g => g.id === op.row.id)) dailyGoals.push(op.row);
+    } else if (op.kind === 'goal_toggle') {
+      const g = dailyGoals.find(g => g.id === op.id); if (g) g.done = op.done;
+    } else if (op.kind === 'goal_del') {
+      dailyGoals = dailyGoals.filter(g => g.id !== op.id);
     }
   }
 }
 
 const SNAP_KEY = 'po_snapshot';
 function saveSnapshot() {
-  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel, weights, poReady })); } catch {}
+  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel, weights, dailyGoals, poReady })); } catch {}
 }
 function restoreSnapshot() {
   try {
@@ -777,6 +809,7 @@ function restoreSnapshot() {
     if (!s) return false;
     ({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel } = s);
     weights = s.weights || [];
+    dailyGoals = s.dailyGoals || [];
     poReady = s.poReady;
     return true;
   } catch { return false; }
@@ -813,7 +846,7 @@ async function auth(mode) {
   user = data.session.user;
   await boot();
 }
-$('btn-logout').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+$('btn-logout').onclick = async () => { if (!confirm('Uscire da Player One?')) return; await sb.auth.signOut(); location.reload(); };
 
 /* ───────────────── DATA ───────────────── */
 async function loadAll() {
@@ -825,19 +858,21 @@ async function loadAll() {
     books = b.data || [];
     checkins = c.data || [];
 
-    const [ex, wl, h, hd, w, wt] = await Promise.all([
+    const [ex, wl, h, hd, w, wt, dg] = await Promise.all([
       sb.from('po_exercises').select('*').order('position'),
       sb.from('po_workout_logs').select('*').order('day'),
       sb.from('po_habits').select('*').order('position'),
       sb.from('po_habit_days').select('*'),
       sb.from('po_wheel').select('*').order('month'),
       sb.from('po_weight').select('*').order('day'),
+      sb.from('po_daily_goals').select('*').order('position'),
     ]);
     if (ex.error || h.error) { poReady = false; applyQueueLocally(); return; }
     poReady = true;
     exercises = ex.data || []; workoutLogs = wl.data || [];
     habits = h.data || []; habitDays = hd.data || []; wheel = w.data || [];
     weights = wt.data || []; // se la tabella manca (migrazione non fatta) resta vuoto
+    dailyGoals = dg.data || []; // idem: vuoto finché non si esegue migration-daily-goals.sql
 
     // primo avvio: semina scheda e abitudini
     if (!exercises.length) {
@@ -1262,10 +1297,12 @@ function weekChart(series) {
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${grid}${labels}<polyline fill="none" stroke="#5ec97c" stroke-width="2" points="${pts}"/>${dots}</svg>`;
 }
 const areaScoreForMonth = (a, ym) => manualScoreMonth(a.key, ym); // null se non votata quel mese
-// Obiettivi liberi del giorno (locali al dispositivo, per data).
-const goalsAll = () => { try { return JSON.parse(localStorage.getItem('po_daily_goals') || '{}'); } catch { return {}; } };
-const goalsForDay = d => goalsAll()[d] || [];
-const goalsSetDay = (d, arr) => { const all = goalsAll(); all[d] = arr; localStorage.setItem('po_daily_goals', JSON.stringify(all)); };
+// Obiettivi liberi del giorno (cloud: tabella po_daily_goals, con coda offline).
+const goalsForDay = d => dailyGoals.filter(g => g.day === d).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+// applica un'op obiettivo: prova subito, se manca la rete accoda (resta ottimista in UI).
+async function goalOp(op) {
+  try { await runOp(op); } catch (e) { if (isNetErr(e)) qPush(op); else alert('Errore: ' + e.message); }
+}
 
 // Esito di un mese del 2026: storia pre-impostata, oppure auto dai dati (≥ Bronzo = buono).
 function annoStatus(ym) {
@@ -1293,15 +1330,29 @@ function renderPiano() {
   // obiettivi del giorno
   const goals = goalsForDay(td);
   html += `<div class="gtitle" style="margin-top:14px">Obiettivi di oggi</div>`;
-  html += goals.map((g, i) => `<div class="goal-row"><span class="goal-check ${g.done ? 'done' : ''}" data-goal-toggle="${i}">${g.done ? '✓' : '○'}</span><span class="gtext ${g.done ? 'done' : ''}">${esc(g.t)}</span><span class="del" data-goal-del="${i}">✕</span></div>`).join('');
+  html += goals.map((g, i) => `<div class="goal-row"><span class="goal-check ${g.done ? 'done' : ''}" data-goal-toggle="${i}">${g.done ? '✓' : '○'}</span><span class="gtext ${g.done ? 'done' : ''}">${esc(g.text)}</span><span class="del" data-goal-del="${i}">✕</span></div>`).join('');
   html += `<div style="display:flex;gap:8px;margin-top:8px"><input id="pi-goal-input" placeholder="aggiungi un obiettivo di oggi" style="flex:1"><button id="btn-add-goal" class="mini">Aggiungi</button></div>`;
   $('pi-oggi').innerHTML = html;
   document.querySelectorAll('[data-doboss]').forEach(el => el.onclick = () => setHabitState(el.dataset.doboss, today(), 'yes'));
-  const addGoal = () => { const t = ($('pi-goal-input').value || '').trim(); if (!t) return; const a = goalsForDay(td); a.push({ t, done: false }); goalsSetDay(td, a); renderPiano(); };
+  const addGoal = async () => {
+    const txt = ($('pi-goal-input').value || '').trim(); if (!txt) return;
+    const position = Math.max(0, ...goalsForDay(td).map(g => g.position || 0)) + 1;
+    const row = { id: crypto.randomUUID(), user_id: user.id, day: td, text: txt, done: false, position };
+    dailyGoals.push(row); renderPiano();
+    await goalOp({ kind: 'goal_add', row });
+  };
   $('btn-add-goal').onclick = addGoal;
   $('pi-goal-input').onkeydown = e => { if (e.key === 'Enter') addGoal(); };
-  document.querySelectorAll('[data-goal-toggle]').forEach(el => el.onclick = () => { const a = goalsForDay(td); const i = +el.dataset.goalToggle; a[i].done = !a[i].done; goalsSetDay(td, a); renderPiano(); });
-  document.querySelectorAll('[data-goal-del]').forEach(el => el.onclick = () => { const a = goalsForDay(td); a.splice(+el.dataset.goalDel, 1); goalsSetDay(td, a); renderPiano(); });
+  document.querySelectorAll('[data-goal-toggle]').forEach(el => el.onclick = async () => {
+    const g = goalsForDay(td)[+el.dataset.goalToggle]; if (!g) return;
+    g.done = !g.done; renderPiano();
+    await goalOp({ kind: 'goal_toggle', id: g.id, done: g.done });
+  });
+  document.querySelectorAll('[data-goal-del]').forEach(el => el.onclick = async () => {
+    const g = goalsForDay(td)[+el.dataset.goalDel]; if (!g) return;
+    dailyGoals = dailyGoals.filter(x => x.id !== g.id); renderPiano();
+    await goalOp({ kind: 'goal_del', id: g.id });
+  });
 
   // focus del mese: area più debole (tappabile)
   const scored = AREAS.map(a => ({ a, sc: areaScore(a) })).filter(x => x.sc !== null);
@@ -1579,18 +1630,20 @@ $('btn-saveweight').onclick = async () => {
   const msg = $('co-weight-msg'); msg.className = 'ok-msg'; msg.textContent = '';
   const kg = parseFloat(($('co-weight-input').value || '').replace(',', '.'));
   if (!(kg > 30 && kg < 300)) { msg.className = 'err'; msg.textContent = 'Inserisci un peso valido (kg).'; return; }
+  const existing = weights.find(w => w.day === today());
+  const row = { id: existing?.id || crypto.randomUUID(), user_id: user.id, day: today(), kg };
+  weights = weights.filter(w => w.day !== today()); weights.push(row); weights.sort((a, b) => a.day < b.day ? -1 : 1);
+  $('co-weight-input').value = ''; renderCorpo();
   try {
-    const { error } = await sb.from('po_weight').upsert({ user_id: user.id, day: today(), kg }, { onConflict: 'user_id,day' });
-    if (error) throw new Error(error.message);
-    $('co-weight-input').value = '';
+    await runOp({ kind: 'weight', row });
     await loadAll(); renderAll();
     msg.textContent = 'Peso registrato ✓';
     setTimeout(() => { msg.textContent = ''; }, 3000);
   } catch (e) {
+    if (isNetErr(e)) { qPush({ kind: 'weight', row }); renderSyncStatus(); msg.textContent = 'Peso salvato 📴 (sincronizzo appena torna la rete).'; setTimeout(() => { msg.textContent = ''; }, 3000); return; }
+    weights = weights.filter(w => w.id !== row.id); if (existing) { weights.push(existing); weights.sort((a, b) => a.day < b.day ? -1 : 1); } renderCorpo();
     msg.className = 'err';
-    msg.textContent = isNetErr(e) ? 'Serve la rete per salvare il peso. Riprova dopo.'
-      : /relation|does not exist|po_weight|schema cache/i.test(e.message) ? 'Esegui prima migration-weight.sql nel SQL Editor di Supabase.'
-      : 'Errore: ' + e.message;
+    msg.textContent = /relation|does not exist|po_weight|schema cache/i.test(e.message) ? 'Esegui prima migration-weight.sql nel SQL Editor di Supabase.' : 'Errore: ' + e.message;
   }
 };
 
@@ -1801,9 +1854,9 @@ function exportJSON() {
     exported_at: new Date().toISOString(),
     user_email: user?.email || null,
     counts: { books: books.length, checkins: checkins.length, exercises: exercises.length,
-      workoutLogs: workoutLogs.length, habits: habits.length, habitDays: habitDays.length, wheel: wheel.length, weights: weights.length },
+      workoutLogs: workoutLogs.length, habits: habits.length, habitDays: habitDays.length, wheel: wheel.length, weights: weights.length, dailyGoals: dailyGoals.length },
     tables: { pm_books: books, pm_checkins: checkins, po_exercises: exercises,
-      po_workout_logs: workoutLogs, po_habits: habits, po_habit_days: habitDays, po_wheel: wheel, po_weight: weights },
+      po_workout_logs: workoutLogs, po_habits: habits, po_habit_days: habitDays, po_wheel: wheel, po_weight: weights, po_daily_goals: dailyGoals },
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1816,7 +1869,7 @@ $('btn-export-json').onclick = exportJSON;
 
 // Ripristino da backup JSON (in-app o dal backup-player-one.mjs): chiude il cerchio dei dati.
 // Ordine: prima le tabelle "padre", poi quelle con foreign key. Upsert per id (idempotente).
-const RESTORE_ORDER = ['po_habits', 'po_exercises', 'pm_books', 'po_habit_days', 'po_workout_logs', 'po_wheel', 'po_weight', 'pm_checkins'];
+const RESTORE_ORDER = ['po_habits', 'po_exercises', 'pm_books', 'po_habit_days', 'po_workout_logs', 'po_wheel', 'po_weight', 'po_daily_goals', 'pm_checkins'];
 async function restoreFromJSON(file) {
   $('export-msg').textContent = '';
   let parsed;
@@ -1999,11 +2052,18 @@ function renderLibri() {
     await loadAll(); renderAll();
   });
   document.querySelectorAll('[data-delbook]').forEach(btn => btn.onclick = async () => {
-    const b = books.find(x => x.id === btn.dataset.delbook);
-    const n = checkins.filter(c => c.book_id === btn.dataset.delbook).length;
+    const id = btn.dataset.delbook;
+    const b = books.find(x => x.id === id);
+    const n = checkins.filter(c => c.book_id === id).length;
     if (!confirm(`Rimuovere «${b ? b.title : 'questo libro'}»?` + (n ? `\nSi cancellano anche ${n} check-in/estratti collegati.` : '') + `\nAzione irreversibile.`)) return;
-    await sb.from('pm_books').delete().eq('id', btn.dataset.delbook);
-    await loadAll(); renderAll();
+    books = books.filter(x => x.id !== id); checkins = checkins.filter(c => c.book_id !== id); renderAll();
+    try {
+      await runOp({ kind: 'book_del', id });
+      await loadAll(); renderAll();
+    } catch (e) {
+      if (isNetErr(e)) { qPush({ kind: 'book_del', id }); renderSyncStatus(); return; }
+      alert('Errore: ' + e.message); await loadAll(); renderAll();
+    }
   });
 }
 
@@ -2036,10 +2096,17 @@ $('btn-addbook').onclick = async () => {
   const title = $('nb-title').value.trim(), author = $('nb-author').value.trim();
   const pages = parseInt($('nb-pages').value, 10) || null;
   if (!title) { $('nb-err').textContent = 'Il titolo serve.'; return; }
-  const { error } = await sb.from('pm_books').insert({ user_id: user.id, title, author, pages });
-  if (error) { $('nb-err').textContent = error.message; return; }
-  $('nb-title').value = ''; $('nb-author').value = ''; $('nb-pages').value = '';
-  await loadAll(); renderAll();
+  const row = { id: crypto.randomUUID(), user_id: user.id, title, author, pages, status: 'attivo' };
+  books.push(row);
+  $('nb-title').value = ''; $('nb-author').value = ''; $('nb-pages').value = ''; renderAll();
+  try {
+    await runOp({ kind: 'book_add', row });
+    await loadAll(); renderAll();
+  } catch (e) {
+    if (isNetErr(e)) { qPush({ kind: 'book_add', row }); renderSyncStatus(); return; }
+    books = books.filter(b => b.id !== row.id); renderAll();
+    $('nb-err').textContent = e.message;
+  }
 };
 
 /* ───────────────── CHECK-IN LETTURA ───────────────── */
@@ -2053,27 +2120,24 @@ $('btn-checkin').onclick = async () => {
   const points = score;
   const pages_read = Math.max(0, parseInt($('ci-pages').value, 10) || 0);
 
+  const row = { id: crypto.randomUUID(), user_id: user.id, book_id: bookId, day: today(), summary, application: apply, score, points, pages_read };
   $('btn-checkin').disabled = true; $('ci-wait').classList.remove('hidden');
+  let queued = false;
   try {
-    const { error } = await sb.from('pm_checkins').insert({
-      user_id: user.id, book_id: bookId, day: today(),
-      summary, application: apply,
-      score, points, pages_read,
-    });
-    if (error) throw new Error('Salvataggio fallito: ' + error.message);
-
-    if (poReady) {
-      const hLettura = habits.find(h => h.name.startsWith('Lettura'));
-      if (hLettura) await setHabitState(hLettura.id, today(), 'yes', true);
+    checkins.push(row); // ottimista
+    try {
+      await runOp({ kind: 'checkin', row });
+      await loadAll();
+    } catch (e) {
+      if (isNetErr(e)) { qPush({ kind: 'checkin', row }); queued = true; }
+      else { checkins = checkins.filter(c => c.id !== row.id); $('ci-err').textContent = 'Salvataggio fallito: ' + e.message; return; }
     }
-
+    // spunta l'abitudine Lettura (gestisce da sé l'offline)
+    if (poReady) { const hLettura = habits.find(h => h.name.startsWith('Lettura')); if (hLettura) await setHabitState(hLettura.id, today(), 'yes', true); }
     $('ci-summary').value = ''; $('ci-apply').value = ''; $('ci-pages').value = '0';
-    await loadAll(); renderAll();
-    // renderOggi mostra il form per il prossimo libro in sospeso, o la card "fatto" se finiti tutti.
+    renderAll();
     const restano = books.filter(b => b.status === 'attivo' && !checkins.some(c => c.day === today() && c.book_id === b.id)).length;
-    $('ci-ok').textContent = `✓ Sessione salvata · +${points} punti.` + (restano ? ` Restano ${restano} ${restano === 1 ? 'libro' : 'libri'} oggi.` : '');
-  } catch (e) {
-    $('ci-err').textContent = e.message || 'Errore. Controlla la connessione.';
+    $('ci-ok').textContent = `✓ Sessione salvata${queued ? ' 📴' : ''} · +${points} punti.` + (restano ? ` Restano ${restano} ${restano === 1 ? 'libro' : 'libri'} oggi.` : '');
   } finally {
     $('btn-checkin').disabled = false; $('ci-wait').classList.add('hidden');
   }
@@ -2103,9 +2167,25 @@ function renderAll() {
   $('cfg-email').textContent = user.email;
 }
 
+// Migrazione una-tantum: i vecchi obiettivi del giorno (localStorage) salgono sul cloud.
+async function migrateLocalGoals() {
+  let old = {};
+  try { old = JSON.parse(localStorage.getItem('po_daily_goals') || '{}'); } catch { return; }
+  const days = Object.keys(old);
+  if (!days.length) return;
+  const rows = [];
+  for (const d of days) (old[d] || []).forEach((g, i) => { if (g && g.t) rows.push({ id: crypto.randomUUID(), user_id: user.id, day: d, text: g.t, done: !!g.done, position: i }); });
+  if (!rows.length) { localStorage.removeItem('po_daily_goals'); return; }
+  try {
+    const { error } = await sb.from('po_daily_goals').insert(rows);
+    if (!error) { localStorage.removeItem('po_daily_goals'); dailyGoals.push(...rows); }
+  } catch { /* tabella non ancora migrata: riprovo al prossimo boot */ }
+}
+
 async function boot() {
   await loadAll();
   await qFlush(); // svuota la coda offline se c'è rete
+  await migrateLocalGoals();
   renderAll();
   show('piano');
 }

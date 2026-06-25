@@ -107,7 +107,9 @@ Soglie riscalate automaticamente se cambiano le abitudini attive.
 - **Ripristino:** Impostazioni → "Ripristina da backup (JSON)" (upsert per id, ordine FK, idempotente).
 - **Stato dati (24/6/2026):** solo dati seed (13 abitudini, 40 esercizi), zero storico — il tracker era bloccato dal crash `giorniLabel`, risolto il 24/6.
 - **Deploy live (manuale, NO CI):** GitHub Pages serve dal branch `gh-pages`. Si lavora su `main`; per pubblicare: `git push origin main && git push origin main:gh-pages --force`. (Storicamente `gh-pages` era rimasto a v6 mentre `main` era a v25 → riallineato il 25/6/2026.) Bump `sw.js` CACHE a ogni deploy, poi chiudere/riaprire la PWA.
-- **Migrazioni eseguite:** tutte applicate al 25/6/2026, inclusa `migration-mente-pages.sql` (pages/pages_read + vincolo `unique(user_id, book_id, day)` = un check-in per libro al giorno; Fabrizio legge 3 libri in parallelo).
+- **Migrazioni eseguite:** applicate al 25/6/2026: `migration-mente-pages.sql` (pages/pages_read + `unique(user_id, book_id, day)` = un check-in per libro al giorno; Fabrizio legge 3 libri in parallelo).
+- **Migrazione pendente:** `migration-daily-goals.sql` — tabella `po_daily_goals` (obiettivi del giorno nel cloud, prima solo in localStorage). Da eseguire nel SQL Editor; al primo boot dopo la migrazione i vecchi obiettivi locali salgono in automatico.
+- **Offline-proof:** la coda offline (`po_queue`/dead-letter) copre abitudini, ruota, allenamenti **e** (dal 25/6) check-in lettura, peso, aggiungi/rimuovi libro, obiettivi del giorno. Op con id generato lato client (`crypto.randomUUID`) → idempotenti.
 
 ## Sicurezza
 
