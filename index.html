@@ -918,7 +918,7 @@ async function loadAll() {
     // offline: riparti dall'ultimo snapshot + coda locale
     if (restoreSnapshot()) applyQueueLocally();
   }
-  if (!selDay || !exercises.some(e => e.day_name === selDay)) selDay = exercises[0]?.day_name || '';
+  if (!selDay || !exercises.some(e => e.day_name === selDay)) selDay = dayNames()[0] || ''; // prima giornata per day_order (deterministico)
 }
 
 /* ───────────────── GAME MATH ───────────────── */
