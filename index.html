@@ -133,6 +133,8 @@
   .ex .name { font-weight: 600; font-size: 15px; }
   .ex .scheme { color: var(--gold2); font-size: 12px; font-weight:700; }
   .ex .del { margin-left:auto; color: var(--dim); font-size: 14px; padding: 0 4px; cursor:pointer; }
+  .ex .exctl { color: var(--dim); font-size: 13px; padding: 0 3px; cursor:pointer; }
+  .ex .exctl:first-of-type { margin-left:auto; }
   .ex .lastbest { color: var(--dim); font-size: 12px; margin-top: 3px; }
   .ex input.sets { margin-top: 7px; font-size: 15px; padding: 9px 11px; }
   .ex .history { margin-top: 8px; font-size: 12px; color: var(--dim); line-height: 1.7; border-left: 2px solid var(--line); padding-left: 10px; }
@@ -272,6 +274,7 @@
     </div>
     <img id="pi-scalinata" class="scalinata" alt="La scalinata della vita">
     <div id="pi-stato" class="muted center" style="margin-top:6px;font-size:13px"></div>
+    <div id="pi-streaks" class="center" style="margin-top:8px;font-size:13px"></div>
 
     <div class="card">
       <h2>Oggi <small>— le Boss decidono la giornata</small></h2>
@@ -366,6 +369,7 @@
         <h2 id="co-daytitle">Esercizi</h2>
         <p class="muted">Scrivi le serie come <b>90x7, 95x6, 95x6</b> (peso x ripetizioni). Tocca il nome per lo storico.</p>
         <div id="co-exlist"></div>
+        <input id="co-note" placeholder="nota di oggi (facoltativa): come ti sei sentito" style="margin-top:10px">
         <button id="btn-saveworkout">Registra allenamento</button>
         <div id="co-msg" class="ok-msg"></div>
         <div id="co-err" class="err"></div>
@@ -703,9 +707,11 @@ const MESI_IT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio
 let user = null, books = [], checkins = [];
 let poReady = true, exercises = [], workoutLogs = [], habits = [], habitDays = [], wheel = [], weights = [], dailyGoals = [];
 let selDay = localStorage.getItem('po_selday') || '';
+let bootDay = today(); // per rilevare il cambio giorno quando si rientra nell'app
 let openHistory = null;
 let diDay = today();
 let editingHabit = null; // id dell'abitudine in modifica inline (Gestisci abitudini)
+let editingEx = null; // id dell'esercizio in modifica inline (nome/schema)
 let wheelCompare = false; // mostra il confronto col mese scorso sulla Ruota
 
 /* ───────────────── CODA OFFLINE ─────────────────
@@ -1337,6 +1343,12 @@ function renderPiano() {
   sc.src = `scalinata-${si}.jpg`;
   sc.className = 'scalinata' + (si === 4 ? ' unstoppable' : '');
   $('pi-stato').textContent = `${STATI[si].nome} · Azione ${formaGlobale()}/10`;
+  // streak motivazionali: lettura (giorni di fila) + allenamenti (ultimi 7 giorni)
+  const rStreak = readStreak();
+  const wWeek = new Set(workoutLogs.filter(l => lastNDays(7).includes(l.day)).map(l => l.day)).size;
+  $('pi-streaks').innerHTML =
+    `<span style="color:var(--gold2)">📖 ${rStreak} ${rStreak === 1 ? 'giorno' : 'giorni'} lettura</span>` +
+    ` &nbsp;·&nbsp; <span style="color:var(--green)">🏋️ ${wWeek} allenament${wWeek === 1 ? 'o' : 'i'} (7gg)</span>`;
 
   // Oggi: Boss non ancora fatte (spuntabili) + obiettivi liberi del giorno
   const td = today();
@@ -1541,6 +1553,18 @@ function renderCorpo() {
     .sort((a, b) => a.position - b.position);
 
   $('co-exlist').innerHTML = exs.map(e => {
+    if (editingEx === e.id) {
+      return `<div class="ex">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <input class="ee-name" value="${esc(e.name)}" placeholder="nome" style="flex:1;min-width:120px">
+          <input class="ee-scheme" value="${esc(e.scheme || '')}" placeholder="schema" style="width:96px">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="mini" data-saveex="${e.id}">Salva</button>
+          <button class="mini ghost" data-cancelex="1">Annulla</button>
+        </div>
+      </div>`;
+    }
     const logs = workoutLogs.filter(l => l.exercise_id === e.id).sort((a, b) => a.day < b.day ? 1 : -1);
     const last = logs.find(l => l.day !== today());
     const bestLog = logs.reduce((b, l) => best1rm(l.sets) > best1rm(b?.sets) ? l : b, null);
@@ -1563,7 +1587,10 @@ function renderCorpo() {
     return `<div class="ex">
       <div class="exhead" data-hist="${e.id}">
         <span class="name">${esc(e.name)}</span><span class="scheme">${esc(e.scheme || '')}</span>
-        <span class="del" data-del="${e.id}">✕</span>
+        <span class="exctl" data-up="${e.id}" title="su">▲</span>
+        <span class="exctl" data-down="${e.id}" title="giù">▼</span>
+        <span class="exctl" data-edex="${e.id}" title="modifica">✎</span>
+        <span class="exctl" data-del="${e.id}" title="togli">✕</span>
       </div>
       <div class="lastbest">${last ? `ultima: ${fmtSets(last.sets)} (${last.day}) · ` : ''}${bs && bs.w ? `best: <span class="pr-tag">${bs.w}x${bs.r} (≈${Math.round(est1rm(bs))} 1RM)</span>` : 'mai registrato'}</div>
       ${pending
@@ -1574,7 +1601,8 @@ function renderCorpo() {
   }).join('') || '<p class="muted">Nessun esercizio in questa giornata.</p>';
 
   document.querySelectorAll('[data-hist]').forEach(el => el.onclick = ev => {
-    if (ev.target.dataset.del) return;
+    const d = ev.target.dataset;
+    if (d.del || d.up || d.down || d.edex) return; // i controlli non aprono lo storico
     openHistory = openHistory === el.dataset.hist ? null : el.dataset.hist;
     renderCorpo();
   });
@@ -1585,6 +1613,21 @@ function renderCorpo() {
     await sb.from('po_exercises').update({ active: false }).eq('id', e.id);
     await loadAll(); renderAll();
   });
+  document.querySelectorAll('[data-edex]').forEach(el => el.onclick = ev => { ev.stopPropagation(); editingEx = el.dataset.edex; renderCorpo(); });
+  document.querySelectorAll('[data-cancelex]').forEach(el => el.onclick = () => { editingEx = null; renderCorpo(); });
+  document.querySelectorAll('[data-saveex]').forEach(el => el.onclick = async () => {
+    const id = el.dataset.saveex;
+    const name = document.querySelector('.ee-name').value.trim();
+    const scheme = document.querySelector('.ee-scheme').value.trim();
+    if (!name) { alert('Il nome serve.'); return; }
+    try {
+      const { error } = await sb.from('po_exercises').update({ name, scheme: scheme || null }).eq('id', id);
+      if (error) throw new Error(error.message);
+      editingEx = null; await loadAll(); renderCorpo();
+    } catch (e) { alert(isNetErr(e) ? 'Serve la rete per modificare. Riprova dopo.' : 'Errore: ' + e.message); }
+  });
+  document.querySelectorAll('[data-up]').forEach(el => el.onclick = ev => { ev.stopPropagation(); moveEx(el.dataset.up, -1); });
+  document.querySelectorAll('[data-down]').forEach(el => el.onclick = ev => { ev.stopPropagation(); moveEx(el.dataset.down, 1); });
   document.querySelectorAll('[data-dellog]').forEach(el => el.onclick = async ev => {
     ev.stopPropagation();
     if (!confirm('Eliminare questa sessione? Sparisce anche da best e PR.')) return;
@@ -1645,15 +1688,30 @@ function renderDiario() {
         const ls = workoutLogs.filter(l => l.day === d);
         const vol = Math.round(ls.reduce((s, l) => s + volume(l.sets), 0));
         const items = ls.map(l => { const e = exercises.find(x => x.id === l.exercise_id); return `${esc(e ? e.name : '?')}: ${fmtSets(l.sets)}`; }).join('<br>');
+        const noteTxt = (ls.find(l => l.note && l.note.trim()) || {}).note;
         const wd = new Date(d + 'T12:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
-        return `<div class="plan-row"><b>${wd}</b> · ${ls.length} es · ${vol} kg<div class="muted" style="font-size:12px;margin-top:3px">${items}</div></div>`;
+        return `<div class="plan-row"><b>${wd}</b> · ${ls.length} es · ${vol} kg${noteTxt ? `<div style="font-size:12px;margin-top:3px;color:var(--gold2)">📝 ${esc(noteTxt)}</div>` : ''}<div class="muted" style="font-size:12px;margin-top:3px">${items}</div></div>`;
       }).join('')
     : '<p class="muted">Nessun allenamento registrato.</p>';
+}
+
+// Riordina un esercizio nella giornata corrente scambiando la posizione col vicino.
+async function moveEx(id, dir) {
+  const list = exercises.filter(e => e.active && e.day_name === selDay).sort((a, b) => a.position - b.position);
+  const i = list.findIndex(e => e.id === id), j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  const a = list[i], b = list[j];
+  try {
+    await sb.from('po_exercises').update({ position: b.position }).eq('id', a.id);
+    await sb.from('po_exercises').update({ position: a.position }).eq('id', b.id);
+    await loadAll(); renderCorpo();
+  } catch (e) { alert(isNetErr(e) ? 'Serve la rete per riordinare. Riprova dopo.' : 'Errore: ' + e.message); }
 }
 
 $('btn-saveworkout').onclick = async () => {
   $('co-err').textContent = ''; $('co-msg').textContent = '';
   const inputs = [...document.querySelectorAll('input.sets[data-ex]')];
+  const note = ($('co-note').value || '').trim() || null;
   const inserts = [], updates = [];
   let prCount = 0;
   for (const inp of inputs) {
@@ -1664,12 +1722,12 @@ $('btn-saveworkout').onclick = async () => {
     const exId = inp.dataset.ex, logId = inp.dataset.logid;
     if (logId) {
       const cur = workoutLogs.find(l => l.id === logId);
-      if (cur && fmtSets(cur.sets) === fmtSets(sets)) continue; // invariato
+      if (cur && fmtSets(cur.sets) === fmtSets(sets) && (cur.note || null) === note) continue; // invariato
       updates.push({ id: logId, sets });
     } else {
       const prevBest = Math.max(0, ...workoutLogs.filter(l => l.exercise_id === exId).map(l => best1rm(l.sets)));
       if (prevBest > 0 && best1rm(sets) > prevBest) prCount++;
-      inserts.push({ user_id: user.id, exercise_id: exId, day: today(), sets });
+      inserts.push({ user_id: user.id, exercise_id: exId, day: today(), sets, note });
     }
   }
   if (!inserts.length && !updates.length) { $('co-err').textContent = 'Niente di nuovo da salvare.'; return; }
@@ -1688,13 +1746,14 @@ $('btn-saveworkout').onclick = async () => {
     }
     for (const u of updates) { // le modifiche richiedono rete
       try {
-        const { error } = await sb.from('po_workout_logs').update({ sets: u.sets }).eq('id', u.id);
+        const { error } = await sb.from('po_workout_logs').update({ sets: u.sets, note }).eq('id', u.id);
         if (error) throw new Error(error.message);
       } catch { updFail++; }
     }
     // l'allenamento spunta da solo la boss habit Palestra (gestisce anche l'offline)
     const hPalestra = habits.find(h => h.name === 'Palestra');
     if (inserts.length && hPalestra) await setHabitState(hPalestra.id, today(), 'yes', true);
+    $('co-note').value = '';
     await loadAll(); renderAll();
     let msg = offline
       ? 'Salvato offline 📴 — sincronizzo appena torna la rete'
@@ -2280,12 +2339,27 @@ async function migrateLocalGoals() {
 }
 
 async function boot() {
+  bootDay = today();
   await loadAll();
   await qFlush(); // svuota la coda offline se c'è rete
   await migrateLocalGoals();
   renderAll();
   show('piano');
 }
+
+// Rientro nell'app / cambio giorno: se è passata la mezzanotte riallinea "Oggi",
+// altrimenti riprova solo a sincronizzare la coda offline.
+let _resuming = false;
+async function onResume() {
+  if (!user || _resuming) return;
+  _resuming = true;
+  try {
+    if (today() !== bootDay) { bootDay = today(); diDay = today(); await loadAll(); renderAll(); }
+    else { await qFlush(); }
+  } finally { _resuming = false; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') onResume(); });
+window.addEventListener('focus', onResume);
 
 sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
