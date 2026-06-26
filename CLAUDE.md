@@ -25,14 +25,14 @@ PWA single-file (`index.html`) su GitHub Pages. "La vita come videogioco" — Fa
 |-----|-----------|
 | Piano | **Home** (si apre per prima): focus del mese (area debole), piano 2026 (sola lettura, `PIANO_2026`), andamento Vita/Azione nel tempo (grafico 6 mesi) |
 | Ruota | Wheel of Life SVG (8 aree) + avatar pixel art + barra livello |
-| Corpo | Log allenamento, 1RM stimato (Epley), PR rilevati, peso. **Storico/progressioni:** grafico 1RM+volume per esercizio, registro Record, Diario per sessione, heatmap mensile + volume settimanale |
+| Corpo | Log allenamento, 1RM stimato (Epley), PR rilevati, peso, **palestra per sessione**, **corsa facoltativa**. **Storico/progressioni:** grafico 1RM+volume per esercizio (filtrabile per palestra), registro Record, Diario per sessione, heatmap mensile + volume settimanale |
 | Mente | Lettura come gioco: check-in giornaliero, **boss book** (barra HP pagine), **striscia** 🔥, **codex** (estratti passati a rotazione), **quest 📚 X/24** annuale. Tabelle `pm_*` |
 | Disciplina | Tracker abitudini, chips Oggi/Ieri, storico mesi, gestione abitudini |
 | Config | Chiave API, logout, info |
 
 ## Database — tabelle
 
-**Nuove (Player One):** `po_exercises`, `po_workout_logs`, `po_habits`, `po_habit_days`, `po_wheel`, `po_weight`  
+**Nuove (Player One):** `po_exercises`, `po_workout_logs` (col. `gym`), `po_habits`, `po_habit_days`, `po_wheel`, `po_weight`, `po_runs`  
 **Vecchie (Palestra Mentale):** `pm_books`, `pm_checkins` — invariate, Mente le usa ancora
 
 Tutto con RLS. Schema in `player-one-schema.sql`.
@@ -111,7 +111,9 @@ Soglie riscalate automaticamente se cambiano le abitudini attive.
 - **Corpo — super serie + RPE (25/6/2026, via MCP):** colonna `po_exercises.superset_group` (lettera; stessa lettera+giornata = superset, badge 🔗 + bordo oro). Intensità per serie via sintassi `90x7@8` (RPE 1–10, opzionale, salvata in `sets[].rpe`); `parseSets`/`fmtSets`/`avgRpe` la gestiscono.
 - **Ottimizzazioni DB (25/6/2026, via MCP):** `migration-rls-indexes.sql` — RLS riscritte con `(select auth.uid())` (no rivalutazione per riga) + indici sulle FK scoperte. Advisor performance WARN risolti; restano solo INFO `unused_index` (normale per indici nuovi). Security: resta solo "leaked password protection" da abilitare nel dashboard Auth.
 - **Migrazioni d'ora in poi (via Management API o MCP locale):** con il Personal Access Token in `.env` del vault (`SUPABASE_ACCESS_TOKEN`, `sbp_***`) si esegue qualsiasi SQL/DDL senza SQL Editor: `POST https://api.supabase.com/v1/projects/opgqjqztmwujcqtmtlxs/database/query` con header `Authorization: Bearer $SUPABASE_ACCESS_TOKEN` e body `{"query":"..."}`. (Il Supabase MCP hosted HTTP dà errore OAuth "resource" — non usarlo; la Management API lo sostituisce.)
-- **Offline-proof:** la coda offline (`po_queue`/dead-letter) copre abitudini, ruota, allenamenti **e** (dal 25/6) check-in lettura, peso, aggiungi/rimuovi libro, obiettivi del giorno. Op con id generato lato client (`crypto.randomUUID`) → idempotenti.
+- **Offline-proof:** la coda offline (`po_queue`/dead-letter) copre abitudini, ruota, allenamenti **e** (dal 25/6) check-in lettura, peso, aggiungi/rimuovi libro, obiettivi del giorno, **corse** (kind `run`/`run_del`). Op con id generato lato client (`crypto.randomUUID`) → idempotenti.
+- **Corpo — palestra per sessione (26/6/2026):** `migration-gym.sql` → colonna `po_workout_logs.gym` (backfill storico = `Fit Active Portuense`). Selettore palestra corrente (`localStorage po_gym`); **PR, record e grafici 1RM/volume separati per palestra** (chiave `exercise_id|gym`, helper `gymOf`) così cambiare sede non genera cali finti. Default `DEFAULT_GYM = 'Fit Active Portuense'`.
+- **Corpo — corsa facoltativa (26/6/2026):** `migration-runs.sql` → tabella `po_runs` (distanza, durata, tipo, FC, note; passo calcolato). Sezione "🏃 Corsa" nel tab Corpo. **Bonus `RUN_XP = 8` per uscita, nessuna penalità** (non spunta boss Palestra, non tocca l'avatar "Azione"). `parseTime`/`fmtDur`/`fmtPace`, `renderRuns`.
 
 ## Sicurezza
 

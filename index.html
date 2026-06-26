@@ -362,6 +362,10 @@
         <div id="co-weight-msg" class="ok-msg"></div>
       </div>
       <div class="card">
+        <h2>Palestra <small>— dove ti alleni oggi</small></h2>
+        <div id="co-gym"></div>
+      </div>
+      <div class="card">
         <h2>Giornata</h2>
         <div class="chips" id="co-days"></div>
       </div>
@@ -390,6 +394,29 @@
       <div class="card">
         <h2>Diario allenamenti</h2>
         <div id="co-diario" style="max-height:320px;overflow:auto"></div>
+      </div>
+      <div class="card">
+        <h2>🏃 Corsa <small>— facoltativa</small></h2>
+        <p class="muted">Se corri ottieni XP bonus. Se non corri, nessuna penalità.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="ru-dist" type="number" step="0.1" inputmode="decimal" placeholder="km, es. 5.2" style="flex:1;min-width:90px">
+          <input id="ru-time" placeholder="tempo mm:ss, es. 28:30" style="flex:1;min-width:90px">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <select id="ru-type" style="flex:1;min-width:110px">
+            <option value="lento">Lento</option>
+            <option value="medio">Medio</option>
+            <option value="intervalli">Intervalli</option>
+            <option value="lungo">Lungo</option>
+          </select>
+          <input id="ru-hr" type="number" inputmode="numeric" placeholder="FC media (opz.)" style="flex:1;min-width:90px">
+        </div>
+        <input id="ru-note" placeholder="nota (facoltativa)" style="margin-top:8px">
+        <button id="btn-saverun" style="margin-top:8px">Registra corsa</button>
+        <div id="ru-msg" class="ok-msg"></div>
+        <div id="ru-err" class="err"></div>
+        <div id="ru-charts" style="margin-top:12px"></div>
+        <div id="ru-list" style="max-height:240px;overflow:auto;margin-top:10px"></div>
       </div>
       <div class="card">
         <h2>Aggiungi esercizio <small>— alla giornata selezionata</small></h2>
@@ -705,7 +732,11 @@ const isNetErr = e => !navigator.onLine || /fetch|load failed|network|connection
 const MESI_IT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
 
 let user = null, books = [], checkins = [];
-let poReady = true, exercises = [], workoutLogs = [], habits = [], habitDays = [], wheel = [], weights = [], dailyGoals = [];
+let poReady = true, exercises = [], workoutLogs = [], habits = [], habitDays = [], wheel = [], weights = [], dailyGoals = [], runs = [];
+const DEFAULT_GYM = 'Fit Active Portuense'; // etichetta dello storico senza palestra
+const RUN_XP = 8; // XP bonus per ogni corsa (facoltativa: nessuna penalità se salti)
+let currentGym = localStorage.getItem('po_gym') || DEFAULT_GYM; // palestra di oggi
+let histGym = null; // palestra selezionata nello storico esercizio aperto (null = quella corrente)
 let selDay = localStorage.getItem('po_selday') || '';
 let bootDay = today(); // per rilevare il cambio giorno quando si rientra nell'app
 let openHistory = null;
@@ -760,6 +791,10 @@ async function runOp(op) {
     const { error } = await sb.from('po_daily_goals').update({ done: op.done }).eq('id', op.id); if (error) throw error;
   } else if (op.kind === 'goal_del') {
     const { error } = await sb.from('po_daily_goals').delete().eq('id', op.id); if (error) throw error;
+  } else if (op.kind === 'run') {
+    const { error } = await sb.from('po_runs').upsert(op.row, { onConflict: 'id' }); if (error) throw error;
+  } else if (op.kind === 'run_del') {
+    const { error } = await sb.from('po_runs').delete().eq('id', op.id); if (error) throw error;
   }
 }
 async function qFlush() {
@@ -819,13 +854,17 @@ function applyQueueLocally() {
       const g = dailyGoals.find(g => g.id === op.id); if (g) g.done = op.done;
     } else if (op.kind === 'goal_del') {
       dailyGoals = dailyGoals.filter(g => g.id !== op.id);
+    } else if (op.kind === 'run') {
+      if (!runs.some(r => r.id === op.row.id)) runs.push(op.row);
+    } else if (op.kind === 'run_del') {
+      runs = runs.filter(r => r.id !== op.id);
     }
   }
 }
 
 const SNAP_KEY = 'po_snapshot';
 function saveSnapshot() {
-  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel, weights, dailyGoals, poReady })); } catch {}
+  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel, weights, dailyGoals, runs, poReady })); } catch {}
 }
 function restoreSnapshot() {
   try {
@@ -834,6 +873,7 @@ function restoreSnapshot() {
     ({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel } = s);
     weights = s.weights || [];
     dailyGoals = s.dailyGoals || [];
+    runs = s.runs || [];
     poReady = s.poReady;
     return true;
   } catch { return false; }
@@ -882,7 +922,7 @@ async function loadAll() {
     books = b.data || [];
     checkins = c.data || [];
 
-    const [ex, wl, h, hd, w, wt, dg] = await Promise.all([
+    const [ex, wl, h, hd, w, wt, dg, ru] = await Promise.all([
       sb.from('po_exercises').select('*').order('position'),
       sb.from('po_workout_logs').select('*').order('day'),
       sb.from('po_habits').select('*').order('position'),
@@ -890,6 +930,7 @@ async function loadAll() {
       sb.from('po_wheel').select('*').order('month'),
       sb.from('po_weight').select('*').order('day'),
       sb.from('po_daily_goals').select('*').order('position'),
+      sb.from('po_runs').select('*').order('day'),
     ]);
     if (ex.error || h.error) { poReady = false; applyQueueLocally(); return; }
     poReady = true;
@@ -897,6 +938,7 @@ async function loadAll() {
     habits = h.data || []; habitDays = hd.data || []; wheel = w.data || [];
     weights = wt.data || []; // se la tabella manca (migrazione non fatta) resta vuoto
     dailyGoals = dg.data || []; // idem: vuoto finché non si esegue migration-daily-goals.sql
+    runs = ru.data || []; // vuoto finché non si esegue migration-runs.sql
 
     // primo avvio: semina scheda e abitudini
     if (!exercises.length) {
@@ -953,15 +995,18 @@ const maxW = sets => Math.max(0, ...(sets || []).map(s => +s.w || 0));
 const est1rm = s => (+s.w || 0) * (1 + (+s.r || 0) / 30);
 const best1rm = sets => Math.max(0, ...(sets || []).map(est1rm));
 const bestSet = sets => (sets || []).reduce((b, s) => est1rm(s) > est1rm(b) ? s : b, { w: 0, r: 0 });
+// Palestra di un log: i log pre-palestra (gym null) ricadono sulla sede abituale.
+const gymOf = l => l.gym || DEFAULT_GYM;
 
-// XP Corpo: 10 per allenamento + 2 per ogni PR (1RM stimato superato)
+// XP Corpo: 10 per allenamento + 2 per ogni PR (1RM stimato superato).
+// I PR sono per (esercizio + palestra): macchinari diversi non si confrontano fra loro.
 function corpoStats() {
   const sessions = new Set(workoutLogs.map(l => l.day)).size;
   let prs = 0;
-  const byEx = {};
-  for (const l of workoutLogs) (byEx[l.exercise_id] ??= []).push(l);
-  for (const id in byEx) {
-    const logs = byEx[id].sort((a, b) => a.day < b.day ? -1 : 1);
+  const byKey = {};
+  for (const l of workoutLogs) (byKey[l.exercise_id + '|' + gymOf(l)] ??= []).push(l);
+  for (const k in byKey) {
+    const logs = byKey[k].sort((a, b) => a.day < b.day ? -1 : 1);
     let best = best1rm(logs[0]?.sets);
     for (let i = 1; i < logs.length; i++) {
       const m = best1rm(logs[i].sets);
@@ -971,6 +1016,9 @@ function corpoStats() {
   return { sessions, prs, xp: sessions * 10 + prs * 2 };
 }
 
+// XP Corsa: bonus per ogni uscita registrata (facoltativa, nessuna penalità).
+const runXP = () => runs.length * RUN_XP;
+
 // XP Disciplina: somma dei punti guadagnati
 const habitXP = () => habitDays.reduce((s, d) => {
   if (!d.done) return s;
@@ -978,7 +1026,7 @@ const habitXP = () => habitDays.reduce((s, d) => {
   return s + (h ? h.points : 0);
 }, 0);
 
-const totalXP = () => totalPoints() + (poReady ? corpoStats().xp + habitXP() : 0);
+const totalXP = () => totalPoints() + (poReady ? corpoStats().xp + habitXP() + runXP() : 0);
 
 function levelInfo(xp) {
   let lvl = 1, need = 100, base = 0;
@@ -1545,6 +1593,7 @@ function renderPeso() {
 function renderCorpo() {
   if (!poReady) return;
   renderPeso();
+  renderGym();
   // non perdere quello che stavi scrivendo quando la UI si ridisegna
   const draft = {};
   document.querySelectorAll('input.sets[data-ex]').forEach(i => { if (i.value.trim()) draft[i.dataset.ex] = i.value; });
@@ -1573,23 +1622,30 @@ function renderCorpo() {
         </div>
       </div>`;
     }
-    const logs = workoutLogs.filter(l => l.exercise_id === e.id).sort((a, b) => a.day < b.day ? 1 : -1);
+    // Progressi separati per palestra: il riepilogo riga e lo storico mostrano una palestra alla volta.
+    const exLogsAll = workoutLogs.filter(l => l.exercise_id === e.id);
+    const exGyms = [...new Set(exLogsAll.map(gymOf))].sort((a, b) => a.localeCompare(b));
+    const histG = (openHistory === e.id && histGym && exGyms.includes(histGym)) ? histGym : currentGym;
+    const logs = exLogsAll.filter(l => gymOf(l) === histG).sort((a, b) => a.day < b.day ? 1 : -1);
     const last = logs.find(l => l.day !== today());
     const bestLog = logs.reduce((b, l) => best1rm(l.sets) > best1rm(b?.sets) ? l : b, null);
     const bs = bestLog ? bestSet(bestLog.sets) : null;
-    const todayLog = logs.find(l => l.day === today());
+    const todayLog = exLogsAll.find(l => l.day === today() && gymOf(l) === currentGym);
     const pending = todayLog && String(todayLog.id).startsWith('tmp');
     let hist = '';
     if (openHistory === e.id) {
+      const gymChips = exGyms.length > 1
+        ? `<div class="chips" style="margin-bottom:6px">${exGyms.map(g => `<span class="chip ${g === histG ? 'on' : ''}" data-histgym="${esc(g)}" data-ex="${e.id}">${esc(g)}</span>`).join('')}</div>`
+        : '';
       const asc = [...logs].sort((a, b) => a.day < b.day ? -1 : 1);
       const chart = asc.length >= 2
-        ? `<div class="muted" style="font-size:11px">1RM stimato nel tempo</div>${lineSvg(asc.map(l => Math.round(best1rm(l.sets))), '#7aa2f7')}
+        ? `<div class="muted" style="font-size:11px">1RM stimato nel tempo · ${esc(histG)}</div>${lineSvg(asc.map(l => Math.round(best1rm(l.sets))), '#7aa2f7')}
            <div class="muted" style="font-size:11px;margin-top:4px">Volume (kg) nel tempo</div>${lineSvg(asc.map(l => Math.round(volume(l.sets))), '#5ec97c')}`
-        : '';
+        : '<div class="muted" style="font-size:11px">Servono almeno 2 sessioni in questa palestra per il grafico.</div>';
       const list = logs.length
         ? logs.map(l => `${l.day} — ${fmtSets(l.sets)} · ${Math.round(volume(l.sets))}kg · ≈${Math.round(best1rm(l.sets))}${String(l.id).startsWith('tmp') ? ' 📴' : ` <span class="del" data-dellog="${l.id}" title="elimina">🗑</span>`}`).join('<br>')
-        : 'Nessuna sessione registrata.';
-      hist = `<div class="history">${chart}<div style="max-height:170px;overflow:auto;margin-top:6px">${list}</div></div>`;
+        : 'Nessuna sessione in questa palestra.';
+      hist = `<div class="history">${gymChips}${chart}<div style="max-height:170px;overflow:auto;margin-top:6px">${list}</div></div>`;
     }
     const inputVal = draft[e.id] ?? (todayLog && !pending ? fmtSets(todayLog.sets) : '');
     return `<div class="ex"${e.superset_group ? ' style="border-left:3px solid var(--gold);padding-left:9px"' : ''}>
@@ -1600,7 +1656,7 @@ function renderCorpo() {
         <span class="exctl" data-edex="${e.id}" title="modifica">✎</span>
         <span class="exctl" data-del="${e.id}" title="togli">✕</span>
       </div>
-      <div class="lastbest">${last ? `ultima: ${fmtSets(last.sets)} (${last.day}) · ` : ''}${bs && bs.w ? `best: <span class="pr-tag">${bs.w}x${bs.r} (≈${Math.round(est1rm(bs))} 1RM)</span>` : 'mai registrato'}</div>
+      <div class="lastbest">${exGyms.length > 1 ? `<span class="muted" style="font-size:10px">🏋 ${esc(histG)}</span> · ` : ''}${last ? `ultima: ${fmtSets(last.sets)} (${last.day}) · ` : ''}${bs && bs.w ? `best: <span class="pr-tag">${bs.w}x${bs.r} (≈${Math.round(est1rm(bs))} 1RM)</span>` : 'mai registrato qui'}</div>
       ${pending
         ? '<div class="lastbest">oggi: <b>' + esc(fmtSets(todayLog.sets)) + '</b> 📴 in attesa di rete</div>'
         : `<input class="sets" data-ex="${e.id}" ${todayLog ? `data-logid="${todayLog.id}"` : ''} value="${esc(inputVal)}" placeholder="es. 90x7@8, 95x6@9 (l'@RPE è facoltativo)" inputmode="text">`}
@@ -1612,7 +1668,12 @@ function renderCorpo() {
     const d = ev.target.dataset;
     if (d.del || d.up || d.down || d.edex) return; // i controlli non aprono lo storico
     openHistory = openHistory === el.dataset.hist ? null : el.dataset.hist;
+    histGym = null; // riparte dalla palestra corrente a ogni apertura
     renderCorpo();
+  });
+  document.querySelectorAll('[data-histgym]').forEach(el => el.onclick = ev => {
+    ev.stopPropagation();
+    histGym = el.dataset.histgym; renderCorpo();
   });
   document.querySelectorAll('[data-del]').forEach(el => el.onclick = async ev => {
     ev.stopPropagation();
@@ -1657,7 +1718,69 @@ function renderCorpo() {
     return `<div class="day ${hit ? 'hit' : ''}"><i>${hit ? '✓' : ''}</i><span>${giorni[d.getDay()]}</span></div>`;
   }).join('');
 
-  renderTrends(); renderRecords(); renderDiario();
+  renderTrends(); renderRecords(); renderDiario(); renderRuns();
+}
+
+// Selettore palestra corrente: i progressi sono separati per sede.
+function renderGym() {
+  const el = $('co-gym'); if (!el) return;
+  const gyms = [...new Set([DEFAULT_GYM, currentGym, ...workoutLogs.map(gymOf)])].sort((a, b) => a.localeCompare(b));
+  el.innerHTML = `
+    <select id="co-gym-sel" style="width:100%">
+      ${gyms.map(g => `<option value="${esc(g)}"${g === currentGym ? ' selected' : ''}>${esc(g)}</option>`).join('')}
+    </select>
+    <button id="co-gym-new" class="ghost" style="margin-top:8px">➕ Aggiungi palestra</button>
+    <div class="muted" style="font-size:11px;margin-top:6px">Record e grafici sono separati per palestra: cambiare sede non altera i tuoi PR.</div>`;
+  $('co-gym-sel').onchange = e => { currentGym = e.target.value; localStorage.setItem('po_gym', currentGym); renderCorpo(); };
+  $('co-gym-new').onclick = () => {
+    const name = (prompt('Nome della nuova palestra:') || '').trim();
+    if (!name) return;
+    currentGym = name; localStorage.setItem('po_gym', currentGym); renderCorpo();
+  };
+}
+
+/* ───────────────── CORSA (facoltativa) ───────────────── */
+// Tempo "mm:ss" / "h:mm:ss" / minuti → secondi. null se non valido.
+function parseTime(str) {
+  const parts = (str || '').trim().split(':').map(s => +s);
+  if (!parts.length || parts.some(n => isNaN(n) || n < 0)) return null;
+  if (parts.length === 1) return Math.round(parts[0] * 60);          // solo minuti
+  if (parts.length === 2) return parts[0] * 60 + parts[1];           // mm:ss
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]; // h:mm:ss
+  return null;
+}
+const fmtDur = sec => { const m = Math.floor(sec / 60), s = Math.round(sec % 60); return `${m}:${String(s).padStart(2, '0')}`; };
+const fmtPace = (sec, km) => km ? fmtDur(Math.round(sec / km)) + '/km' : '—';
+
+function renderRuns() {
+  if (!poReady) return;
+  const charts = $('ru-charts'), list = $('ru-list');
+  if (!list) return;
+  const asc = [...runs].sort((a, b) => a.day < b.day ? -1 : 1);
+  charts.innerHTML = asc.length >= 2
+    ? `<div class="muted" style="font-size:11px">Distanza (km) nel tempo</div>${lineSvg(asc.map(r => Math.round(+r.distance_km)), '#f7a072')}
+       <div class="muted" style="font-size:11px;margin-top:4px">Passo (sec/km) · più basso = più veloce</div>${lineSvg(asc.map(r => Math.round(r.duration_sec / (+r.distance_km || 1))), '#7aa2f7')}`
+    : '';
+  const desc = [...runs].sort((a, b) => a.day < b.day ? 1 : -1).slice(0, 30);
+  list.innerHTML = desc.length
+    ? desc.map(r => {
+        const km = +r.distance_km;
+        const d = new Date(r.day + 'T12:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+        const pending = String(r.id).startsWith('tmp');
+        return `<div class="plan-row"><b>${d}</b> · ${km.toFixed(1)} km · ${fmtDur(r.duration_sec)} · ${fmtPace(r.duration_sec, km)}${r.type ? ` · ${esc(r.type)}` : ''}${r.hr ? ` · ❤️${r.hr}` : ''}${pending ? ' 📴' : ` <span class="del" data-delrun="${r.id}" title="elimina">🗑</span>`}${r.note ? `<div class="muted" style="font-size:12px;margin-top:3px">📝 ${esc(r.note)}</div>` : ''}</div>`;
+      }).join('')
+    : `<p class="muted">Ancora nessuna corsa. La prima vale +${RUN_XP} XP.</p>`;
+  list.querySelectorAll('[data-delrun]').forEach(el => el.onclick = async () => {
+    if (!confirm('Eliminare questa corsa?')) return;
+    const id = el.dataset.delrun;
+    try {
+      const { error } = await sb.from('po_runs').delete().eq('id', id); if (error) throw new Error(error.message);
+      await loadAll(); renderAll();
+    } catch (e) {
+      if (isNetErr(e)) { runs = runs.filter(r => r.id !== id); qPush({ kind: 'run_del', id }); renderCorpo(); }
+      else alert('Errore: ' + e.message);
+    }
+  });
 }
 
 // D — heatmap allenamenti del mese + volume settimanale (ultime 8 settimane)
@@ -1674,18 +1797,21 @@ function renderTrends() {
 
 // B — registro record: miglior set per esercizio, con data, più recenti in alto
 function renderRecords() {
+  const multiGym = new Set(workoutLogs.map(gymOf)).size > 1;
   const rows = [];
   for (const e of exercises) {
-    const logs = workoutLogs.filter(l => l.exercise_id === e.id);
-    if (!logs.length) continue;
-    const bestLog = logs.reduce((b, l) => best1rm(l.sets) > best1rm(b.sets) ? l : b);
-    const bs = bestSet(bestLog.sets);
-    if (!bs.w) continue;
-    rows.push({ name: e.name, w: bs.w, r: bs.r, orm: Math.round(est1rm(bs)), day: bestLog.day });
+    const byGym = {};
+    for (const l of workoutLogs.filter(l => l.exercise_id === e.id)) (byGym[gymOf(l)] ??= []).push(l);
+    for (const g in byGym) { // un record per esercizio per palestra
+      const bestLog = byGym[g].reduce((b, l) => best1rm(l.sets) > best1rm(b.sets) ? l : b);
+      const bs = bestSet(bestLog.sets);
+      if (!bs.w) continue;
+      rows.push({ name: e.name, gym: g, w: bs.w, r: bs.r, orm: Math.round(est1rm(bs)), day: bestLog.day });
+    }
   }
   rows.sort((a, b) => a.day < b.day ? 1 : -1);
   $('co-records').innerHTML = rows.length
-    ? rows.map(r => `<div class="rec-row"><span>${esc(r.name)}</span><span class="pr-tag">${r.w}x${r.r} ≈${r.orm}</span><span class="muted" style="font-size:11px">${r.day}</span></div>`).join('')
+    ? rows.map(r => `<div class="rec-row"><span>${esc(r.name)}${multiGym ? ` <span class="muted" style="font-size:10px">🏋 ${esc(r.gym)}</span>` : ''}</span><span class="pr-tag">${r.w}x${r.r} ≈${r.orm}</span><span class="muted" style="font-size:11px">${r.day}</span></div>`).join('')
     : '<p class="muted">Ancora nessun record. Registra il primo allenamento.</p>';
 }
 
@@ -1698,8 +1824,9 @@ function renderDiario() {
         const vol = Math.round(ls.reduce((s, l) => s + volume(l.sets), 0));
         const items = ls.map(l => { const e = exercises.find(x => x.id === l.exercise_id); return `${esc(e ? e.name : '?')}: ${fmtSets(l.sets)}`; }).join('<br>');
         const noteTxt = (ls.find(l => l.note && l.note.trim()) || {}).note;
+        const dGyms = [...new Set(ls.map(gymOf))];
         const wd = new Date(d + 'T12:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
-        return `<div class="plan-row"><b>${wd}</b> · ${ls.length} es · ${vol} kg${noteTxt ? `<div style="font-size:12px;margin-top:3px;color:var(--gold2)">📝 ${esc(noteTxt)}</div>` : ''}<div class="muted" style="font-size:12px;margin-top:3px">${items}</div></div>`;
+        return `<div class="plan-row"><b>${wd}</b> · ${ls.length} es · ${vol} kg <span class="muted" style="font-size:11px">🏋 ${esc(dGyms.join(', '))}</span>${noteTxt ? `<div style="font-size:12px;margin-top:3px;color:var(--gold2)">📝 ${esc(noteTxt)}</div>` : ''}<div class="muted" style="font-size:12px;margin-top:3px">${items}</div></div>`;
       }).join('')
     : '<p class="muted">Nessun allenamento registrato.</p>';
 }
@@ -1734,9 +1861,10 @@ $('btn-saveworkout').onclick = async () => {
       if (cur && fmtSets(cur.sets) === fmtSets(sets) && (cur.note || null) === note) continue; // invariato
       updates.push({ id: logId, sets });
     } else {
-      const prevBest = Math.max(0, ...workoutLogs.filter(l => l.exercise_id === exId).map(l => best1rm(l.sets)));
+      // il PR si conta solo battendo il best nella STESSA palestra (macchinari non confrontabili)
+      const prevBest = Math.max(0, ...workoutLogs.filter(l => l.exercise_id === exId && gymOf(l) === currentGym).map(l => best1rm(l.sets)));
       if (prevBest > 0 && best1rm(sets) > prevBest) prCount++;
-      inserts.push({ user_id: user.id, exercise_id: exId, day: today(), sets, note });
+      inserts.push({ user_id: user.id, exercise_id: exId, day: today(), sets, note, gym: currentGym });
     }
   }
   if (!inserts.length && !updates.length) { $('co-err').textContent = 'Niente di nuovo da salvare.'; return; }
@@ -1809,6 +1937,31 @@ $('btn-saveweight').onclick = async () => {
     weights = weights.filter(w => w.id !== row.id); if (existing) { weights.push(existing); weights.sort((a, b) => a.day < b.day ? -1 : 1); } renderCorpo();
     msg.className = 'err';
     msg.textContent = /relation|does not exist|po_weight|schema cache/i.test(e.message) ? 'Esegui prima migration-weight.sql nel SQL Editor di Supabase.' : 'Errore: ' + e.message;
+  }
+};
+
+$('btn-saverun').onclick = async () => {
+  const msg = $('ru-msg'), err = $('ru-err'); msg.className = 'ok-msg'; msg.textContent = ''; err.textContent = '';
+  const km = parseFloat(($('ru-dist').value || '').replace(',', '.'));
+  const sec = parseTime($('ru-time').value);
+  if (!(km > 0 && km < 1000)) { err.textContent = 'Inserisci una distanza valida (km).'; return; }
+  if (!sec) { err.textContent = 'Inserisci un tempo valido, es. 28:30.'; return; }
+  const hr = parseInt(($('ru-hr').value || '').trim(), 10);
+  const row = { id: crypto.randomUUID(), user_id: user.id, day: today(),
+    distance_km: km, duration_sec: sec, type: $('ru-type').value || null,
+    hr: (hr > 30 && hr < 250) ? hr : null, note: ($('ru-note').value || '').trim() || null };
+  runs.push(row); runs.sort((a, b) => a.day < b.day ? -1 : 1);
+  $('ru-dist').value = ''; $('ru-time').value = ''; $('ru-hr').value = ''; $('ru-note').value = '';
+  renderCorpo();
+  try {
+    await runOp({ kind: 'run', row });
+    await loadAll(); renderAll();
+    msg.textContent = `Corsa registrata ✓ +${RUN_XP} XP · ${fmtPace(sec, km)}`;
+    setTimeout(() => { msg.textContent = ''; }, 4000);
+  } catch (e) {
+    if (isNetErr(e)) { qPush({ kind: 'run', row }); renderSyncStatus(); msg.textContent = `Corsa salvata 📴 +${RUN_XP} XP (sincronizzo appena torna la rete).`; setTimeout(() => { msg.textContent = ''; }, 4000); return; }
+    runs = runs.filter(r => r.id !== row.id); renderCorpo();
+    err.textContent = /relation|does not exist|po_runs|schema cache/i.test(e.message) ? 'Esegui prima migration-runs.sql nel SQL Editor di Supabase.' : 'Errore: ' + e.message;
   }
 };
 
@@ -2019,9 +2172,9 @@ function exportJSON() {
     exported_at: new Date().toISOString(),
     user_email: user?.email || null,
     counts: { books: books.length, checkins: checkins.length, exercises: exercises.length,
-      workoutLogs: workoutLogs.length, habits: habits.length, habitDays: habitDays.length, wheel: wheel.length, weights: weights.length, dailyGoals: dailyGoals.length },
+      workoutLogs: workoutLogs.length, habits: habits.length, habitDays: habitDays.length, wheel: wheel.length, weights: weights.length, dailyGoals: dailyGoals.length, runs: runs.length },
     tables: { pm_books: books, pm_checkins: checkins, po_exercises: exercises,
-      po_workout_logs: workoutLogs, po_habits: habits, po_habit_days: habitDays, po_wheel: wheel, po_weight: weights, po_daily_goals: dailyGoals },
+      po_workout_logs: workoutLogs, po_habits: habits, po_habit_days: habitDays, po_wheel: wheel, po_weight: weights, po_daily_goals: dailyGoals, po_runs: runs },
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -2034,7 +2187,7 @@ $('btn-export-json').onclick = exportJSON;
 
 // Ripristino da backup JSON (in-app o dal backup-player-one.mjs): chiude il cerchio dei dati.
 // Ordine: prima le tabelle "padre", poi quelle con foreign key. Upsert per id (idempotente).
-const RESTORE_ORDER = ['po_habits', 'po_exercises', 'pm_books', 'po_habit_days', 'po_workout_logs', 'po_wheel', 'po_weight', 'po_daily_goals', 'pm_checkins'];
+const RESTORE_ORDER = ['po_habits', 'po_exercises', 'pm_books', 'po_habit_days', 'po_workout_logs', 'po_wheel', 'po_weight', 'po_daily_goals', 'po_runs', 'pm_checkins'];
 async function restoreFromJSON(file) {
   $('export-msg').textContent = '';
   let parsed;
