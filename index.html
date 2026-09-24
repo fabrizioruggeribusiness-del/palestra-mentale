@@ -2221,22 +2221,8 @@ function renderBlocco() {
         : mode === 'minima'
           ? 'Sei in minima: 4 sedute, superset, RPE 6-7. Le due di pesi coprono entrambe tutto il corpo, così anche saltandone una hai toccato tutto. È il piano B, non un passo indietro.'
           : 'Versione piena: 5 sedute + 2 facoltative. Se la settimana si stringe, passa alla minima senza pensarci.'}</div>
-    ${deload}${retest}
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-      <button class="mini ghost" id="btn-block-start">Inizio blocco</button>
-      <button class="mini ghost" id="btn-block-birth">${block && block.birth_date ? 'Data parto ✓' : 'Data parto'}</button>
-    </div>`;
+    ${deload}${retest}`;
   el.querySelectorAll('[data-mode]').forEach(c => c.onclick = () => setMode(c.dataset.mode));
-  $('btn-block-start').onclick = async () => {
-    const v = (prompt('Lunedì di inizio blocco (AAAA-MM-GG):', blockStart()) || '').trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
-    await saveBlock({ start_date: v });
-  };
-  $('btn-block-birth').onclick = async () => {
-    const v = (prompt('Data del parto (AAAA-MM-GG). Vuoto per togliere:', (block && block.birth_date) || '') || '').trim();
-    if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
-    await saveBlock({ birth_date: v || null });
-  };
 }
 
 async function saveBlock(patch) {
