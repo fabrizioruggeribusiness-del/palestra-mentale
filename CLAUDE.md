@@ -59,7 +59,12 @@ Fonte: `TRAINING_PLAN.md` in questa cartella. **È la fonte di verità: non inve
 Blocco di 8 settimane (`PLAN_ID = 'ibrido-2026-09'`), poi "blocco 2 / ponte dicembre": progressione congelata, RPE 7, mantenimento fino al parto.
 
 **Versione piena** (5 sedute + 2 facoltative): Lunedì Lower B (hinge) · Martedì Upper A (push) · Mercoledì riposo · Giovedì Lower A (quad) · Venerdì Upper B (pull, muscle-up a fresco) · Sabato full body + MMA tecnica · Domenica corsa lunga facoltativa.
-**Versione minima** (4 sedute, RPE 6-7): il "piano B" quando la settimana si stringe. Switch in un tap, **nessuna penalità, nessuna striscia interrotta** — il linguaggio è parte del piano: mai "hai saltato".
+**Versione minima** (4 sedute, RPE 6-7): il "piano B" quando la settimana si stringe. Le due sedute di pesi sono **simmetriche** (entrambe spinta+tirata+ginocchio+anca, 4 serie): saltandone una hai comunque toccato tutto il corpo. 8 serie/settimana sui gruppi grandi.
+**Versione casa** (chip "Casa", 2 sedute alternate, 20-25'): il piano C con manubri 2-10 kg, manubrio 18 kg e corda. Stessa simmetria, 3 serie, fascia volume 6-8.
+
+Switch fra le tre in un tap, **nessuna penalità, nessuna striscia interrotta** — il linguaggio è parte del piano: mai "hai saltato". In minima e casa il suggerimento di progressione tace: lì si mantiene, non si cresce.
+
+**Revisioni della scheda:** `syncVariant(v)` riallinea una versione alle costanti quando la scheda cambia, ma **solo se su quella versione non è mai stata registrata una serie**. Se ci hai già allenato o hai aggiunto esercizi a mano, la lascia stare. Per cambiare una versione già usata serve una scelta esplicita.
 
 Logiche implementate: doppia progressione, timer di recupero (superset = 15" + 75"), volume settimanale per gruppo vs target, allarme calo big lift → taglia il condizionamento (non cibo né sonno), deload settimana 6 (accessori -50%, big lift invariati), progressioni condizionamento e muscle-up per fascia di settimane, checklist mobilità separata dai pesi, benchmark settimana 0/8, promemoria proteine 2,0-2,2 g/kg.
 

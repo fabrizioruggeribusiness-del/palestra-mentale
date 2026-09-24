@@ -749,8 +749,11 @@ const MUSCOLI = {
 };
 const VOLUME_TARGET = { petto:16, dorso:16, quadricipiti:17, femorali_glutei:15,
   deltoidi_laterali:11, deltoidi_posteriori:12, bicipiti:10, tricipiti:10, polpacci:8 };
-// Versione minima: fascia, non bersaglio. Nessun "ti manca" — è il piano B che regge.
+// Minima e casa: fascia, non bersaglio. Nessun "ti manca" — è il piano che regge.
+// A casa la fascia è più bassa: 20-25' con manubri leggeri non sono una palestra,
+// e un target irraggiungibile stampato sullo schermo fa solo danno.
 const VOLUME_MINIMA = { grandi:[8,10], piccoli:[4,6] };
+const VOLUME_CASA = { grandi:[6,8], piccoli:[3,4] };
 const GRUPPI_GRANDI = ['petto','dorso','quadricipiti','femorali_glutei'];
 
 // Le 4 alzate su cui si misura la forza vera (mai in superset, mai a macchina)
@@ -809,27 +812,54 @@ const SEDUTE = [
   { day:'Domenica', variant:'piena', order:6, focus:'Facoltativa', opzionale:true,
     finisher:'corsa_z2_lunga', mobilita:'domenica', ex:[] },
 
-  // ── Versione minima: 4 sedute. Superset ovunque: stessa seduta in metà tempo.
-  // Le serie (3) sono una scelta dell'app: il piano indica i contenuti, non i conteggi.
+  /* ── Versione minima: 4 sedute, superset ovunque — stessa seduta in metà tempo.
+     Le due sedute di pesi sono SIMMETRICHE: coprono entrambe spinta, tirata,
+     ginocchio e anca. Così la settimana in cui ne salti una hai comunque toccato
+     tutto il corpo, invece di restare a zero su metà. 4 serie = 8 a settimana per
+     ogni gruppo grande, dentro la fascia dichiarata nel piano. */
   { day:'Minima 1', variant:'minima', order:10, focus:'Full body A', minRpe:'6-7', ex:[
-    { n:'Squat bilanciere o hack squat', s:3, r:'8-10', rest:75, rpe:6.5, m:'quadricipiti', ss:'A' },
-    { n:'Rematore bilanciere o manubrio', s:3, r:'8-10', rest:75, rpe:6.5, m:'dorso', ss:'A' },
-    { n:'Panca piana bilanciere', s:3, r:'8-10', rest:75, rpe:6.5, m:'petto', ss:'B' },
-    { n:'Curl bicipiti', s:3, r:'10-12', rest:75, rpe:6.5, m:'bicipiti', ss:'B' },
-    { n:'Plank o Stir the pot', s:3, r:'30-45 sec', rest:60, core:true },
+    { n:'Squat bilanciere o hack squat', s:4, r:'8-10', rest:75, rpe:6.5, m:'quadricipiti', ss:'A' },
+    { n:'Rematore bilanciere o manubrio', s:4, r:'8-10', rest:75, rpe:6.5, m:'dorso', ss:'A' },
+    { n:'Panca piana bilanciere', s:4, r:'8-10', rest:75, rpe:6.5, m:'petto', ss:'B' },
+    { n:'Leg curl', s:4, r:'12-15', rest:75, rpe:6.5, m:'femorali_glutei', ss:'B' },
+    { n:'Curl bicipiti', s:4, r:'10-12', rest:75, rpe:6.5, m:'bicipiti', ss:'C' },
+    { n:'Plank o Stir the pot', s:3, r:'30-45 sec', rest:60, core:true, ss:'C' },
   ]},
   { day:'Minima 2', variant:'minima', order:11, focus:'Full body B', minRpe:'6-7', ex:[
-    { n:'Stacco rumeno', s:3, r:'8-10', rest:75, rpe:6.5, m:'femorali_glutei', ss:'A' },
-    { n:'Lat machine presa larga', s:3, r:'10-12', rest:75, rpe:6.5, m:'dorso', ss:'A' },
-    { n:'Military press', s:3, r:'8-10', rest:75, rpe:6.5, m:'deltoidi_laterali', ss:'B' },
-    { n:'Push-down tricipiti', s:3, r:'12-15', rest:75, rpe:6.5, m:'tricipiti', ss:'B' },
-    { n:'Pallof press', s:3, r:'12 per lato', rest:60, core:true },
+    { n:'Leg press', s:4, r:'10-12', rest:75, rpe:6.5, m:'quadricipiti', ss:'A' },
+    { n:'Lat machine presa larga', s:4, r:'10-12', rest:75, rpe:6.5, m:'dorso', ss:'A' },
+    { n:'Chest press o military press', s:4, r:'8-10', rest:75, rpe:6.5, m:'petto', ss:'B',
+      nota:'Chest press di default. Military se hai voglia di spingere sopra la testa: la spalla ringrazia.' },
+    { n:'Stacco rumeno', s:4, r:'8-10', rest:75, rpe:6.5, m:'femorali_glutei', ss:'B' },
+    { n:'Push-down tricipiti', s:4, r:'12-15', rest:75, rpe:6.5, m:'tricipiti', ss:'C' },
+    { n:'Pallof press', s:3, r:'12 per lato', rest:60, core:true, ss:'C' },
   ]},
   { day:'Minima 3', variant:'minima', order:12, focus:'Condizionamento 10\' + mobilità', minRpe:'6-7',
     finisher:'mma_sacco', mobilita:'minima', ex:[] },
   { day:'Minima 4', variant:'minima', order:13, focus:'Flessibile', minRpe:'6-7', opzionale:true,
     nota:'Pesi o corsa breve, in base all\'energia del giorno. Decidi arrivato lì: va bene così.',
     finisher:'corsa_z2_facile', ex:[] },
+
+  /* ── Piano C: palestra irraggiungibile. Casa, 20-25', manubri 2-10 kg x2 +
+     manubrio 18 kg + corda. Stessa logica della minima: due sedute alternate,
+     entrambe full body. Gli esercizi qui sono un adattamento all'attrezzatura
+     di casa — i pattern sono gli stessi del piano. */
+  { day:'Casa A', variant:'casa', order:20, focus:'Full body a casa A', minRpe:'6-7', mobilita:'minima', ex:[
+    { n:'Goblet squat', s:3, r:'12-15', rest:60, rpe:6.5, m:'quadricipiti', ss:'A', nota:'Manubrio da 18 kg al petto.' },
+    { n:'Rematore manubri', s:3, r:'12', rest:60, rpe:6.5, m:'dorso', ss:'A' },
+    { n:'Floor press manubri', s:3, r:'12', rest:60, rpe:6.5, m:'petto', ss:'B', nota:'A terra: fermata di un secondo col tricipite appoggiato.' },
+    { n:'Stacco rumeno manubri', s:3, r:'12-15', rest:60, rpe:6.5, m:'femorali_glutei', ss:'B' },
+    { n:'Curl manubri', s:3, r:'12', rest:60, rpe:6.5, m:'bicipiti', ss:'C' },
+    { n:'Plank o Stir the pot', s:3, r:'30-45 sec', rest:45, core:true, ss:'C' },
+  ]},
+  { day:'Casa B', variant:'casa', order:21, focus:'Full body a casa B', minRpe:'6-7', mobilita:'minima', ex:[
+    { n:'Affondi in cammino o bulgari', s:3, r:'10 per lato', rest:60, rpe:6.5, m:'quadricipiti', ss:'A' },
+    { n:'Pullover manubrio', s:3, r:'12-15', rest:60, rpe:6.5, m:'dorso', ss:'A', nota:'Manubrio da 18 kg, bacino basso.' },
+    { n:'Push-up piedi rialzati', s:3, r:'12-15', rest:60, rpe:6.5, m:'petto', ss:'B', nota:'Piedi sul divano: è il modo di rendere duro un push-up senza bilanciere.' },
+    { n:'Hip thrust a terra', s:3, r:'15', rest:60, rpe:6.5, m:'femorali_glutei', ss:'B', nota:'Manubrio sul bacino, spalle a terra.' },
+    { n:'Estensioni tricipiti sopra testa', s:3, r:'12', rest:60, rpe:6.5, m:'tricipiti', ss:'C' },
+    { n:'Dead bug', s:3, r:'10 per lato', rest:45, core:true, ss:'C' },
+  ]},
 ];
 
 // ── Condizionamento: progressione su 8 settimane (fascia = coppia di settimane) ──
@@ -1178,6 +1208,7 @@ async function loadAll() {
     planReady = (!sample || 'plan' in sample) && !bl.error && !co.error && !mo.error && !be.error;
     if (planReady) {
       if (!exercises.some(e => e.plan === PLAN_ID && e.active)) await seedPlan();
+      else for (const v of ['minima', 'casa']) await syncVariant(v); // revisioni della scheda
       if (!block) await ensureBlock();
     }
     if (!habits.length) {
@@ -1212,6 +1243,34 @@ async function seedPlan() {
   if (vecchi.length) await sb.from('po_exercises').update({ active: false }).in('id', vecchi);
   exercises = exercises.map(e => vecchi.includes(e.id) ? { ...e, active: false } : e).concat(data || []);
   selDay = giornataDiOggi() || '';
+}
+
+/* Allinea una versione del piano alle costanti, quando la scheda viene rivista.
+   Regola di sicurezza: tocca solo le versioni su cui non hai MAI registrato una
+   serie. Se ci hai già allenato — o ci hai aggiunto esercizi a mano — la lascia
+   stare e non ti riscrive la scheda sotto i piedi. */
+async function syncVariant(v) {
+  const attuali = exercises.filter(e => e.active && e.plan === PLAN_ID && e.variant === v);
+  const firma = l => l.slice().sort().join('§');
+  const attesa = [];
+  SEDUTE.filter(s => s.variant === v).forEach(d => d.ex.forEach((e, i) => attesa.push(`${d.day}|${e.n}|${i}|${e.s || 0}`)));
+  const ora = attuali.map(e => `${e.day_name}|${e.name}|${e.position}|${e.sets_target || 0}`);
+  if (firma(ora) === firma(attesa)) return false;            // già allineata
+  const ids = new Set(attuali.map(e => e.id));
+  if (workoutLogs.some(l => ids.has(l.exercise_id))) return false; // già usata: non la tocco
+  const rows = [];
+  SEDUTE.filter(s => s.variant === v).forEach(d => d.ex.forEach((e, i) => rows.push({
+    user_id: user.id, plan: PLAN_ID, variant: d.variant, day_name: d.day, day_order: d.order,
+    name: e.n, scheme: e.s ? `${e.s}x${e.r}` : (e.r || 'skill'), position: i,
+    superset_group: e.ss || null, sets_target: e.s || null, reps_target: e.r || null,
+    rest_sec: e.rest || null, rpe: e.rpe ?? null, rir: e.rir ?? null,
+    big_lift: !!e.big, is_core: !!e.core, muscle: e.m || null, note: e.nota || null,
+  })));
+  const { data, error } = await sb.from('po_exercises').insert(rows).select();
+  if (error) return false;
+  if (ids.size) await sb.from('po_exercises').update({ active: false }).in('id', [...ids]);
+  exercises = exercises.map(e => ids.has(e.id) ? { ...e, active: false } : e).concat(data || []);
+  return true;
 }
 
 async function ensureBlock() {
@@ -1841,6 +1900,8 @@ const topReps = r => {
 function suggerimento(e) {
   const top = topReps(e.reps_target);
   if (!e.sets_target || !top) return null;
+  // In minima e a casa non si rincorre il carico: si mantiene. Nessuna progressione da inseguire.
+  if (currentMode() !== 'piena') return 'Carico che ti lascia margine, RPE 6-7. Qui si mantiene, non si cresce — ed è esattamente il lavoro giusto.';
   if (isBlock2()) return '🌉 Blocco 2: stesso carico, RPE 7. Mantenimento, non crescita.';
   if (isDeload() && !e.big_lift) return '🛠 Deload: metà volume, RPE massimo 7. Serve ad arrivare veri al retest.';
   const last = logsOfEx(e).filter(l => l.day !== today()).sort((a, b) => a.day < b.day ? 1 : -1)[0];
@@ -2151,12 +2212,15 @@ function renderBlocco() {
     <div class="chips" style="margin-top:10px">
       <span class="chip ${mode === 'piena' ? 'on' : ''}" data-mode="piena">Piena</span>
       <span class="chip ${mode === 'minima' ? 'on' : ''}" data-mode="minima">Minima</span>
+      <span class="chip ${mode === 'casa' ? 'on' : ''}" data-mode="casa">Casa</span>
     </div>
     <div class="muted" style="font-size:12px;margin-top:6px">${pp
       ? '🍼 Minima automatica: prime 4 settimane dal parto. Non è negoziabile ed è giusto così.'
-      : mode === 'minima'
-        ? 'Sei in minima: 4 sedute, superset, RPE 6-7. È il piano B, non un passo indietro — la striscia non si rompe e non perdi niente.'
-        : 'Versione piena: 5 sedute + 2 facoltative. Se la settimana si stringe, passa alla minima senza pensarci.'}</div>
+      : mode === 'casa'
+        ? 'Piano C: due sedute a casa, 20-25\', manubri e corda. Quando la palestra non è raggiungibile questo È l\'allenamento, non un ripiego.'
+        : mode === 'minima'
+          ? 'Sei in minima: 4 sedute, superset, RPE 6-7. Le due di pesi coprono entrambe tutto il corpo, così anche saltandone una hai toccato tutto. È il piano B, non un passo indietro.'
+          : 'Versione piena: 5 sedute + 2 facoltative. Se la settimana si stringe, passa alla minima senza pensarci.'}</div>
     ${deload}${retest}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
       <button class="mini ghost" id="btn-block-start">Inizio blocco</button>
@@ -2367,10 +2431,11 @@ function renderVolGroups() {
   const el = $('co-volgroups'); if (!el) return;
   if (!planReady) { el.innerHTML = ''; return; }
   const v = volumePerGruppo(weekDays());
-  const minima = currentMode() === 'minima';
+  const minima = currentMode() !== 'piena';
+  const fasce = currentMode() === 'casa' ? VOLUME_CASA : VOLUME_MINIMA;
   const rows = Object.keys(MUSCOLI).map(k => {
     const fatto = v[k] || 0;
-    const band = minima ? (GRUPPI_GRANDI.includes(k) ? VOLUME_MINIMA.grandi : VOLUME_MINIMA.piccoli) : null;
+    const band = minima ? (GRUPPI_GRANDI.includes(k) ? fasce.grandi : fasce.piccoli) : null;
     const target = minima ? band[1] : VOLUME_TARGET[k];
     const pct = Math.min(100, Math.round(fatto / target * 100));
     const col = minima ? 'var(--gold)' : (fatto > target * 1.15 ? 'var(--red)' : fatto >= target * 0.85 ? 'var(--green)' : 'var(--gold)');
@@ -2381,7 +2446,7 @@ function renderVolGroups() {
   const tot = Object.values(v).reduce((a, b) => a + b, 0);
   el.innerHTML = `<div class="muted" style="font-size:12px;margin-bottom:6px">Settimana ${blockWeek()} · ${tot} serie dirette${minima ? '' : ' su 115 previste'}</div>${rows}
     <div class="muted" style="font-size:12px;margin-top:8px">${minima
-      ? 'In minima la fascia è 8-10 serie per i gruppi grandi e 4-6 per i piccoli. Starci dentro è il risultato, non il minimo sindacale.'
+      ? `Fascia: ${fasce.grandi.join('-')} serie per i gruppi grandi, ${fasce.piccoli.join('-')} per i piccoli. Starci dentro è il risultato, non il minimo sindacale.`
       : 'Fascia alta del range produttivo per un avanzato in deficit. Oltre questi numeri aggiungi fatica, non stimolo.'}</div>`;
 }
 

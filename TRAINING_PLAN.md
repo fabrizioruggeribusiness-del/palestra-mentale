@@ -404,7 +404,25 @@ Incrementi suggeriti: +2,5 kg sui lower body e sui bilancieri grossi, +1-2 kg su
 }
 ```
 
-> **Nota di implementazione:** il piano non indica quante serie per esercizio nella versione minima. L'app ne assegna **3**, che portano i gruppi grandi sotto la fascia 8-10 dichiarata sopra. Da rivedere insieme.
+> **Piano C implementato il 24/9/2026** come terza versione nell'app (chip "Casa"), due sedute alternate, entrambe full body e simmetriche come la minima:
+>
+> - **Casa A** — SS goblet squat + rematore manubri · SS floor press + stacco rumeno manubri · SS curl + plank
+> - **Casa B** — SS affondi + pullover · SS push-up piedi rialzati + hip thrust a terra · SS estensioni tricipiti + dead bug
+>
+> 3 serie, RPE 6-7, recuperi 60". Fascia volume più bassa della minima (**6-8** gruppi grandi, 3-4 piccoli): 20-25' con manubri leggeri non sono una palestra, e un target irraggiungibile sullo schermo fa solo danno.
+>
+> Gli esercizi sono un adattamento all'attrezzatura di casa — i pattern sono quelli del piano, le scelte specifiche sono dell'implementazione.
+
+> **Revisione del 24/9/2026 — minima simmetrica.** I contenuti qui sopra hanno un problema di distribuzione, non di quantità: petto e quadricipiti stanno solo nella seduta 1, femorali e dorso alto solo nella seduta 2. Nella settimana in cui ne salti una — e con un neonato succederà — resti a zero su metà del corpo. Il piano B aveva lo stesso punto fragile del piano A.
+>
+> Le due sedute di pesi sono state rese **simmetriche**: coprono entrambe spinta, tirata, ginocchio e anca, a **4 serie** per esercizio.
+>
+> - **Minima 1** — SS squat + rematore · SS panca + leg curl · SS curl + plank
+> - **Minima 2** — SS leg press + lat machine · SS chest press (o military) + stacco rumeno · SS push-down + pallof
+>
+> Risultato: **8 serie a settimana** per petto, dorso, quadricipiti e femorali (dentro la fascia 8-10 dichiarata), 4 per bicipiti e tricipiti. E soprattutto: **se fai una sola seduta su due, hai comunque allenato tutto il corpo.**
+>
+> Movimenti presi dal piano; ridistribuzione, conteggio serie e fascia sono scelte concordate il 24/9/2026.
 
 ### 3.5 Campanello d'allarme (interferenza)
 
