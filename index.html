@@ -2205,29 +2205,42 @@ function renderAlerts() {
   el.innerHTML = out.join('');
 }
 
-// Timer di recupero. Nei superset: 15" di transizione, poi 75" veri di recupero.
-let restTimer = null;
+/* Timer di recupero. Nei superset: 15" di transizione, poi 75" veri di recupero.
+   Conta su ORARI DI FINE assoluti, non a colpi di secondo: in palestra il telefono
+   finisce in tasca e iOS congela i timer della PWA: un contatore che scala
+   perderebbe esattamente il tempo in cui non lo guardi. */
+let restTimer = null, restTick = null;
 function startRest(sec, nome, superset) {
   clearInterval(restTimer);
   const bar = $('rest-bar'); bar.classList.remove('hidden', 'done');
   const fasi = superset ? [[15, 'transizione → esercizio B'], [75, 'recupero']] : [[sec, 'recupero']];
-  let fase = 0, left = fasi[0][0];
-  const tick = () => {
-    $('rest-label').innerHTML = `<b>${esc(nome || '')}</b><br>${fasi[fase][1]}`;
-    $('rest-time').textContent = fmtDur(left);
-    if (left <= 0) {
-      if (fase < fasi.length - 1) { fase++; left = fasi[fase][0]; if (navigator.vibrate) navigator.vibrate(80); return; }
-      clearInterval(restTimer); bar.classList.add('done'); $('rest-time').textContent = 'via';
+  let t = Date.now();
+  const scadenze = fasi.map(([s, lab]) => ({ end: (t += s * 1000), lab }));
+  let faseVista = -1;
+  restTick = () => {
+    const now = Date.now();
+    const i = scadenze.findIndex(f => f.end > now);
+    if (i < 0) {
+      clearInterval(restTimer); restTimer = null;
+      $('rest-label').innerHTML = `<b>${esc(nome || '')}</b><br>recupero finito`;
+      bar.classList.add('done'); $('rest-time').textContent = 'via';
       if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
       setTimeout(() => bar.classList.add('hidden'), 5000);
       return;
     }
-    left--;
+    if (i !== faseVista) { // cambio fase (fine transizione del superset)
+      if (faseVista >= 0 && navigator.vibrate) navigator.vibrate(80);
+      faseVista = i;
+    }
+    $('rest-label').innerHTML = `<b>${esc(nome || '')}</b><br>${scadenze[i].lab}`;
+    $('rest-time').textContent = fmtDur(Math.ceil((scadenze[i].end - now) / 1000));
   };
-  tick();
-  restTimer = setInterval(tick, 1000);
+  restTick();
+  restTimer = setInterval(restTick, 250);
 }
-$('rest-stop').onclick = () => { clearInterval(restTimer); $('rest-bar').classList.add('hidden'); };
+// Tornando sull'app dopo lo schermo bloccato, il conto si riallinea subito
+document.addEventListener('visibilitychange', () => { if (!document.hidden && restTimer && restTick) restTick(); });
+$('rest-stop').onclick = () => { clearInterval(restTimer); restTimer = null; $('rest-bar').classList.add('hidden'); };
 
 /* ───────────────── GIORNATA: focus, riposo, extra ───────────────── */
 function renderDayInfo(sed) {
