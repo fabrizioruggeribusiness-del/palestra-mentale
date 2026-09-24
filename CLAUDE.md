@@ -25,14 +25,14 @@ PWA single-file (`index.html`) su GitHub Pages. "La vita come videogioco" — Fa
 |-----|-----------|
 | Piano | **Home** (si apre per prima): focus del mese (area debole), piano 2026 (sola lettura, `PIANO_2026`), andamento Vita/Azione nel tempo (grafico 6 mesi) |
 | Ruota | Wheel of Life SVG (8 aree) + avatar pixel art + barra livello |
-| Corpo | Log allenamento, 1RM stimato (Epley), PR rilevati, peso, **palestra per sessione**, **corsa facoltativa**. **Storico/progressioni:** grafico 1RM+volume per esercizio (filtrabile per palestra), registro Record, Diario per sessione, heatmap mensile + volume settimanale |
+| Corpo | **Blocco** (settimana, switch piena/minima, deload, avvisi), log allenamento con prescrizione del giorno + timer recupero + suggerimento progressione, 1RM stimato (Epley), PR, peso, **palestra per sessione**, **condizionamento** (vogatore/sacco/MMA/corda) + **corsa**, **mobilità**, **volume per gruppo**, **benchmark S0/S8**, proteine. **Storico:** grafico 1RM+volume per esercizio (per palestra), Record, Diario, heatmap |
 | Mente | Lettura come gioco: check-in giornaliero, **boss book** (barra HP pagine), **striscia** 🔥, **codex** (estratti passati a rotazione), **quest 📚 X/24** annuale. Tabelle `pm_*` |
 | Disciplina | Tracker abitudini, chips Oggi/Ieri, storico mesi, gestione abitudini |
 | Config | Chiave API, logout, info |
 
 ## Database — tabelle
 
-**Nuove (Player One):** `po_exercises`, `po_workout_logs` (col. `gym`), `po_habits`, `po_habit_days`, `po_wheel`, `po_weight`, `po_runs`  
+**Nuove (Player One):** `po_exercises` (col. `plan`, `variant`, `sets_target`, `reps_target`, `rest_sec`, `rpe`, `rir`, `big_lift`, `is_core`, `muscle`, `note`), `po_workout_logs` (col. `gym`), `po_habits`, `po_habit_days`, `po_wheel`, `po_weight`, `po_runs`, `po_block`, `po_conditioning`, `po_mobility`, `po_benchmarks`  
 **Vecchie (Palestra Mentale):** `pm_books`, `pm_checkins` — invariate, Mente le usa ancora
 
 Tutto con RLS. Schema in `player-one-schema.sql`.
@@ -52,14 +52,22 @@ Tutte e 8 le aree (Salute Fisica, Crescita, Tempo Libero, Famiglia, Finanze, Bus
 
 Avatar **"Azione"** = dati reali, calcolata da `corpoAt`+`tempoAt`+`disciplinaAt` (allenamenti, dispersioni, abitudini) — **indipendente** dai voti della ruota. Centro ruota = **"Vita"** = media degli 8 voti. Legenda: trend ▲/▼ vs mese scorso, oppure "prima X" col pulsante **Confronta col mese scorso** (overlay bianco sul gradino del mese scorso). Box "punto debole" + nudge sulle aree da votare.
 
-## Scheda palestra (SCHEDA_SEED)
+## Scheda palestra — blocco ibrido (dal 24/9/2026)
 
-5 giornate dal foglio Google "Nuova Scheda":
-1. Femorali + Tricipiti
-2. Quadricipiti + Bicipiti
-3. Spalle + Petto A
-4. Dorso
-5. Spalle + Petto B
+Fonte: `TRAINING_PLAN.md` in questa cartella. **È la fonte di verità: non inventare esercizi, serie o progressioni che non ci sono.** Le costanti `SEDUTE`, `COND`, `MUSCLE_UP`, `VOLUME_TARGET`, `MOBILITA`, `BENCHMARKS` in `index.html` ne sono la trascrizione.
+
+Blocco di 8 settimane (`PLAN_ID = 'ibrido-2026-09'`), poi "blocco 2 / ponte dicembre": progressione congelata, RPE 7, mantenimento fino al parto.
+
+**Versione piena** (5 sedute + 2 facoltative): Lunedì Lower B (hinge) · Martedì Upper A (push) · Mercoledì riposo · Giovedì Lower A (quad) · Venerdì Upper B (pull, muscle-up a fresco) · Sabato full body + MMA tecnica · Domenica corsa lunga facoltativa.
+**Versione minima** (4 sedute, RPE 6-7): il "piano B" quando la settimana si stringe. Switch in un tap, **nessuna penalità, nessuna striscia interrotta** — il linguaggio è parte del piano: mai "hai saltato".
+
+Logiche implementate: doppia progressione, timer di recupero (superset = 15" + 75"), volume settimanale per gruppo vs target, allarme calo big lift → taglia il condizionamento (non cibo né sonno), deload settimana 6 (accessori -50%, big lift invariati), progressioni condizionamento e muscle-up per fascia di settimane, checklist mobilità separata dai pesi, benchmark settimana 0/8, promemoria proteine 2,0-2,2 g/kg.
+
+⚠️ **Il piano ha un buco noto:** i deltoidi posteriori ricevono 8 serie contro un target dichiarato di 12 (totale 111 vs 115 serie). La card Volume lo mostra: è voluto che si veda, non va "aggiustato" in silenzio.
+
+⚠️ La scheda vecchia (5 giornate dal foglio "Nuova Scheda") è archiviata con `active = false`: lo storico resta agganciato alle sue righe ma fuori dai PR del blocco nuovo (scelta esplicita di Fabrizio: ripartire puliti).
+
+**Storico per nome, non per riga:** il curl del lunedì e quello del venerdì sono lo stesso esercizio — `logsOfEx()` unisce i log per `name` dentro lo stesso `plan`.
 
 ## Abitudini (HABITS_SEED)
 
@@ -113,6 +121,7 @@ Soglie riscalate automaticamente se cambiano le abitudini attive.
 - **Migrazioni d'ora in poi (via Management API o MCP locale):** con il Personal Access Token in `.env` del vault (`SUPABASE_ACCESS_TOKEN`, `sbp_***`) si esegue qualsiasi SQL/DDL senza SQL Editor: `POST https://api.supabase.com/v1/projects/opgqjqztmwujcqtmtlxs/database/query` con header `Authorization: Bearer $SUPABASE_ACCESS_TOKEN` e body `{"query":"..."}`. (Il Supabase MCP hosted HTTP dà errore OAuth "resource" — non usarlo; la Management API lo sostituisce.)
 - **Offline-proof:** la coda offline (`po_queue`/dead-letter) copre abitudini, ruota, allenamenti **e** (dal 25/6) check-in lettura, peso, aggiungi/rimuovi libro, obiettivi del giorno, **corse** (kind `run`/`run_del`). Op con id generato lato client (`crypto.randomUUID`) → idempotenti.
 - **Corpo — palestra per sessione (26/6/2026):** `migration-gym.sql` → colonna `po_workout_logs.gym` (backfill storico = `Fit Active Portuense`). Selettore palestra corrente (`localStorage po_gym`); **PR, record e grafici 1RM/volume separati per palestra** (chiave `exercise_id|gym`, helper `gymOf`) così cambiare sede non genera cali finti. Default `DEFAULT_GYM = 'Fit Active Portuense'`.
+- **Corpo — blocco ibrido (24/9/2026):** `migration-blocco-ibrido.sql` → metadati su `po_exercises` + tabelle `po_block` (settimana/modalità/data parto), `po_conditioning`, `po_mobility`, `po_benchmarks`. **L'app degrada in modo pulito se la migrazione non è stata eseguita:** `planReady = false` → resta la scheda precedente + banner, nessuna schermata rotta. La semina del blocco è idempotente (`seedPlan()` gira solo se non ci sono righe attive con `plan = PLAN_ID`). ⚠️ Al 24/9/2026 il PAT `SUPABASE_ACCESS_TOKEN` nel `.env` del vault risulta **revocato** (Unauthorized sia via MCP sia via Management API): la migrazione va eseguita dal SQL Editor o serve un token nuovo.
 - **Corpo — corsa facoltativa (26/6/2026):** `migration-runs.sql` → tabella `po_runs` (distanza, durata, tipo, FC, note; passo calcolato). Sezione "🏃 Corsa" nel tab Corpo. **Bonus `RUN_XP = 8` per uscita, nessuna penalità** (non spunta boss Palestra, non tocca l'avatar "Azione"). `parseTime`/`fmtDur`/`fmtPace`, `renderRuns`.
 
 ## Sicurezza

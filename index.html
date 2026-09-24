@@ -217,6 +217,27 @@
   @keyframes spin { to { transform: rotate(360deg);} }
   .center { text-align:center; }
   .hidden { display:none !important; }
+  /* Timer di recupero: sta sopra la nav e non copre l'input delle serie */
+  #rest-bar { position:fixed; left:50%; transform:translateX(-50%); bottom:74px; z-index:60;
+    display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:99px;
+    background:var(--card); border:1px solid var(--gold); box-shadow:0 6px 20px rgba(0,0,0,.45); }
+  #rest-label { font-size:12px; color:var(--dim); max-width:150px; }
+  #rest-time { font-size:20px; font-weight:800; color:var(--gold2); font-variant-numeric:tabular-nums; }
+  #rest-bar.done { border-color:var(--green); }
+  #rest-bar.done #rest-time { color:var(--green); }
+  /* Riga volume: gruppo, barra, conteggio */
+  .vol-row { display:flex; align-items:center; gap:8px; padding:5px 0; font-size:13px; }
+  .vol-row .lab { flex:0 0 110px; color:var(--dim); font-size:12px; }
+  .vol-row .track { flex:1; height:8px; border-radius:99px; background:var(--bg2); overflow:hidden; }
+  .vol-row .fill { height:100%; border-radius:99px; }
+  .vol-row .num { flex:0 0 52px; text-align:right; font-size:12px; color:var(--dim); font-variant-numeric:tabular-nums; }
+  /* Blocco: settimana + modalità */
+  .blk { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .blk .wk { font-size:22px; font-weight:800; color:var(--gold2); }
+  .presc { background:var(--bg2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:13px; line-height:1.5; margin-top:8px; }
+  .presc b { color:var(--gold2); }
+  .sugg { font-size:12px; color:var(--green); margin-top:4px; }
+  .ss-tag { color:var(--gold); font-size:11px; font-weight:700; }
 
   /* ── stato sincronizzazione ── */
   #sync-bar { position: fixed; left:0; right:0; top: var(--safe-top); z-index: 20; text-align:center; font-size:12px; padding:8px 12px; font-weight:600; }
@@ -351,6 +372,12 @@
     </div>
     <div id="corpo-locked" class="warn hidden">⚠️ Esegui prima la migrazione SQL (vedi Ruota).</div>
     <div id="corpo-main">
+      <div id="co-plan-warn" class="warn hidden">⚠️ La scheda nuova aspetta la migrazione: esegui <b>migration-blocco-ibrido.sql</b> nel SQL Editor di Supabase. Fino ad allora vedi la scheda precedente, intatta.</div>
+      <div class="card" id="co-block-card">
+        <h2>Blocco <small>— dove sei nel piano</small></h2>
+        <div id="co-block"></div>
+      </div>
+      <div id="co-alerts"></div>
       <div class="card">
         <h2>Peso <small>— obiettivo 75 kg</small></h2>
         <div id="co-weight-now" class="muted"></div>
@@ -371,12 +398,21 @@
       </div>
       <div class="card">
         <h2 id="co-daytitle">Esercizi</h2>
-        <p class="muted">Scrivi le serie come <b>90x7, 95x6, 95x6</b> (peso x ripetizioni). Tocca il nome per lo storico.</p>
+        <div id="co-dayinfo"></div>
+        <p class="muted">Scrivi le serie come <b>90x7, 95x6, 95x6</b> (peso x ripetizioni, <b>@8</b> per l'RPE). Tocca il nome per lo storico, ⏱ per il recupero.</p>
         <div id="co-exlist"></div>
         <input id="co-note" placeholder="nota di oggi (facoltativa): come ti sei sentito" style="margin-top:10px">
         <button id="btn-saveworkout">Registra allenamento</button>
         <div id="co-msg" class="ok-msg"></div>
         <div id="co-err" class="err"></div>
+      </div>
+      <div class="card" id="co-mob-card">
+        <h2>🧘 Mobilità <small>— non si taglia mai</small></h2>
+        <div id="co-mob"></div>
+      </div>
+      <div class="card" id="co-vol-card">
+        <h2>Volume settimanale <small>— serie per gruppo</small></h2>
+        <div id="co-volgroups"></div>
       </div>
       <div class="card">
         <h2>Ultimi 7 giorni</h2>
@@ -396,8 +432,14 @@
         <div id="co-diario" style="max-height:320px;overflow:auto"></div>
       </div>
       <div class="card">
-        <h2>🏃 Corsa <small>— facoltativa</small></h2>
+        <h2>Condizionamento <small>— sempre dopo i pesi</small></h2>
+        <p class="muted">In deficit la forza è la prima cosa da proteggere: il condizionamento viene dopo il ferro, mai prima.</p>
+        <div id="co-cond"></div>
+      </div>
+      <div class="card">
+        <h2>🏃 Corsa <small>— distanza, tempo, passo</small></h2>
         <p class="muted">Se corri ottieni XP bonus. Se non corri, nessuna penalità.</p>
+        <div id="ru-presc" class="muted" style="margin-bottom:8px"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <input id="ru-dist" type="number" step="0.1" inputmode="decimal" placeholder="km, es. 5.2" style="flex:1;min-width:90px">
           <input id="ru-time" placeholder="tempo mm:ss, es. 28:30" style="flex:1;min-width:90px">
@@ -417,6 +459,19 @@
         <div id="ru-err" class="err"></div>
         <div id="ru-charts" style="margin-top:12px"></div>
         <div id="ru-list" style="max-height:240px;overflow:auto;margin-top:10px"></div>
+      </div>
+      <div class="card" id="co-bench-card">
+        <h2>Benchmark <small>— settimana 0 e 8</small></h2>
+        <p class="muted">Niente bilancia. Il metro oggettivo è questo: forza, tempo di corsa, mobilità, foto.</p>
+        <div id="co-bench"></div>
+      </div>
+      <div class="card" id="co-prot-card">
+        <h2>Proteine <small>— unico parametro nutrizionale</small></h2>
+        <div id="co-prot"></div>
+      </div>
+      <div class="card">
+        <h2>Come funziona il piano</h2>
+        <div id="co-note-piano"></div>
       </div>
       <div class="card">
         <h2>Aggiungi esercizio <small>— alla giornata selezionata</small></h2>
@@ -591,6 +646,13 @@
     <a href="#" data-v="disciplina"><span class="ico">⚔️</span>Disciplina</a>
     <a href="#" data-v="config"><span class="ico">⚙️</span>Altro</a>
   </nav>
+
+  <!-- Timer di recupero: barra fissa sopra la nav, visibile solo mentre conta -->
+  <div id="rest-bar" class="hidden">
+    <div id="rest-label"></div>
+    <div id="rest-time">0:00</div>
+    <button id="rest-stop" class="mini ghost">Stop</button>
+  </div>
 </div>
 
 <script type="module">
@@ -666,30 +728,170 @@ const STATI = [
   { nome:'Inarrestabile', desc:'Versione migliore di te. Difendila.' },
 ];
 
-// Scheda da "Nuova Scheda" (Google Sheets) — seed iniziale, poi vive su Supabase
-const SCHEDA_SEED = [
-  { day:'Femorali + Tricipiti', ex:[
-    ['Calf','3x6/8'],['Hip thrust','3x6/8'],['Leg curl sdraiato','2x3min + 1x15'],
-    ['Stacco rumeno','3x6/8'],['Pressa','3x8'],['Leg extension','3x21'],['Abductor machine','3xMax'],
-    ['Push down','3x6/8'],['French press manubri','3x8'],['Manubrio sopra testa','3x10'],['Cavo alto singolo + corda','2x10 + 2x10'],
+/* ═══════════════ PIANO IBRIDO — blocco settembre 2026 ═══════════════
+   Fonte: TRAINING_PLAN.md. Pesi (pilastro) → condizionamento → mobilità.
+   Due versioni: PIENA (5 sedute + 2 facoltative) e MINIMA (4 sedute, piano B).
+   La minima non è un downgrade: è il piano che tiene quando la settimana si stringe.
+   Le righe vivono su Supabase (po_exercises), questo è il seme del blocco. */
+const PLAN_ID = 'ibrido-2026-09';
+const BLOCK_WEEKS = 8;
+const DEFAULT_BLOCK_START = '2026-09-28'; // lunedì della settimana 1 (modificabile nell'app)
+const PROTEIN_MIN = 2.0, PROTEIN_MAX = 2.2, PESO_FALLBACK = 85; // g/kg · kg se non hai registrato il peso
+const COND_XP = 8; // condizionamento: bonus come la corsa, mai penalità
+const MOB_XP = 3;  // mobilità: poca energia, va difesa — piccolo XP per non farla sparire
+const POST_PARTUM_WEEKS = 4;
+
+// Gruppi per il calcolo del volume settimanale
+const MUSCOLI = {
+  petto:'Petto', dorso:'Dorso', quadricipiti:'Quadricipiti', femorali_glutei:'Femorali + glutei',
+  deltoidi_laterali:'Deltoidi laterali', deltoidi_posteriori:'Deltoidi posteriori',
+  bicipiti:'Bicipiti', tricipiti:'Tricipiti', polpacci:'Polpacci',
+};
+const VOLUME_TARGET = { petto:16, dorso:16, quadricipiti:17, femorali_glutei:15,
+  deltoidi_laterali:11, deltoidi_posteriori:12, bicipiti:10, tricipiti:10, polpacci:8 };
+// Versione minima: fascia, non bersaglio. Nessun "ti manca" — è il piano B che regge.
+const VOLUME_MINIMA = { grandi:[8,10], piccoli:[4,6] };
+const GRUPPI_GRANDI = ['petto','dorso','quadricipiti','femorali_glutei'];
+
+// Le 4 alzate su cui si misura la forza vera (mai in superset, mai a macchina)
+const BIG_LIFTS = ['Stacco rumeno','Panca piana bilanciere','Squat bilanciere o hack squat','Trazioni zavorrate'];
+
+const SEDUTE = [
+  { day:'Lunedì', variant:'piena', order:0, focus:'Lower B (hinge)', core:'anti-estensione', finisher:'vogatore_lungo', ex:[
+    { n:'Stacco rumeno', s:4, r:'8-10', rest:150, rpe:8, rir:2, big:true, m:'femorali_glutei' },
+    { n:'Hip thrust', s:4, r:'10-12', rest:120, rpe:8, rir:2, big:true, m:'femorali_glutei' },
+    { n:'Leg curl', s:4, r:'15', rest:90, rpe:9, rir:1, m:'femorali_glutei' },
+    { n:'Step-up o affondi in cammino', s:3, r:'10 per lato', rest:90, rpe:8, m:'femorali_glutei' },
+    { n:'Polpacci seduto', s:4, r:'15-20', rest:75, rpe:8, rir:2, m:'polpacci', ss:'A' },
+    { n:'Curl bicipiti', s:3, r:'10-12', rest:75, rpe:9, rir:1, m:'bicipiti', ss:'A' },
+    { n:'Plank o Stir the pot', s:3, r:'30-45 sec', rest:60, core:true },
   ]},
-  { day:'Quadricipiti + Bicipiti', ex:[
-    ['Leg extension','2x2min + 1x15'],['Adductor','3x8'],['Pressa','3x6'],['Squat bulgaro','3x6'],
-    ['Stacco rumeno','3x8'],['Leg curl sdraiato','3x12'],['Calf','3x20'],
-    ['Biceps curl','3x6'],['Curl manubri colonna','3x6/8'],['Hammer curl spider','3x6/8'],['Hammer curl macchinario','3x2min'],
+  { day:'Martedì', variant:'piena', order:1, focus:'Upper A (push)', core:'flessione', finisher:'mma_sacco', warmup:'corda', ex:[
+    { n:'Panca piana bilanciere', s:4, r:'6-8', rest:150, rpe:8, rir:2, big:true, m:'petto' },
+    { n:'Panca inclinata manubri', s:4, r:'8-10', rest:120, rpe:8, rir:2, big:true, m:'petto' },
+    { n:'Dip o chest press', s:4, r:'10-12', rest:90, rpe:8, rir:2, m:'petto' },
+    { n:'Alzate laterali', s:4, r:'12-15', rest:75, rpe:9, rir:1, m:'deltoidi_laterali', ss:'A' },
+    { n:'Face pull', s:4, r:'15', rest:75, rpe:8, m:'deltoidi_posteriori', ss:'A' },
+    { n:'Push-down tricipiti', s:4, r:'12-15', rest:75, rpe:9, rir:1, m:'tricipiti', ss:'B' },
+    { n:'French press', s:3, r:'12', rest:75, rpe:9, rir:1, m:'tricipiti', ss:'B' },
+    { n:'Cable crunch', s:3, r:'12-15', rest:60, core:true },
   ]},
-  { day:'Spalle + Petto A', ex:[
-    ['Panca piana','3-5-7-10'],['Chest press inclinata','4x6-6-8-8'],['Pec fly','3x8/10'],
-    ['Alzate laterali panca inclinata','3x8/10'],['Dip','3xMax'],['Rear delts','3x12/15'],
+  { day:'Mercoledì', variant:'piena', order:2, focus:'Riposo', riposo:true, mobilita:'mercoledi',
+    nota:'Mobilità pura 10-12\' la sera a casa: colonna toracica, anche, spalle. Zero training.', ex:[] },
+  { day:'Giovedì', variant:'piena', order:3, focus:'Lower A (quad)', core:'anti-rotazione', finisher:'vogatore_corto', ex:[
+    { n:'Squat bilanciere o hack squat', s:4, r:'6-8', rest:150, rpe:8, rir:2, big:true, m:'quadricipiti' },
+    { n:'Leg press', s:4, r:'10-12', rest:120, rpe:8, rir:2, big:true, m:'quadricipiti' },
+    { n:'Leg extension', s:3, r:'15', rest:75, rpe:9, rir:1, m:'quadricipiti', ss:'A' },
+    { n:'Polpacci in piedi', s:4, r:'12-15', rest:75, rpe:8, m:'polpacci', ss:'A' },
+    { n:'Affondi bulgari', s:3, r:'10 per lato', rest:90, rpe:8, rir:2, m:'quadricipiti' },
+    { n:'Alzate laterali ai cavi', s:4, r:'15', rest:60, rpe:9, rir:1, m:'deltoidi_laterali' },
+    { n:'Pallof press', s:3, r:'12 per lato', rest:60, core:true },
   ]},
-  { day:'Dorso', ex:[
-    ['Lat machine','3-5-7-10'],['Pulley lat singolo','3x8/10'],['Rematore','3x8/10'],
-    ['Rear delts','2x8 + 2x1min'],['Campana','3x10'],['Trazioni','3xMax'],
+  { day:'Venerdì', variant:'piena', order:4, focus:'Upper B (pull)', core:'obliqui', finisher:'corsa_z2_facile', ex:[
+    { n:'Skill muscle-up', rest:120, skill:'muscle_up', nota:'Inizio seduta, a fresco. Tecnica, mai a cedimento.' },
+    { n:'Trazioni zavorrate', s:4, r:'6-8', rest:150, rpe:8, rir:2, big:true, m:'dorso' },
+    { n:'Rematore bilanciere o manubrio', s:4, r:'8-10', rest:120, rpe:8, rir:2, big:true, m:'dorso' },
+    { n:'Lat machine presa larga', s:4, r:'10-12', rest:90, rpe:8, rir:2, m:'dorso' },
+    { n:'Curl bicipiti', s:4, r:'10-12', rest:75, rpe:9, rir:1, m:'bicipiti', ss:'A' },
+    { n:'Reverse fly', s:4, r:'15', rest:75, rpe:8, m:'deltoidi_posteriori', ss:'A' },
+    { n:'Russian twist zavorrato', s:3, r:'15 per lato', rest:60, core:true },
   ]},
-  { day:'Spalle + Petto B', ex:[
-    ['Shoulder press','3-5-7-10'],['Alzate laterali','2x8 + 2x2min'],['Pec fly','3x8/10'],
-    ['Chest press','4x6-6-8-8'],['Alzate laterali (finale)','3x8/10'],['Dip','3xMax'],
+  { day:'Sabato', variant:'piena', order:5, focus:'Full body + MMA tecnica', core:'circuito',
+    finisher:'mma_tecnica', warmup:'corda', mobilita:'sabato', ex:[
+    { n:'Alzate laterali o Arnold press', s:3, r:'12-15', rest:90, rpe:8, m:'deltoidi_laterali' },
+    { n:'Cable fly', s:4, r:'15', rest:75, rpe:8, m:'petto', ss:'A' },
+    { n:'Pulley basso', s:4, r:'15', rest:75, rpe:8, m:'dorso', ss:'A' },
+    { n:'Leg press o goblet squat', s:3, r:'15', rest:90, rpe:6.5, m:'quadricipiti', nota:'Frequenza extra gambe, non stimolo massimale.' },
+    { n:'Curl bicipiti', s:3, r:'12-15', rest:60, rpe:8.5, m:'bicipiti', ss:'B' },
+    { n:'Estensioni tricipiti', s:3, r:'12-15', rest:60, rpe:8.5, m:'tricipiti', ss:'B' },
+    { n:'Dead bug + hollow hold + plank laterale', s:2, r:'circuito, 2 giri', core:true },
   ]},
+  { day:'Domenica', variant:'piena', order:6, focus:'Facoltativa', opzionale:true,
+    finisher:'corsa_z2_lunga', mobilita:'domenica', ex:[] },
+
+  // ── Versione minima: 4 sedute. Superset ovunque: stessa seduta in metà tempo.
+  // Le serie (3) sono una scelta dell'app: il piano indica i contenuti, non i conteggi.
+  { day:'Minima 1', variant:'minima', order:10, focus:'Full body A', minRpe:'6-7', ex:[
+    { n:'Squat bilanciere o hack squat', s:3, r:'8-10', rest:75, rpe:6.5, m:'quadricipiti', ss:'A' },
+    { n:'Rematore bilanciere o manubrio', s:3, r:'8-10', rest:75, rpe:6.5, m:'dorso', ss:'A' },
+    { n:'Panca piana bilanciere', s:3, r:'8-10', rest:75, rpe:6.5, m:'petto', ss:'B' },
+    { n:'Curl bicipiti', s:3, r:'10-12', rest:75, rpe:6.5, m:'bicipiti', ss:'B' },
+    { n:'Plank o Stir the pot', s:3, r:'30-45 sec', rest:60, core:true },
+  ]},
+  { day:'Minima 2', variant:'minima', order:11, focus:'Full body B', minRpe:'6-7', ex:[
+    { n:'Stacco rumeno', s:3, r:'8-10', rest:75, rpe:6.5, m:'femorali_glutei', ss:'A' },
+    { n:'Lat machine presa larga', s:3, r:'10-12', rest:75, rpe:6.5, m:'dorso', ss:'A' },
+    { n:'Military press', s:3, r:'8-10', rest:75, rpe:6.5, m:'deltoidi_laterali', ss:'B' },
+    { n:'Push-down tricipiti', s:3, r:'12-15', rest:75, rpe:6.5, m:'tricipiti', ss:'B' },
+    { n:'Pallof press', s:3, r:'12 per lato', rest:60, core:true },
+  ]},
+  { day:'Minima 3', variant:'minima', order:12, focus:'Condizionamento 10\' + mobilità', minRpe:'6-7',
+    finisher:'mma_sacco', mobilita:'minima', ex:[] },
+  { day:'Minima 4', variant:'minima', order:13, focus:'Flessibile', minRpe:'6-7', opzionale:true,
+    nota:'Pesi o corsa breve, in base all\'energia del giorno. Decidi arrivato lì: va bene così.',
+    finisher:'corsa_z2_facile', ex:[] },
+];
+
+// ── Condizionamento: progressione su 8 settimane (fascia = coppia di settimane) ──
+const COND = {
+  vogatore_lungo: { label:'Vogatore lungo', emoji:'🚣', log:'cond', weeks:{
+    '1-2':'6 x 1\' forte / 1\'30" facile', '3-4':'8 x 1\' forte / 1\' facile',
+    '5-6':'5 x 2\' moderato-alto / 1\'30" facile', '7-8':'4 x 3\' alto / 2\' facile' } },
+  vogatore_corto: { label:'Vogatore corto', emoji:'🚣', log:'cond', weeks:{
+    '1-2':'8 x 30" forte / 1\'30" facile', '3-4':'10 x 30" forte / 1\' facile',
+    '5-6':'6 x 1\' forte / 1\' facile', '7-8':'5 x 1\'30" alto / 1\' facile' } },
+  mma_sacco: { label:'Sacco MMA', emoji:'🥊', log:'cond', weeks:{
+    '1-2':'4 x 2\' (rec. 1\') · pugni + calci bassi · calci al 50% · 🦵 paratibia obbligatori',
+    '3-4':'5 x 2\' (rec. 1\') · + ginocchia da clinch, combo pugni-calcio · calci al 70% · 🦵 paratibia obbligatori',
+    '5-6':'5 x 3\' (rec. 1\') · combo 3-4 colpi, cambi di livello · calci al 100%',
+    '7-8':'6 x 3\' (rec. 1\') · combo complete + difesa e contrattacco · calci al 100%' } },
+  mma_tecnica: { label:'MMA tecnica', emoji:'🥋', log:'cond', fisso:'30\' senza cronometro. Schivate, parate, clinch, gestione della distanza. Qualità, non condizionamento.' },
+  corda: { label:'Corda', emoji:'🪢', log:'cond', fisso:'5-8\' di riscaldamento specifico per il footwork — non è cardio generico.' },
+  corsa_z2_facile: { label:'Corsa Z2 facile', emoji:'🏃', log:'run', weeks:{
+    '1-2':'15-18\' continui', '3-4':'18-22\'', '5-6':'22-25\'', '7-8':'25-30\'' } },
+  corsa_z2_lunga: { label:'Corsa Z2 lunga', emoji:'🏃', log:'run', opzionale:true, weeks:{
+    '1-2':'20\' continui', '3-4':'25-30\'', '5-6':'30-35\'', '7-8':'35-45\'' } },
+};
+const Z2_NOTA = 'Z2 = riesci a parlare a frasi intere senza affanno (≈70-80% FCmax). La base aerobica si costruisce restando facile, non spingendo.';
+
+// ── Muscle-up: skill sul sistema nervoso, sempre a fresco ──
+const MUSCLE_UP = {
+  weeks: { '1-2':'Trazioni esplosive al petto 4x5 + dip su anelli 3x8',
+    '3-4':'Trazioni al petto/sterno 4x4 + negative muscle-up 3x3 (discesa 5")',
+    '5-6':'Negative 4x3 + transizione assistita con elastico 3x3',
+    '7-8':'Tentativi muscle-up 5x1-2 (freschissimo) + negative 2x3' },
+  consolidamento:'Raggiunto: 4-5 x 1-2 reps pulite, mai oltre 10 rep totali. Fermarsi lontano dalla fatica è ciò che lo rende stabile.',
+};
+
+// ── Mobilità: lavoro strutturale, non riempitivo. È l'ultima cosa che si taglia ──
+const MOBILITA = {
+  standard:{ label:'8-10\' riscaldamento + 5\' defaticamento', min:13 },
+  mercoledi:{ label:'10-12\' mobilità pura a casa: colonna toracica, anche, spalle', min:11 },
+  sabato:{ label:'15-20\' flow esteso', min:17 },
+  domenica:{ label:'5-8\' stretching mirato post-corsa (flessori anca, polpacci)', min:6 },
+  minima:{ label:'5\' minimo — sempre, anche nei giorni storti', min:5 },
+};
+const MOBILITA_AREE = 'Priorità: colonna toracica, spalle, anche, caviglie.';
+
+// ── Benchmark: settimana 0 e settimana 8. Niente bilancia: il metro è questo ──
+const BENCHMARKS = [
+  { id:'trazioni', test:'Trazioni strict, max reps', unit:'reps', base:'12 (storico)' },
+  { id:'panca', test:'Panca piana 5RM o 3x8 col massimo carico pulito', unit:'kg', base:'3x110 (storico)' },
+  { id:'squat', test:'Squat 5RM o 3x8', unit:'kg', base:'3x100 (storico)' },
+  { id:'military', test:'Military press 3x8', unit:'kg', base:'3x65 (storico)' },
+  { id:'corsa', test:'Tempo max continuo a 7.5 km/h', unit:'min', base:'15 (attuale)' },
+  { id:'mobilita', test:'Supino, braccia distese a terra: quanto stacca la lombare', unit:'cm', base:'—' },
+  { id:'foto', test:'Foto fronte/lato/retro, stessa luce', unit:'fatta', base:'—' },
+];
+
+// ── Testi del piano mostrati in-app ──
+const NOTE_PIANO = [
+  ['Ordine degli esercizi','I big lift a inizio seduta, recuperi pieni di 2-2,5\'. Il muscle-up prima di tutto il venerdì: la transizione sotto fatica è dove ci si fa male alla spalla.'],
+  ['Perché i fondamentali restano liberi','Squat, panca, stacco rumeno e trazioni restano a bilanciere anche nei giorni stanchi: sono i benchmark di forza vera e allenano la stabilizzazione che trasferisce a MMA e muscle-up. Quando sei stanco abbassi l\'RPE, non cambi attrezzo.'],
+  ['Gerarchia dei tagli','1. Corsa lunga della domenica · 2. Volume accessorio · 3. Durata dei finisher · 4. <b>Mai la mobilità</b>.'],
+  ['Superset','Solo antagonisti o muscoli non interferenti. A → 10-15" → B → 60-75" recupero. Se una postazione è occupata, falli come serie normali: non è un fallimento del piano.'],
+  ['Sicurezza MMA','Paratibia obbligatori nelle settimane 1-4. Calci al 50% nelle settimane 1-2, al 70% nelle 3-4. Le ossa si adattano molto più lentamente dei muscoli.'],
+  ['Dopo il parto','Realisticamente si vive in minima o vicino per 2-4 mesi. Non è un fallimento del piano né tuo: è fisiologia.'],
 ];
 
 // Tracker Abitudini — Giugno 2026 (abitudini lavorative escluse)
@@ -733,6 +935,8 @@ const MESI_IT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio
 
 let user = null, books = [], checkins = [];
 let poReady = true, exercises = [], workoutLogs = [], habits = [], habitDays = [], wheel = [], weights = [], dailyGoals = [], runs = [];
+let block = null, conditioning = [], mobility = [], benchmarks = [];
+let planReady = false; // colonne + righe del blocco ibrido presenti (migrazione eseguita)
 const DEFAULT_GYM = 'Fit Active Portuense'; // etichetta dello storico senza palestra
 const RUN_XP = 8; // XP bonus per ogni corsa (facoltativa: nessuna penalità se salti)
 let currentGym = localStorage.getItem('po_gym') || DEFAULT_GYM; // palestra di oggi
@@ -761,6 +965,8 @@ function qPush(op) {
   if (op.kind === 'wheel') q = q.filter(o => !(o.kind === 'wheel' && o.row.area === op.row.area && o.row.month === op.row.month));
   if (op.kind === 'weight') q = q.filter(o => !(o.kind === 'weight' && o.row.day === op.row.day));
   if (op.kind === 'goal_toggle') q = q.filter(o => !(o.kind === 'goal_toggle' && o.id === op.id));
+  if (op.kind === 'block') q = q.filter(o => o.kind !== 'block'); // vale l'ultima configurazione
+  if (op.kind === 'mob') q = q.filter(o => !(o.kind === 'mob' && o.row.day === op.row.day));
   q.push(op); qSet(q);
 }
 // Esegue una singola operazione contro Supabase. Lancia in caso di errore.
@@ -795,6 +1001,14 @@ async function runOp(op) {
     const { error } = await sb.from('po_runs').upsert(op.row, { onConflict: 'id' }); if (error) throw error;
   } else if (op.kind === 'run_del') {
     const { error } = await sb.from('po_runs').delete().eq('id', op.id); if (error) throw error;
+  } else if (op.kind === 'block') {
+    const { error } = await sb.from('po_block').upsert(op.row, { onConflict: 'user_id' }); if (error) throw error;
+  } else if (op.kind === 'cond') {
+    const { error } = await sb.from('po_conditioning').upsert(op.row, { onConflict: 'id' }); if (error) throw error;
+  } else if (op.kind === 'cond_del') {
+    const { error } = await sb.from('po_conditioning').delete().eq('id', op.id); if (error) throw error;
+  } else if (op.kind === 'mob') {
+    const { error } = await sb.from('po_mobility').upsert(op.row, { onConflict: 'user_id,day' }); if (error) throw error;
   }
 }
 async function qFlush() {
@@ -858,13 +1072,22 @@ function applyQueueLocally() {
       if (!runs.some(r => r.id === op.row.id)) runs.push(op.row);
     } else if (op.kind === 'run_del') {
       runs = runs.filter(r => r.id !== op.id);
+    } else if (op.kind === 'block') {
+      block = { ...(block || {}), ...op.row };
+    } else if (op.kind === 'cond') {
+      if (!conditioning.some(c => c.id === op.row.id)) conditioning.push(op.row);
+    } else if (op.kind === 'cond_del') {
+      conditioning = conditioning.filter(c => c.id !== op.id);
+    } else if (op.kind === 'mob') {
+      mobility = mobility.filter(m => m.day !== op.row.day);
+      mobility.push(op.row);
     }
   }
 }
 
 const SNAP_KEY = 'po_snapshot';
 function saveSnapshot() {
-  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel, weights, dailyGoals, runs, poReady })); } catch {}
+  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ books, checkins, exercises, workoutLogs, habits, habitDays, wheel, weights, dailyGoals, runs, block, conditioning, mobility, benchmarks, planReady, poReady })); } catch {}
 }
 function restoreSnapshot() {
   try {
@@ -874,6 +1097,9 @@ function restoreSnapshot() {
     weights = s.weights || [];
     dailyGoals = s.dailyGoals || [];
     runs = s.runs || [];
+    block = s.block || null;
+    conditioning = s.conditioning || []; mobility = s.mobility || []; benchmarks = s.benchmarks || [];
+    planReady = !!s.planReady;
     poReady = s.poReady;
     return true;
   } catch { return false; }
@@ -922,7 +1148,7 @@ async function loadAll() {
     books = b.data || [];
     checkins = c.data || [];
 
-    const [ex, wl, h, hd, w, wt, dg, ru] = await Promise.all([
+    const [ex, wl, h, hd, w, wt, dg, ru, bl, co, mo, be] = await Promise.all([
       sb.from('po_exercises').select('*').order('position'),
       sb.from('po_workout_logs').select('*').order('day'),
       sb.from('po_habits').select('*').order('position'),
@@ -931,6 +1157,10 @@ async function loadAll() {
       sb.from('po_weight').select('*').order('day'),
       sb.from('po_daily_goals').select('*').order('position'),
       sb.from('po_runs').select('*').order('day'),
+      sb.from('po_block').select('*').maybeSingle(),
+      sb.from('po_conditioning').select('*').order('day'),
+      sb.from('po_mobility').select('*').order('day'),
+      sb.from('po_benchmarks').select('*').order('week'),
     ]);
     if (ex.error || h.error) { poReady = false; applyQueueLocally(); return; }
     poReady = true;
@@ -939,14 +1169,16 @@ async function loadAll() {
     weights = wt.data || []; // se la tabella manca (migrazione non fatta) resta vuoto
     dailyGoals = dg.data || []; // idem: vuoto finché non si esegue migration-daily-goals.sql
     runs = ru.data || []; // vuoto finché non si esegue migration-runs.sql
+    block = bl.data || null;
+    conditioning = co.data || []; mobility = mo.data || []; benchmarks = be.data || [];
 
-    // primo avvio: semina scheda e abitudini
-    if (!exercises.length) {
-      const rows = [];
-      SCHEDA_SEED.forEach((g, gi) => g.ex.forEach(([name, scheme], i) =>
-        rows.push({ user_id: user.id, day_name: g.day, day_order: gi, name, scheme, position: i })));
-      const { data } = await sb.from('po_exercises').insert(rows).select();
-      exercises = data || [];
+    // Il blocco ibrido gira solo se migration-blocco-ibrido.sql è stata eseguita.
+    // Finché non lo è, l'app resta quella di prima: nessuna schermata rotta.
+    const sample = exercises[0];
+    planReady = (!sample || 'plan' in sample) && !bl.error && !co.error && !mo.error && !be.error;
+    if (planReady) {
+      if (!exercises.some(e => e.plan === PLAN_ID && e.active)) await seedPlan();
+      if (!block) await ensureBlock();
     }
     if (!habits.length) {
       const rows = HABITS_SEED.map(([emoji, name, tier, points], i) =>
@@ -960,7 +1192,65 @@ async function loadAll() {
     // offline: riparti dall'ultimo snapshot + coda locale
     if (restoreSnapshot()) applyQueueLocally();
   }
-  if (!selDay || !exercises.some(e => e.day_name === selDay)) selDay = dayNames()[0] || ''; // prima giornata per day_order (deterministico)
+  if (!selDay || !dayNames().includes(selDay)) selDay = giornataDiOggi() || dayNames()[0] || '';
+}
+
+// Primo avvio del blocco: la scheda precedente esce di scena (active=false, lo storico
+// resta agganciato alle sue righe) e vengono seminate le giornate del piano ibrido.
+async function seedPlan() {
+  const vecchi = exercises.filter(e => e.active && e.plan !== PLAN_ID).map(e => e.id);
+  const rows = [];
+  SEDUTE.forEach(d => d.ex.forEach((e, i) => rows.push({
+    user_id: user.id, plan: PLAN_ID, variant: d.variant, day_name: d.day, day_order: d.order,
+    name: e.n, scheme: e.s ? `${e.s}x${e.r}` : (e.r || 'skill'), position: i,
+    superset_group: e.ss || null, sets_target: e.s || null, reps_target: e.r || null,
+    rest_sec: e.rest || null, rpe: e.rpe ?? null, rir: e.rir ?? null,
+    big_lift: !!e.big, is_core: !!e.core, muscle: e.m || null, note: e.nota || null,
+  })));
+  const { data, error } = await sb.from('po_exercises').insert(rows).select();
+  if (error) { planReady = false; return; } // colonne mancanti: resta la scheda vecchia + banner
+  if (vecchi.length) await sb.from('po_exercises').update({ active: false }).in('id', vecchi);
+  exercises = exercises.map(e => vecchi.includes(e.id) ? { ...e, active: false } : e).concat(data || []);
+  selDay = giornataDiOggi() || '';
+}
+
+async function ensureBlock() {
+  const row = { user_id: user.id, start_date: DEFAULT_BLOCK_START, mode: 'piena', mode_since: today() };
+  const { data } = await sb.from('po_block').upsert(row, { onConflict: 'user_id' }).select().maybeSingle();
+  block = data || row;
+}
+
+/* ───────────────── BLOCCO: settimana, modalità, deload ─────────────────
+   Il blocco dura 8 settimane, poi diventa "ponte dicembre" (blocco 2):
+   progressione congelata, RPE 7, mantenimento — non crescita. */
+const blockStart = () => (block && block.start_date) || DEFAULT_BLOCK_START;
+const weekIndex = (d = today()) =>
+  Math.floor((new Date(d + 'T12:00') - new Date(blockStart() + 'T12:00')) / 604800000) + 1;
+const blockWeek = () => Math.max(1, weekIndex());
+const isBlock2 = () => weekIndex() > BLOCK_WEEKS;
+// Fascia di progressione: nel blocco 2 il condizionamento resta ai livelli della settimana 6.
+const weekBand = () => { const w = isBlock2() ? 6 : blockWeek(); return w <= 2 ? '1-2' : w <= 4 ? '3-4' : w <= 6 ? '5-6' : '7-8'; };
+
+const daysBetween = (a, b) => Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 86400000);
+// Prime 4 settimane dal parto: minima automatica, non negoziabile.
+const postPartum = () => {
+  const bd = block && block.birth_date;
+  if (!bd) return false;
+  const d = daysBetween(bd, today());
+  return d >= 0 && d < POST_PARTUM_WEEKS * 7;
+};
+const currentMode = () => postPartum() ? 'minima' : ((block && block.mode) || 'piena');
+// Due settimane o più in minima valgono già come deload: non se ne aggiunge un altro subito dopo.
+const deloadGiaSvolto = () => currentMode() === 'minima' && block && block.mode_since && daysBetween(block.mode_since, today()) >= 14;
+const isDeload = () => !isBlock2() && blockWeek() === 6 && !deloadGiaSvolto();
+
+const seduteDi = v => SEDUTE.filter(s => s.variant === v);
+const sedutaDi = name => SEDUTE.find(s => s.day === name) || null;
+const GIORNI_SETT = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+function giornataDiOggi() {
+  const names = dayNames();
+  const oggi = GIORNI_SETT[new Date().getDay()];
+  return names.includes(oggi) ? oggi : names[0] || '';
 }
 
 /* ───────────────── GAME MATH ───────────────── */
@@ -1018,6 +1308,9 @@ function corpoStats() {
 
 // XP Corsa: bonus per ogni uscita registrata (facoltativa, nessuna penalità).
 const runXP = () => runs.length * RUN_XP;
+// XP Condizionamento e mobilità: stessa logica, solo bonus. La mobilità vale poco
+// ma vale: è l'ultima cosa che si taglia, e deve avere un motivo per restare.
+const condXP = () => conditioning.length * COND_XP + mobility.length * MOB_XP;
 
 // XP Disciplina: somma dei punti guadagnati
 const habitXP = () => habitDays.reduce((s, d) => {
@@ -1026,7 +1319,7 @@ const habitXP = () => habitDays.reduce((s, d) => {
   return s + (h ? h.points : 0);
 }, 0);
 
-const totalXP = () => totalPoints() + (poReady ? corpoStats().xp + habitXP() + runXP() : 0);
+const totalXP = () => totalPoints() + (poReady ? corpoStats().xp + habitXP() + runXP() + condXP() : 0);
 
 function levelInfo(xp) {
   let lvl = 1, need = 100, base = 0;
@@ -1521,7 +1814,102 @@ async function onAreaTap(key) {
 }
 
 /* ───────────────── CORPO ───────────────── */
-const dayNames = () => [...new Set(exercises.filter(e => e.active).sort((a, b) => a.day_order - b.day_order).map(e => e.day_name))];
+// Giornate della versione attiva. Mercoledì e domenica non hanno esercizi ma esistono:
+// per questo le giornate vengono dal piano, non dalle righe.
+const dayNames = () => planReady
+  ? seduteDi(currentMode()).map(s => s.day)
+  : [...new Set(exercises.filter(e => e.active).sort((a, b) => a.day_order - b.day_order).map(e => e.day_name))];
+
+/* ── Storico di un esercizio: stesso NOME dentro lo stesso blocco ──
+   Il curl del lunedì e quello del venerdì sono lo stesso esercizio: PR e grafici
+   devono saperlo. I log della scheda precedente restano fuori — il blocco riparte pulito. */
+const exIdsSameName = e => new Set(exercises.filter(x => x.plan === e.plan && x.name === e.name).map(x => x.id));
+const logsOfEx = e => { const ids = exIdsSameName(e); return workoutLogs.filter(l => ids.has(l.exercise_id)); };
+
+// Cima del range di ripetizioni ('8-10' → 10, '15' → 15, '30-45 sec' → null)
+const topReps = r => {
+  const s = String(r || '');
+  if (/sec|circuito|giri/i.test(s)) return null;
+  const m = s.match(/(\d+)\s*-\s*(\d+)/);
+  if (m) return +m[2];
+  const one = s.match(/^\s*(\d+)/);
+  return one ? +one[1] : null;
+};
+
+/* Doppia progressione: se chiudi la cima del range su TUTTE le serie al RIR previsto,
+   sali di carico e riparti dal fondo. Altrimenti stesso carico, una ripetizione in più. */
+function suggerimento(e) {
+  const top = topReps(e.reps_target);
+  if (!e.sets_target || !top) return null;
+  if (isBlock2()) return '🌉 Blocco 2: stesso carico, RPE 7. Mantenimento, non crescita.';
+  if (isDeload() && !e.big_lift) return '🛠 Deload: metà volume, RPE massimo 7. Serve ad arrivare veri al retest.';
+  const last = logsOfEx(e).filter(l => l.day !== today()).sort((a, b) => a.day < b.day ? 1 : -1)[0];
+  if (!last) return `Prima volta: carico che ti lascia ${e.rir ?? 2} ripetizioni in canna.`;
+  const sets = last.sets || [];
+  const chiuso = sets.length >= e.sets_target && sets.every(s => (+s.r || 0) >= top);
+  const pesante = e.big_lift || ['quadricipiti', 'femorali_glutei'].includes(e.muscle);
+  return chiuso
+    ? `⬆️ Chiuso il range: +${pesante ? '2,5' : '1-2'} kg e riparti dal fondo (${String(e.reps_target).split('-')[0]}).`
+    : `Stesso carico (${Math.max(0, ...sets.map(s => +s.w || 0))} kg): punta a una ripetizione in più.`;
+}
+
+// Serie previste oggi: nel deload gli accessori scendono del 50%, i big lift restano.
+const serieOggi = e => (isDeload() && !e.big_lift && e.sets_target) ? Math.max(1, Math.round(e.sets_target / 2)) : e.sets_target;
+
+// Settimana del blocco come 7 giorni concreti (lunedì → domenica)
+const weekDays = () => {
+  const s = new Date(blockStart() + 'T12:00');
+  s.setDate(s.getDate() + (blockWeek() - 1) * 7);
+  return Array.from({ length: 7 }, (_, i) => { const d = new Date(s); d.setDate(d.getDate() + i); return d.toLocaleDateString('sv-SE'); });
+};
+
+// Volume per gruppo muscolare = numero di serie registrate (non tonnellaggio)
+function volumePerGruppo(days) {
+  const out = {};
+  for (const l of workoutLogs.filter(l => days.includes(l.day))) {
+    const e = exercises.find(x => x.id === l.exercise_id);
+    if (!e || !e.muscle) continue;
+    out[e.muscle] = (out[e.muscle] || 0) + (l.sets || []).length;
+  }
+  return out;
+}
+
+/* Campanello d'allarme: se i big lift scendono per 3 settimane di fila
+   il primo taglio è il condizionamento. NON il cibo, NON il sonno. */
+function bigLiftAlert() {
+  const cali = [];
+  for (const name of BIG_LIFTS) {
+    const e = exercises.find(x => x.plan === PLAN_ID && x.name === name && x.active);
+    if (!e) continue;
+    const per = {};
+    for (const l of logsOfEx(e)) { const w = weekIndex(l.day); if (w >= 1) per[w] = Math.max(per[w] || 0, best1rm(l.sets)); }
+    const ws = Object.keys(per).map(Number).sort((a, b) => a - b).slice(-4);
+    if (ws.length < 4) continue;
+    let giu = 0;
+    for (let i = 1; i < ws.length; i++) giu = per[ws[i]] < per[ws[i - 1]] ? giu + 1 : 0;
+    if (giu >= 3) cali.push(name);
+  }
+  return cali;
+}
+
+/* Trigger della versione minima. Il sonno non è tracciato dall'app: quello resta
+   una domanda a te, non un allarme automatico. */
+function triggerMinima() {
+  const out = [];
+  if (postPartum()) out.push('🍼 Prime 4 settimane dal parto: minima automatica. Non un giorno di meno — la prima settimana ci si sente bene, è adrenalina, non recupero.');
+  const wd = weekDays(), passati = wd.filter(d => d <= today());
+  const previste = seduteDi('piena').filter(s => s.ex.length).length;
+  const fatte = new Set(workoutLogs.filter(l => wd.includes(l.day)).map(l => l.day)).size;
+  const saltate = Math.min(passati.length, previste) - fatte;
+  if (saltate >= 2) out.push(`📅 ${saltate} sedute non fatte questa settimana. La minima è pensata per questo.`);
+  const rpeMedio = days => {
+    const v = workoutLogs.filter(l => days.includes(l.day)).flatMap(l => (l.sets || []).filter(s => s.rpe).map(s => s.rpe));
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+  };
+  const ora = rpeMedio(lastNDays(7)), prima = rpeMedio(lastNDays(28).slice(0, 21));
+  if (ora != null && prima != null && ora - prima >= 2) out.push('📈 RPE percepito 2 punti sopra il tuo normale: il corpo sta chiedendo meno carico, non più volontà.');
+  return out;
+}
 
 function parseSets(str) {
   const out = [];
@@ -1604,8 +1992,10 @@ function renderCorpo() {
     selDay = ch.dataset.day; localStorage.setItem('po_selday', selDay); renderCorpo();
   });
 
-  $('co-daytitle').textContent = selDay || 'Esercizi';
-  const exs = exercises.filter(e => e.active && e.day_name === selDay)
+  const sed = sedutaDi(selDay);
+  $('co-daytitle').textContent = sed ? `${selDay} — ${sed.focus}` : (selDay || 'Esercizi');
+  renderDayInfo(sed);
+  const exs = exercises.filter(e => e.active && e.day_name === selDay && (!planReady || e.plan === PLAN_ID))
     .sort((a, b) => a.position - b.position);
 
   $('co-exlist').innerHTML = exs.map(e => {
@@ -1623,14 +2013,14 @@ function renderCorpo() {
       </div>`;
     }
     // Progressi separati per palestra: il riepilogo riga e lo storico mostrano una palestra alla volta.
-    const exLogsAll = workoutLogs.filter(l => l.exercise_id === e.id);
+    const exLogsAll = logsOfEx(e);
     const exGyms = [...new Set(exLogsAll.map(gymOf))].sort((a, b) => a.localeCompare(b));
     const histG = (openHistory === e.id && histGym && exGyms.includes(histGym)) ? histGym : currentGym;
     const logs = exLogsAll.filter(l => gymOf(l) === histG).sort((a, b) => a.day < b.day ? 1 : -1);
     const last = logs.find(l => l.day !== today());
     const bestLog = logs.reduce((b, l) => best1rm(l.sets) > best1rm(b?.sets) ? l : b, null);
     const bs = bestLog ? bestSet(bestLog.sets) : null;
-    const todayLog = exLogsAll.find(l => l.day === today() && gymOf(l) === currentGym);
+    const todayLog = workoutLogs.find(l => l.exercise_id === e.id && l.day === today() && gymOf(l) === currentGym);
     const pending = todayLog && String(todayLog.id).startsWith('tmp');
     let hist = '';
     if (openHistory === e.id) {
@@ -1648,15 +2038,28 @@ function renderCorpo() {
       hist = `<div class="history">${gymChips}${chart}<div style="max-height:170px;overflow:auto;margin-top:6px">${list}</div></div>`;
     }
     const inputVal = draft[e.id] ?? (todayLog && !pending ? fmtSets(todayLog.sets) : '');
+    // Prescrizione di oggi: serie (dimezzate nel deload sugli accessori), range, RPE/RIR
+    const serie = serieOggi(e);
+    const schemaOggi = e.sets_target
+      ? `${serie}x${e.reps_target}${serie !== e.sets_target ? ' 🛠' : ''}`
+      : (e.scheme || '');
+    const intensita = [e.rpe ? `RPE ${isDeload() ? Math.min(7, e.rpe) : e.rpe}` : null, e.rir != null ? `${e.rir} in canna` : null]
+      .filter(Boolean).join(' · ');
+    const skill = e.name === 'Skill muscle-up' ? muscleUpPresc() : null;
+    const sugg = skill ? null : suggerimento(e);
     return `<div class="ex"${e.superset_group ? ' style="border-left:3px solid var(--gold);padding-left:9px"' : ''}>
       <div class="exhead" data-hist="${e.id}">
-        <span class="name">${esc(e.name)}</span><span class="scheme">${esc(e.scheme || '')}</span>${e.superset_group ? ` <span class="scheme" style="color:var(--gold)">🔗${esc(e.superset_group)}</span>` : ''}
+        <span class="name">${esc(e.name)}</span><span class="scheme">${esc(schemaOggi)}</span>${e.superset_group ? ` <span class="ss-tag">🔗${esc(e.superset_group)}</span>` : ''}${e.big_lift ? ' <span class="ss-tag" title="big lift: mai in superset, recuperi pieni">★</span>' : ''}
         <span class="exctl" data-up="${e.id}" title="su">▲</span>
         <span class="exctl" data-down="${e.id}" title="giù">▼</span>
         <span class="exctl" data-edex="${e.id}" title="modifica">✎</span>
         <span class="exctl" data-del="${e.id}" title="togli">✕</span>
       </div>
+      ${intensita || e.rest_sec ? `<div class="lastbest">${esc(intensita)}${intensita && e.rest_sec ? ' · ' : ''}${e.rest_sec ? `<span class="exctl" data-rest="${e.rest_sec}" data-restname="${esc(e.name)}" data-restss="${e.superset_group || ''}" style="cursor:pointer">⏱ ${e.superset_group ? '15" + 75"' : fmtDur(e.rest_sec)}</span>` : ''}</div>` : ''}
+      ${e.note ? `<div class="lastbest">📝 ${esc(e.note)}</div>` : ''}
+      ${skill ? `<div class="presc">Settimana ${blockWeek()}: <b>${esc(skill)}</b></div>` : ''}
       <div class="lastbest">${exGyms.length > 1 ? `<span class="muted" style="font-size:10px">🏋 ${esc(histG)}</span> · ` : ''}${last ? `ultima: ${fmtSets(last.sets)} (${last.day}) · ` : ''}${bs && bs.w ? `best: <span class="pr-tag">${bs.w}x${bs.r} (≈${Math.round(est1rm(bs))} 1RM)</span>` : 'mai registrato qui'}</div>
+      ${sugg ? `<div class="sugg">${sugg}</div>` : ''}
       ${pending
         ? '<div class="lastbest">oggi: <b>' + esc(fmtSets(todayLog.sets)) + '</b> 📴 in attesa di rete</div>'
         : `<input class="sets" data-ex="${e.id}" ${todayLog ? `data-logid="${todayLog.id}"` : ''} value="${esc(inputVal)}" placeholder="es. 90x7@8, 95x6@9 (l'@RPE è facoltativo)" inputmode="text">`}
@@ -1710,6 +2113,11 @@ function renderCorpo() {
     }
   });
 
+  document.querySelectorAll('[data-rest]').forEach(el => el.onclick = ev => {
+    ev.stopPropagation();
+    startRest(+el.dataset.rest, el.dataset.restname, !!el.dataset.restss);
+  });
+
   // settimana
   const giorni = ['dom','lun','mar','mer','gio','ven','sab'];
   $('co-week').innerHTML = lastNDays(7).map(ds => {
@@ -1718,7 +2126,293 @@ function renderCorpo() {
     return `<div class="day ${hit ? 'hit' : ''}"><i>${hit ? '✓' : ''}</i><span>${giorni[d.getDay()]}</span></div>`;
   }).join('');
 
+  renderBlocco(); renderAlerts(); renderCond(); renderMobilita(); renderVolGroups();
+  renderBench(); renderProteine(); renderNotePiano();
   renderTrends(); renderRecords(); renderDiario(); renderRuns();
+}
+
+/* ───────────────── BLOCCO, AVVISI, TIMER ───────────────── */
+function renderBlocco() {
+  const el = $('co-block'); if (!el) return;
+  $('co-plan-warn').classList.toggle('hidden', planReady);
+  if (!planReady) { el.innerHTML = '<p class="muted">Scheda precedente in uso.</p>'; return; }
+  const w = blockWeek(), mode = currentMode(), pp = postPartum();
+  const inizio = weekIndex() < 1;
+  const testa = isBlock2()
+    ? `<span class="wk">Blocco 2</span><span class="muted">ponte fino al parto · mantenimento</span>`
+    : `<span class="wk">Settimana ${w}</span><span class="muted">di ${BLOCK_WEEKS}${isDeload() ? ' · 🛠 deload' : ''}</span>`;
+  const retest = !isBlock2() && w === BLOCK_WEEKS ? '<div class="presc">📏 Settimana di <b>retest</b>: rifai i benchmark e confronta con la settimana 0.</div>' : '';
+  const deload = isDeload()
+    ? '<div class="presc">🛠 <b>Deload programmato.</b> Accessori a metà volume, big lift invariati, RPE massimo 7. Serve ad arrivare veri al retest della settimana 8.</div>'
+    : (blockWeek() === 6 && deloadGiaSvolto() ? '<div class="presc">🛠 Deload della settimana 6 <b>già svolto</b>: due settimane in minima contano come scarico. Non se ne aggiunge un altro.</div>' : '');
+  el.innerHTML = `
+    <div class="blk">${testa}</div>
+    ${inizio ? `<div class="presc">Il blocco parte il <b>${blockStart()}</b>. Da lì scattano le progressioni.</div>` : ''}
+    <div class="chips" style="margin-top:10px">
+      <span class="chip ${mode === 'piena' ? 'on' : ''}" data-mode="piena">Piena</span>
+      <span class="chip ${mode === 'minima' ? 'on' : ''}" data-mode="minima">Minima</span>
+    </div>
+    <div class="muted" style="font-size:12px;margin-top:6px">${pp
+      ? '🍼 Minima automatica: prime 4 settimane dal parto. Non è negoziabile ed è giusto così.'
+      : mode === 'minima'
+        ? 'Sei in minima: 4 sedute, superset, RPE 6-7. È il piano B, non un passo indietro — la striscia non si rompe e non perdi niente.'
+        : 'Versione piena: 5 sedute + 2 facoltative. Se la settimana si stringe, passa alla minima senza pensarci.'}</div>
+    ${deload}${retest}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="mini ghost" id="btn-block-start">Inizio blocco</button>
+      <button class="mini ghost" id="btn-block-birth">${block && block.birth_date ? 'Data parto ✓' : 'Data parto'}</button>
+    </div>`;
+  el.querySelectorAll('[data-mode]').forEach(c => c.onclick = () => setMode(c.dataset.mode));
+  $('btn-block-start').onclick = async () => {
+    const v = (prompt('Lunedì di inizio blocco (AAAA-MM-GG):', blockStart()) || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+    await saveBlock({ start_date: v });
+  };
+  $('btn-block-birth').onclick = async () => {
+    const v = (prompt('Data del parto (AAAA-MM-GG). Vuoto per togliere:', (block && block.birth_date) || '') || '').trim();
+    if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+    await saveBlock({ birth_date: v || null });
+  };
+}
+
+async function saveBlock(patch) {
+  block = { ...(block || { user_id: user.id, start_date: DEFAULT_BLOCK_START, mode: 'piena' }), ...patch };
+  renderCorpo();
+  try {
+    const { error } = await sb.from('po_block').upsert({ ...block, user_id: user.id, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (error) throw new Error(error.message);
+  } catch (e) {
+    if (isNetErr(e)) { qPush({ kind: 'block', row: { ...block, user_id: user.id } }); renderSyncStatus(); }
+    else alert('Errore: ' + e.message);
+  }
+}
+// Cambio versione: nessuna penalità, nessuna striscia interrotta. Un tap.
+async function setMode(m) {
+  if (postPartum()) return;
+  if (m === currentMode()) return;
+  await saveBlock({ mode: m, mode_since: today() });
+  selDay = giornataDiOggi() || dayNames()[0] || '';
+  renderAll();
+}
+
+function renderAlerts() {
+  const el = $('co-alerts'); if (!el) return;
+  if (!planReady) { el.innerHTML = ''; return; }
+  const out = [];
+  const cali = bigLiftAlert();
+  if (cali.length) out.push(`<div class="warn">📉 <b>${cali.join(', ')}</b> in calo da 3 settimane. Il primo taglio è il <b>volume di condizionamento</b> — non il cibo, non il sonno. L'interferenza sta vincendo.</div>`);
+  if (currentMode() === 'piena') for (const t of triggerMinima()) out.push(`<div class="presc">${t}</div>`);
+  el.innerHTML = out.join('');
+}
+
+// Timer di recupero. Nei superset: 15" di transizione, poi 75" veri di recupero.
+let restTimer = null;
+function startRest(sec, nome, superset) {
+  clearInterval(restTimer);
+  const bar = $('rest-bar'); bar.classList.remove('hidden', 'done');
+  const fasi = superset ? [[15, 'transizione → esercizio B'], [75, 'recupero']] : [[sec, 'recupero']];
+  let fase = 0, left = fasi[0][0];
+  const tick = () => {
+    $('rest-label').innerHTML = `<b>${esc(nome || '')}</b><br>${fasi[fase][1]}`;
+    $('rest-time').textContent = fmtDur(left);
+    if (left <= 0) {
+      if (fase < fasi.length - 1) { fase++; left = fasi[fase][0]; if (navigator.vibrate) navigator.vibrate(80); return; }
+      clearInterval(restTimer); bar.classList.add('done'); $('rest-time').textContent = 'via';
+      if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+      setTimeout(() => bar.classList.add('hidden'), 5000);
+      return;
+    }
+    left--;
+  };
+  tick();
+  restTimer = setInterval(tick, 1000);
+}
+$('rest-stop').onclick = () => { clearInterval(restTimer); $('rest-bar').classList.add('hidden'); };
+
+/* ───────────────── GIORNATA: focus, riposo, extra ───────────────── */
+function renderDayInfo(sed) {
+  const el = $('co-dayinfo'); if (!el) return;
+  if (!sed || !planReady) { el.innerHTML = ''; return; }
+  const bits = [];
+  if (sed.core) bits.push(`core: ${sed.core}`);
+  if (sed.minRpe) bits.push(`RPE ${sed.minRpe}`);
+  if (sed.warmup) bits.push('warm-up corda 5-8\'');
+  if (sed.opzionale) bits.push('facoltativa — se non la fai non succede niente');
+  el.innerHTML = `${bits.length ? `<div class="muted" style="margin-bottom:6px">${esc(bits.join(' · '))}</div>` : ''}
+    ${sed.nota ? `<div class="presc">${esc(sed.nota)}</div>` : ''}
+    ${sed.riposo ? '<div class="presc">Riposo pieno a metà settimana: è quello che ti fa arrivare al weekend con qualcosa in mano.</div>' : ''}`;
+}
+
+/* ───────────────── CONDIZIONAMENTO ───────────────── */
+const prescCond = k => {
+  const c = COND[k]; if (!c) return '';
+  return c.fisso || (c.weeks ? c.weeks[weekBand()] : '');
+};
+const muscleUpPresc = () => {
+  const fatto = benchmarks.some(b => b.test_id === 'muscle_up');
+  if (fatto) return MUSCLE_UP.consolidamento;
+  if (isBlock2()) return 'In pausa fino a primavera se non è arrivato entro la settimana 8: richiede sistema nervoso fresco.';
+  return MUSCLE_UP.weeks[weekBand()];
+};
+
+function renderCond() {
+  const el = $('co-cond'); if (!el) return;
+  if (!planReady) { el.innerHTML = ''; return; }
+  const sed = sedutaDi(selDay);
+  const k = sed && sed.finisher;
+  const oggi = conditioning.filter(c => c.day === today());
+  const presc = k ? prescCond(k) : '';
+  const c = k ? COND[k] : null;
+  const box = !k
+    ? '<p class="muted">Nessun finisher previsto oggi.</p>'
+    : c.log === 'run'
+      ? `<div class="presc">${c.emoji} <b>${esc(c.label)}</b> — ${esc(presc)}${c.opzionale ? ' · facoltativa' : ''}<div class="muted" style="font-size:12px;margin-top:6px">${Z2_NOTA}</div></div>
+         <p class="muted" style="margin-top:8px">Registrala qui sotto, nella scheda Corsa.</p>`
+      : `<div class="presc">${c.emoji} <b>${esc(c.label)}</b> — ${esc(presc)}</div>
+         <input id="cond-note" placeholder="nota (facoltativa): come è andata" style="margin-top:8px">
+         <button id="btn-savecond" class="mini" style="margin-top:8px">Fatto ✓ +${COND_XP} XP</button>`;
+  const storico = conditioning.slice().sort((a, b) => a.day < b.day ? 1 : -1).slice(0, 8).map(x => {
+    const lab = (COND[x.kind] || {}).label || x.kind;
+    const d = new Date(x.day + 'T12:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+    return `<div class="plan-row"><b>${d}</b> · ${esc(lab)}${x.detail ? ` <span class="muted" style="font-size:12px">— ${esc(x.detail)}</span>` : ''} <span class="del" data-delcond="${x.id}" title="elimina">🗑</span>${x.note ? `<div class="muted" style="font-size:12px">📝 ${esc(x.note)}</div>` : ''}</div>`;
+  }).join('');
+  el.innerHTML = `${box}
+    ${oggi.length ? `<div class="ok-msg">Oggi: ${oggi.map(o => esc((COND[o.kind] || {}).label || o.kind)).join(', ')} ✓</div>` : ''}
+    ${sed && sed.warmup ? `<div class="muted" style="font-size:12px;margin-top:8px">🪢 Warm-up: ${esc(COND.corda.fisso)}</div>` : ''}
+    ${storico ? `<div style="margin-top:12px;max-height:200px;overflow:auto">${storico}</div>` : ''}`;
+  const btn = $('btn-savecond');
+  if (btn) btn.onclick = () => salvaCond(k, presc, ($('cond-note').value || '').trim() || null);
+  el.querySelectorAll('[data-delcond]').forEach(x => x.onclick = async () => {
+    if (!confirm('Eliminare questa sessione di condizionamento?')) return;
+    const id = x.dataset.delcond;
+    try {
+      const { error } = await sb.from('po_conditioning').delete().eq('id', id); if (error) throw new Error(error.message);
+      await loadAll(); renderAll();
+    } catch (err) {
+      if (isNetErr(err)) { conditioning = conditioning.filter(c => c.id !== id); qPush({ kind: 'cond_del', id }); renderCorpo(); }
+      else alert('Errore: ' + err.message);
+    }
+  });
+}
+
+async function salvaCond(kind, detail, note) {
+  const row = { id: crypto.randomUUID(), user_id: user.id, day: today(), kind, detail, week: blockWeek(), note };
+  conditioning.push(row); renderCorpo();
+  try {
+    await runOp({ kind: 'cond', row });
+    await loadAll(); renderAll();
+  } catch (e) {
+    if (isNetErr(e)) { qPush({ kind: 'cond', row }); renderSyncStatus(); return; }
+    conditioning = conditioning.filter(c => c.id !== row.id); renderCorpo();
+    alert(/relation|does not exist|po_conditioning|schema cache/i.test(e.message)
+      ? 'Esegui prima migration-blocco-ibrido.sql nel SQL Editor di Supabase.' : 'Errore: ' + e.message);
+  }
+}
+
+/* ───────────────── MOBILITÀ ─────────────────
+   Costa poca energia ed è il lavoro su cui si regge il resto: è l'ultima cosa che si taglia. */
+function renderMobilita() {
+  const el = $('co-mob'); if (!el) return;
+  if (!planReady) { el.innerHTML = ''; return; }
+  const sed = sedutaDi(selDay);
+  const key = currentMode() === 'minima' ? 'minima' : (sed && sed.mobilita) || 'standard';
+  const m = MOBILITA[key] || MOBILITA.standard;
+  const fatta = mobility.some(x => x.day === today());
+  const ultimi = lastNDays(7);
+  const fatte = ultimi.filter(d => mobility.some(x => x.day === d)).length;
+  el.innerHTML = `
+    <div class="presc">${esc(m.label)}<div class="muted" style="font-size:12px;margin-top:4px">${MOBILITA_AREE}</div></div>
+    <button id="btn-mob" class="mini${fatta ? ' ghost' : ''}" style="margin-top:10px">${fatta ? 'Fatta oggi ✓' : `Segna fatta +${MOB_XP} XP`}</button>
+    <div class="muted" style="font-size:12px;margin-top:8px">Ultimi 7 giorni: <b>${fatte}/7</b>. ${fatte >= 5 ? 'Sta reggendo.' : 'È il lavoro strutturale: non è riempitivo.'}</div>`;
+  $('btn-mob').onclick = () => toggleMobilita(m.min);
+}
+
+async function toggleMobilita(min) {
+  const esistente = mobility.find(x => x.day === today());
+  if (esistente) { // secondo tap: la tolgo
+    mobility = mobility.filter(x => x.day !== today()); renderCorpo();
+    try { await sb.from('po_mobility').delete().eq('id', esistente.id); await loadAll(); renderAll(); }
+    catch { await loadAll(); renderAll(); }
+    return;
+  }
+  const row = { id: crypto.randomUUID(), user_id: user.id, day: today(), minutes: min || null };
+  mobility.push(row); renderCorpo();
+  try {
+    await runOp({ kind: 'mob', row });
+    await loadAll(); renderAll();
+  } catch (e) {
+    if (isNetErr(e)) { qPush({ kind: 'mob', row }); renderSyncStatus(); return; }
+    mobility = mobility.filter(x => x.id !== row.id); renderCorpo();
+    alert(/relation|does not exist|po_mobility|schema cache/i.test(e.message)
+      ? 'Esegui prima migration-blocco-ibrido.sql nel SQL Editor di Supabase.' : 'Errore: ' + e.message);
+  }
+}
+
+/* ───────────────── VOLUME PER GRUPPO ─────────────────
+   Serve ad accorgersi in anticipo che una modifica alla scheda ha sbilanciato qualcosa. */
+function renderVolGroups() {
+  const el = $('co-volgroups'); if (!el) return;
+  if (!planReady) { el.innerHTML = ''; return; }
+  const v = volumePerGruppo(weekDays());
+  const minima = currentMode() === 'minima';
+  const rows = Object.keys(MUSCOLI).map(k => {
+    const fatto = v[k] || 0;
+    const band = minima ? (GRUPPI_GRANDI.includes(k) ? VOLUME_MINIMA.grandi : VOLUME_MINIMA.piccoli) : null;
+    const target = minima ? band[1] : VOLUME_TARGET[k];
+    const pct = Math.min(100, Math.round(fatto / target * 100));
+    const col = minima ? 'var(--gold)' : (fatto > target * 1.15 ? 'var(--red)' : fatto >= target * 0.85 ? 'var(--green)' : 'var(--gold)');
+    return `<div class="vol-row"><span class="lab">${MUSCOLI[k]}</span>
+      <span class="track"><span class="fill" style="width:${pct}%;background:${col}"></span></span>
+      <span class="num">${fatto}/${minima ? band.join('-') : target}</span></div>`;
+  }).join('');
+  const tot = Object.values(v).reduce((a, b) => a + b, 0);
+  el.innerHTML = `<div class="muted" style="font-size:12px;margin-bottom:6px">Settimana ${blockWeek()} · ${tot} serie dirette${minima ? '' : ' su 115 previste'}</div>${rows}
+    <div class="muted" style="font-size:12px;margin-top:8px">${minima
+      ? 'In minima la fascia è 8-10 serie per i gruppi grandi e 4-6 per i piccoli. Starci dentro è il risultato, non il minimo sindacale.'
+      : 'Fascia alta del range produttivo per un avanzato in deficit. Oltre questi numeri aggiungi fatica, non stimolo.'}</div>`;
+}
+
+/* ───────────────── BENCHMARK ───────────────── */
+function renderBench() {
+  const el = $('co-bench'); if (!el) return;
+  if (!planReady) { el.innerHTML = ''; return; }
+  const val = (id, w) => (benchmarks.find(b => b.test_id === id && b.week === w) || {}).value || '';
+  el.innerHTML = BENCHMARKS.map(b => {
+    const v0 = val(b.id, 0), v8 = val(b.id, 8);
+    return `<div class="plan-row"><b>${esc(b.test)}</b> <span class="muted" style="font-size:11px">${esc(b.unit)} · storico ${esc(b.base)}</span>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="mini ghost" data-bench="${b.id}" data-week="0" style="flex:1">S0: ${v0 ? esc(v0) : '—'}</button>
+        <button class="mini ghost" data-bench="${b.id}" data-week="8" style="flex:1">S8: ${v8 ? esc(v8) : '—'}</button>
+      </div></div>`;
+  }).join('');
+  el.querySelectorAll('[data-bench]').forEach(x => x.onclick = async () => {
+    const id = x.dataset.bench, w = +x.dataset.week;
+    const b = BENCHMARKS.find(t => t.id === id);
+    const v = (prompt(`${b.test}\nValore (${b.unit}) — settimana ${w}:`, val(id, w)) || '').trim();
+    if (!v) return;
+    const row = { id: crypto.randomUUID(), user_id: user.id, test_id: id, week: w, value: v, day: today() };
+    try {
+      const { error } = await sb.from('po_benchmarks').upsert(row, { onConflict: 'user_id,test_id,week' });
+      if (error) throw new Error(error.message);
+      await loadAll(); renderAll();
+    } catch (e) { alert(isNetErr(e) ? 'Serve la rete per salvare il benchmark.' : 'Errore: ' + e.message); }
+  });
+}
+
+/* ───────────────── PROTEINE ───────────────── */
+function renderProteine() {
+  const el = $('co-prot'); if (!el) return;
+  if (!planReady) { el.innerHTML = ''; return; }
+  const kg = weights.length ? +weights[weights.length - 1].kg : PESO_FALLBACK;
+  const lo = Math.round(kg * PROTEIN_MIN), hi = Math.round(kg * PROTEIN_MAX);
+  el.innerHTML = `<div class="presc"><b>${lo}-${hi} g al giorno</b> (${PROTEIN_MIN}-${PROTEIN_MAX} g/kg su ${kg} kg)</div>
+    <div class="muted" style="font-size:12px;margin-top:8px">In deficit e con questo volume, sotto questa soglia il muscolo se ne va anche con l'allenamento perfetto. È l'unico numero che devi guardare a tavola.</div>`;
+}
+
+function renderNotePiano() {
+  const el = $('co-note-piano'); if (!el) return;
+  if (!planReady) { el.innerHTML = ''; return; }
+  el.innerHTML = NOTE_PIANO.map(([t, c]) => `<div class="plan-row"><b>${esc(t)}</b><div class="muted" style="margin-top:3px">${c}</div></div>`).join('');
 }
 
 // Selettore palestra corrente: i progressi sono separati per sede.
@@ -1756,6 +2450,15 @@ function renderRuns() {
   if (!poReady) return;
   const charts = $('ru-charts'), list = $('ru-list');
   if (!list) return;
+  // prescrizione del giorno, se oggi la corsa è il finisher previsto
+  const presc = $('ru-presc');
+  if (presc) {
+    const sed = planReady ? sedutaDi(selDay) : null;
+    const k = sed && sed.finisher;
+    presc.innerHTML = (k && COND[k] && COND[k].log === 'run')
+      ? `Oggi: <b style="color:var(--gold2)">${esc(COND[k].label)} — ${esc(prescCond(k))}</b>`
+      : '';
+  }
   const asc = [...runs].sort((a, b) => a.day < b.day ? -1 : 1);
   charts.innerHTML = asc.length >= 2
     ? `<div class="muted" style="font-size:11px">Distanza (km) nel tempo</div>${lineSvg(asc.map(r => Math.round(+r.distance_km)), '#f7a072')}
@@ -1912,9 +2615,12 @@ $('btn-addex').onclick = async () => {
   const name = $('co-newname').value.trim(), scheme = $('co-newscheme').value.trim();
   if (!name || !selDay) return;
   const exs = exercises.filter(e => e.day_name === selDay);
-  const day_order = exs[0]?.day_order ?? 0;
+  const sed = sedutaDi(selDay);
+  const day_order = sed ? sed.order : (exs[0]?.day_order ?? 0);
   const position = Math.max(0, ...exs.map(e => e.position)) + 1;
-  await sb.from('po_exercises').insert({ user_id: user.id, day_name: selDay, day_order, name, scheme, position });
+  // l'esercizio aggiunto a mano entra nel blocco corrente, altrimenti resterebbe invisibile
+  const extra = planReady ? { plan: PLAN_ID, variant: sed ? sed.variant : currentMode() } : {};
+  await sb.from('po_exercises').insert({ user_id: user.id, day_name: selDay, day_order, name, scheme, position, ...extra });
   $('co-newname').value = ''; $('co-newscheme').value = '';
   await loadAll(); renderAll();
 };
@@ -2172,9 +2878,11 @@ function exportJSON() {
     exported_at: new Date().toISOString(),
     user_email: user?.email || null,
     counts: { books: books.length, checkins: checkins.length, exercises: exercises.length,
-      workoutLogs: workoutLogs.length, habits: habits.length, habitDays: habitDays.length, wheel: wheel.length, weights: weights.length, dailyGoals: dailyGoals.length, runs: runs.length },
+      workoutLogs: workoutLogs.length, habits: habits.length, habitDays: habitDays.length, wheel: wheel.length, weights: weights.length, dailyGoals: dailyGoals.length, runs: runs.length,
+      conditioning: conditioning.length, mobility: mobility.length, benchmarks: benchmarks.length },
     tables: { pm_books: books, pm_checkins: checkins, po_exercises: exercises,
-      po_workout_logs: workoutLogs, po_habits: habits, po_habit_days: habitDays, po_wheel: wheel, po_weight: weights, po_daily_goals: dailyGoals, po_runs: runs },
+      po_workout_logs: workoutLogs, po_habits: habits, po_habit_days: habitDays, po_wheel: wheel, po_weight: weights, po_daily_goals: dailyGoals, po_runs: runs,
+      po_block: block ? [block] : [], po_conditioning: conditioning, po_mobility: mobility, po_benchmarks: benchmarks },
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -2187,7 +2895,9 @@ $('btn-export-json').onclick = exportJSON;
 
 // Ripristino da backup JSON (in-app o dal backup-player-one.mjs): chiude il cerchio dei dati.
 // Ordine: prima le tabelle "padre", poi quelle con foreign key. Upsert per id (idempotente).
-const RESTORE_ORDER = ['po_habits', 'po_exercises', 'pm_books', 'po_habit_days', 'po_workout_logs', 'po_wheel', 'po_weight', 'po_daily_goals', 'po_runs', 'pm_checkins'];
+const RESTORE_ORDER = ['po_habits', 'po_exercises', 'pm_books', 'po_habit_days', 'po_workout_logs', 'po_wheel', 'po_weight', 'po_daily_goals', 'po_runs', 'po_block', 'po_conditioning', 'po_mobility', 'po_benchmarks', 'pm_checkins'];
+// po_block ha il solo user_id come chiave: l'upsert per id non funzionerebbe.
+const RESTORE_CONFLICT = { po_block: 'user_id' };
 async function restoreFromJSON(file) {
   $('export-msg').textContent = '';
   let parsed;
@@ -2204,7 +2914,7 @@ async function restoreFromJSON(file) {
     for (const t of RESTORE_ORDER) {
       const rows = (tables[t] || []).map(r => ({ ...r, user_id: user.id })); // riassegna all'account corrente
       for (let i = 0; i < rows.length; i += 500) { // a blocchi, per dataset grandi
-        const { error } = await sb.from(t).upsert(rows.slice(i, i + 500), { onConflict: 'id' });
+        const { error } = await sb.from(t).upsert(rows.slice(i, i + 500), { onConflict: RESTORE_CONFLICT[t] || 'id' });
         if (error) throw new Error(`${t}: ${error.message}`);
       }
     }
