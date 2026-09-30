@@ -304,6 +304,10 @@ L'app dovrebbe calcolare il volume effettivo per gruppo muscolare e segnalare gl
 > **Minima e casa (5' minimo)** — i primi 3 esercizi del blocco Prima e i primi 2 del blocco Dopo.
 >
 > Verificato: tutte e 13 le giornate delle tre versioni hanno un blocco Prima o Dopo. Nessuna resta scoperta.
+>
+> **Ogni esercizio porta come si fa e l'errore tipico** (si aprono col tap): Fabrizio ha anni di sala pesi e zero esperienza di mobilità, e un nome senza spiegazione è un esercizio che non verrà fatto. 19 esercizi distinti, tutti con istruzione e tip.
+>
+> **Regola dietro la divisione:** prima della seduta solo movimento, mai tenute lunghe — lo stretching statico prima di spingere abbassa la forza per qualche minuto. Le tenute stanno nel blocco Dopo e nei giorni senza pesi.
 
 ### 2.7 Benchmark (settimana 0 e settimana 8)
 

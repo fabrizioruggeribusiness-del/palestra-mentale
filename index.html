@@ -133,6 +133,8 @@
   .mob-row { font-size: 13px; padding: 5px 0; border-top: 1px solid var(--line); }
   .mob-row:nth-of-type(1) { border-top: 0; }
   .mob-row span { color: var(--dim); font-size: 12px; }
+  .mob-come { font-size: 12.5px; color: var(--txt); margin-top: 6px; line-height: 1.5; }
+  .mob-tip { font-size: 12.5px; color: var(--gold2); margin-top: 5px; line-height: 1.5; }
   .ex { padding: 11px 0; border-bottom: 1px solid var(--line); }
   .ex:last-child { border-bottom: none; }
   .ex .exhead { display:flex; align-items:baseline; gap:8px; cursor:pointer; }
@@ -904,43 +906,73 @@ const MUSCLE_UP = {
    ⚠️ TRAINING_PLAN.md dava solo durate e aree prioritarie (colonna toracica, spalle,
    anche, caviglie): questi esercizi sono una proposta costruita su quelle aree e
    concordata con Fabrizio — sono l'unica parte della scheda non trascritta dal piano. */
-const MOB_PRE = [
-  ['Gatto-cammello', '10 rip · lente, respirando'],
-  ['Apertura toracica in quadrupedia', '8 per lato · braccio sotto e poi aperto al soffitto'],
-  ['Circonduzioni spalle con bastone', '10 rip · presa larga, braccia tese'],
-  ['90/90 anche', '8 cambi per lato · seduto a terra'],
-  ['Affondo con rotazione', '5 per lato · anca, toracica e caviglia in un movimento'],
-  ['Caviglia al muro', '10 per lato · ginocchio oltre le dita, tallone a terra'],
-];
-const MOB_POST = [
-  ['Pettorale al muro', '30" per lato'],
-  ['Flessori d\'anca in affondo', '30" per lato'],
-  ['Piriforme da seduto', '30" per lato'],
-  ['Polpaccio al muro', '30" per lato'],
-  ['Respirazione 90/90 supino', '1\' · cinque respiri lunghi, costole che si allargano'],
-];
-const MOB_CASA = [
-  ['Gatto-cammello', '10 rip'],
-  ['Apertura toracica in quadrupedia', '8 per lato'],
-  ['Circonduzioni spalle con bastone', '10 rip'],
-  ['90/90 anche', '10 cambi per lato'],
-  ['Ponte glutei', '12 rip · fermata di 2" in alto'],
-  ['Bambino con braccia distese', '1\' · respirando nella schiena'],
-];
-const MOB_FLOW = [
-  ['Affondo con rotazione', '8 per lato · lento, senza fretta'],
-  ['Accovacciata profonda tenuta', '1-2\' · gomiti dentro le ginocchia'],
-  ['90/90 con inclinazione avanti', '8 per lato + 30" di tenuta'],
-  ['Apertura toracica sdraiato di lato', '10 per lato'],
-  ['Dislocazioni con bastone', '10 rip · presa via via più stretta'],
-  ['Piccione o flessori d\'anca', '1\' per lato'],
-];
-const MOB_CORSA = [
-  ['Flessori d\'anca in affondo', '45" per lato'],
-  ['Polpaccio al muro', '45" per lato · ginocchio teso e poi piegato'],
-  ['Femorali seduto', '45" per lato'],
-  ['Respirazione 90/90 supino', '1\''],
-];
+/* Ogni esercizio porta come si fa e l'errore tipico: Fabrizio ha anni di sala pesi
+   ma zero esperienza di mobilità, e un nome senza spiegazione è un esercizio che non
+   farà. Si apre col tap sulla riga. */
+const M = {
+  gatto: { n:'Gatto-cammello', d:'10 rip · lente, respirando',
+    come:'In quadrupedia, mani sotto le spalle. Inspira e apri il petto lasciando scendere la pancia; espira e arrotonda la schiena spingendo il pavimento via, mento verso il petto. Andata e ritorno = 1 ripetizione.',
+    tip:'Muovi una vertebra alla volta invece di dondolare il tronco tutto insieme. Se la lombare pizzica quando apri, riduci l\'arco: l\'ampiezza utile è quella che non fa male.' },
+  toracica: { n:'Apertura toracica in quadrupedia', d:'8 per lato · braccio sotto, poi aperto al soffitto',
+    come:'In quadrupedia, fai passare il braccio destro sotto il petto verso sinistra appoggiando spalla e tempia a terra. Poi tira lo stesso braccio in alto verso il soffitto ruotando il torace, seguendo la mano con lo sguardo. Torna e cambia lato.',
+    tip:'Il bacino resta fermo e quadrato: se ruota anche lui, il movimento se lo prende la lombare invece della schiena alta — che è il punto chiuso, nel tuo caso.' },
+  bastone: { n:'Circonduzioni spalle con bastone', d:'10 rip · presa larga, braccia tese',
+    come:'Manico di scopa, presa larghissima, braccia tese. Porta il bastone da davanti alle cosce fino sopra la testa e dietro la schiena, lento, senza piegare i gomiti. Poi torna.',
+    tip:'Più larga la presa, più facile il passaggio: parti larghissimo e stringi di un pugno solo quando passa senza sforzo. Se devi inarcare la schiena o la spalla pizzica, sei troppo stretto.' },
+  n9090: { n:'90/90 anche', d:'8 cambi per lato · seduto a terra',
+    come:'Seduto a terra, una gamba davanti piegata a 90° e l\'altra di lato a 90°, entrambe appoggiate. Ruota le ginocchia da un lato all\'altro passando per il centro, restando seduto alto.',
+    tip:'La rotazione parte dall\'anca, non dalle mani che spingono a terra. Se le ginocchia non arrivano al pavimento siediti su un cuscino: alzare il bacino è ciò che ti fa arrivare.' },
+  affondoRot: { n:'Affondo con rotazione', d:'5 per lato · anca, toracica e caviglia insieme',
+    come:'Affondo lungo col piede destro avanti, mano sinistra a terra. Appoggia il gomito destro dentro al piede destro, poi apri il braccio destro verso il soffitto ruotando il torace. Due respiri e cambia.',
+    tip:'Prima spingi il bacino avanti e in basso, poi ruota: è la spinta del bacino che apre il flessore dell\'anca. Gamba dietro tesa, tallone che spinge indietro. Se ne fai uno solo, fai questo.' },
+  caviglia: { n:'Caviglia al muro', d:'10 per lato · tallone incollato a terra',
+    come:'In affondo, dita del piede a 5-8 cm dal muro. Spingi il ginocchio avanti fino a toccare il muro tenendo il tallone a terra, poi torna.',
+    tip:'Il tallone che si alza è l\'errore: se non arrivi, avvicina il piede al muro. Il ginocchio viaggia sopra il mignolo, non cade dentro. Caviglie rigide = squat che ti butta avanti.' },
+  pettoMuro: { n:'Pettorale al muro', d:'30" per lato',
+    come:'Avambraccio appoggiato allo stipite o al muro, gomito all\'altezza della spalla e piegato a 90°. Ruota lentamente il corpo nella direzione opposta al braccio, finché senti tirare sul petto.',
+    tip:'Se il tiraggio lo senti in punta di spalla, abbassa il gomito sotto la linea della spalla. E respira: quando trattieni il fiato il muscolo non lascia.' },
+  flessori: { n:'Flessori d\'anca in affondo', d:'30" per lato',
+    come:'In ginocchio sulla gamba da allungare, l\'altro piede avanti. Contrai il gluteo del lato a terra e porta il bacino avanti restando alto col busto.',
+    tip:'Il gluteo contratto è tutto: senza quello il bacino ruota avanti e l\'allungamento lo prende la lombare. La schiena non si inarca, il movimento è piccolo. Un asciugamano sotto il ginocchio cambia la vita.' },
+  piriforme: { n:'Piriforme da seduto', d:'30" per lato',
+    come:'Su una sedia o a terra, accavalla la caviglia destra sopra il ginocchio sinistro formando un 4, poi porta il petto avanti tenendo la schiena lunga.',
+    tip:'Piegati dall\'anca, non arrotondando la schiena: se lo senti sui lombari invece che sul gluteo, siediti più alto e riparti.' },
+  polpaccio: { n:'Polpaccio al muro', d:'30" per lato',
+    come:'Mani al muro, gamba dietro tesa, tallone a terra, piede dritto. Avvicina il bacino al muro. Poi ripeti con il ginocchio dietro leggermente piegato: prende la parte più bassa, vicino al tendine.',
+    tip:'Tallone a terra e piede dritto, non ruotato in fuori: appena il tallone si stacca stai allungando altro. Le due versioni (teso e piegato) sono due muscoli diversi, fanne entrambe.' },
+  respiro: { n:'Respirazione 90/90 supino', d:'1\' · cinque respiri lunghi',
+    come:'Supino, gambe appoggiate su una sedia con anche e ginocchia a 90°, lombare a terra. Inspira dal naso in 4 secondi sentendo le costole allargarsi di lato, espira dalla bocca in 6-8 svuotando tutto.',
+    tip:'Non gonfiare la pancia e non alzare le spalle: si allargano le costole. È la cosa che spegne il sistema nervoso dopo l\'allenamento — per questo sta in fondo e non all\'inizio.' },
+  ponte: { n:'Ponte glutei', d:'12 rip · fermata di 2" in alto',
+    come:'Supino, piedi vicini al bacino. Spingi coi talloni e alza il bacino fino alla linea ginocchia-anche-spalle stringendo i glutei. Ferma 2 secondi, scendi lento.',
+    tip:'Se lo senti nella lombare, arriva meno in alto e stringi più forte il gluteo in cima: è lui che deve fare il lavoro, non la schiena.' },
+  bambino: { n:'Bambino con braccia distese', d:'1\' · respirando nella schiena',
+    come:'In ginocchio, seduto sui talloni, braccia distese avanti e fronte a terra. Spingi le mani lontano e siediti indietro.',
+    tip:'Se ginocchia o anche tirano, allarga le ginocchia e metti un cuscino sotto il sedere. Questo deve essere riposo, non un altro esercizio.' },
+  accosciata: { n:'Accovacciata profonda tenuta', d:'1-2\' · gomiti dentro le ginocchia',
+    come:'Piedi a larghezza spalle, scendi in accosciata piena il più basso possibile, mani giunte e gomiti dentro le ginocchia. Spingi le ginocchia in fuori coi gomiti e resta lì respirando.',
+    tip:'Se i talloni si alzano mettili su un libro o su un disco da 2,5 kg. Meglio 90 secondi in una posizione onesta che 10 in una finta.' },
+  n9090avanti: { n:'90/90 con inclinazione avanti', d:'8 per lato + 30" di tenuta',
+    come:'Dalla posizione 90/90, porta il petto verso il ginocchio della gamba davanti tenendo la schiena lunga. Otto volte, poi resta 30 secondi nel punto più profondo.',
+    tip:'Il ginocchio davanti resta a terra: se si stacca hai ruotato il bacino invece di piegarti sull\'anca. È il singolo esercizio che sblocca l\'anca per lo squat profondo.' },
+  openBook: { n:'Apertura toracica sdraiato di lato', d:'10 per lato',
+    come:'Su un fianco, ginocchia piegate a 90° una sopra l\'altra (meglio con un cuscino in mezzo), braccia distese davanti unite. Apri il braccio di sopra come la pagina di un libro fino a terra, seguendolo con lo sguardo.',
+    tip:'Le ginocchia restano incollate: sono loro a impedire che il movimento scappi nella lombare. Espira mentre apri, senza forzare la mano a toccare a tutti i costi.' },
+  dislocazioni: { n:'Dislocazioni con bastone', d:'10 rip · presa via via più stretta',
+    come:'Come le circonduzioni, ma più lente e con presa un po\' più stretta: il bastone passa da davanti a dietro la schiena con le braccia sempre tese.',
+    tip:'Stringi di un pugno solo quando il passaggio è pulito e indolore. Le spalle si aprono in settimane, non in giorni: qui la pazienza è la tecnica.' },
+  piccione: { n:'Piccione o flessori d\'anca', d:'1\' per lato',
+    come:'Dalla quadrupedia porta il ginocchio destro avanti verso il polso destro, tibia in diagonale, gamba sinistra distesa dietro. Scendi sui gomiti o sulla fronte e respira.',
+    tip:'Se il ginocchio davanti dà fastidio, avvicina il tallone all\'inguine e metti un cuscino sotto il gluteo per stare pari. Fastidio al ginocchio = cambia posizione, non insistere.' },
+  femorali: { n:'Femorali seduto', d:'45" per lato',
+    come:'Seduto a terra, una gamba distesa e l\'altra piegata. Piegati avanti dall\'anca verso il piede della gamba distesa, schiena lunga e punta del piede verso di te.',
+    tip:'Vai avanti col petto, non con le mani arrotondando la schiena. Se tira dietro al ginocchio invece che a metà coscia, piega un filo il ginocchio: stai tirando il nervo, non il muscolo.' },
+};
+const MOB_PRE = [M.gatto, M.toracica, M.bastone, M.n9090, M.affondoRot, M.caviglia];
+const MOB_POST = [M.pettoMuro, M.flessori, M.piriforme, M.polpaccio, M.respiro];
+const MOB_CASA = [M.gatto, M.toracica, M.bastone, { ...M.n9090, d:'10 cambi per lato' }, M.ponte, M.bambino];
+const MOB_FLOW = [{ ...M.affondoRot, d:'8 per lato · lento, senza fretta' }, M.accosciata, M.n9090avanti, M.openBook, M.dislocazioni, M.piccione];
+const MOB_CORSA = [{ ...M.flessori, d:'45" per lato' }, { ...M.polpaccio, d:'45" per lato · teso e poi piegato' }, M.femorali, M.respiro];
 const MOBILITA = {
   standard:{ label:'8-10\' prima, 5\' dopo', min:13, pre:MOB_PRE, post:MOB_POST },
   mercoledi:{ label:'10-12\' di mobilità pura, a casa', min:11, pre:MOB_CASA },
@@ -1024,6 +1056,7 @@ let selDay = localStorage.getItem('po_selday') || '';
 let bootDay = today(); // per rilevare il cambio giorno quando si rientra nell'app
 let openHistory = null;
 let openDiario = null; // giornata aperta nel diario allenamenti (una alla volta)
+let openMob = null;    // esercizio di mobilità aperto (come si fa + errore tipico)
 let diDay = today();
 let editingHabit = null; // id dell'abitudine in modifica inline (Gestisci abitudini)
 let editingEx = null; // id dell'esercizio in modifica inline (nome/schema)
@@ -2538,16 +2571,22 @@ function renderMobilita() {
   const m = MOBILITA[key] || MOBILITA.standard;
   const fatta = mobility.some(x => x.day === today());
   const fatte = lastNDays(7).filter(d => mobility.some(x => x.day === d)).length;
+  // Tocca il nome e si apre come si fa + l'errore tipico. Uno alla volta.
   const blocco = (titolo, arr) => `<div class="mob"><div class="mob-head">${titolo}</div>${
-    arr.map(([n, d]) => `<div class="mob-row"><b>${esc(n)}</b> <span>${esc(d)}</span></div>`).join('')}</div>`;
+    arr.map(x => `<div class="mob-row" data-mob="${esc(x.n)}" style="cursor:pointer"><b>${esc(x.n)}</b> <span>${esc(x.d)}</span>${
+      openMob === x.n ? `<div class="mob-come">${esc(x.come)}</div><div class="mob-tip">💡 ${esc(x.tip)}</div>` : ''}</div>`).join('')}</div>`;
   pre.innerHTML = m.pre
     ? blocco(`🧘 Prima — mobilità ${esc(m.label)}`, m.pre) +
-      `<div class="muted" style="font-size:11px;margin-top:5px">${MOBILITA_AREE} Non è riscaldamento generico: è la parte strutturale, e si fa anche nei giorni storti.</div>`
+      `<div class="muted" style="font-size:11px;margin-top:5px">${MOBILITA_AREE} Qui solo movimento, mai allungamenti tenuti: lo stretching statico prima di spingere ti abbassa la forza per qualche minuto. Le tenute lunghe stanno nel blocco Dopo. Tocca un esercizio per vedere come si fa.</div>`
     : '';
   post.innerHTML = (m.post ? blocco('🧘 Dopo', m.post) : '') +
     `<button id="btn-mob" class="mini${fatta ? ' ghost' : ''}" style="margin-top:10px">${fatta ? 'Mobilità fatta oggi ✓' : `Segna la mobilità +${MOB_XP} XP`}</button>
      <div class="muted" style="font-size:12px;margin-top:8px">Ultimi 7 giorni: <b>${fatte}/7</b>. ${fatte >= 5 ? 'Sta reggendo.' : 'È il lavoro su cui si regge tutto il resto: è l\'ultima cosa da tagliare.'}</div>`;
   $('btn-mob').onclick = () => toggleMobilita(m.min);
+  document.querySelectorAll('[data-mob]').forEach(el => el.onclick = () => {
+    openMob = openMob === el.dataset.mob ? null : el.dataset.mob;
+    renderMobilita();
+  });
 }
 
 async function toggleMobilita(min) {
