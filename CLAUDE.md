@@ -25,7 +25,7 @@ PWA single-file (`index.html`) su GitHub Pages. "La vita come videogioco" — Fa
 |-----|-----------|
 | Piano | **Home** (si apre per prima): focus del mese (area debole), piano 2026 (sola lettura, `PIANO_2026`), andamento Vita/Azione nel tempo (grafico 6 mesi) |
 | Ruota | Wheel of Life SVG (8 aree) + avatar pixel art + barra livello |
-| Corpo | **Blocco** (settimana, switch piena/minima, deload, avvisi), log allenamento con prescrizione del giorno + timer recupero + suggerimento progressione, 1RM stimato (Epley), PR, peso, **palestra per sessione**, **condizionamento** (vogatore/sacco/MMA/corda) + **corsa**, **mobilità**, **volume per gruppo**, **benchmark S0/S8**. **Storico:** grafico 1RM+volume per esercizio (per palestra), Record, Diario (una riga per giornata, si apre col tap), heatmap |
+| Corpo | **Blocco** (settimana, switch piena/minima, deload, avvisi), log allenamento con prescrizione del giorno + timer recupero + suggerimento progressione, 1RM stimato (Epley), PR, peso, **palestra per sessione**, **mobilità prima/dopo dentro la scheda**, **condizionamento** (vogatore/sacco/MMA/corda) + **corsa** subito sotto la scheda, **volume per gruppo**, **benchmark S0/S8**. **Storico:** grafico 1RM+volume per esercizio (per palestra), Record, Diario (una riga per giornata, si apre col tap), heatmap |
 | Mente | Lettura come gioco: check-in giornaliero, **boss book** (barra HP pagine), **striscia** 🔥, **codex** (estratti passati a rotazione), **quest 📚 X/24** annuale. Tabelle `pm_*` |
 | Disciplina | Tracker abitudini, chips Oggi/Ieri, storico mesi, gestione abitudini |
 | Config | Chiave API, logout, info |
@@ -67,6 +67,10 @@ Switch fra le tre in un tap, **nessuna penalità, nessuna striscia interrotta** 
 **Revisioni della scheda:** `syncVariant(v)` riallinea una versione alle costanti quando la scheda cambia, ma **solo se su quella versione non è mai stata registrata una serie**. Se ci hai già allenato o hai aggiunto esercizi a mano, la lascia stare. Per cambiare una versione già usata serve una scelta esplicita.
 
 Logiche implementate: doppia progressione, timer di recupero (superset = 15" + 75"), volume settimanale per gruppo vs target, allarme calo big lift → taglia il condizionamento (non cibo né sonno), scarico manuale (accessori -50%, big lift invariati), progressioni condizionamento e muscle-up per fascia di settimane, checklist mobilità separata dai pesi, benchmark settimana 0/8.
+
+⚠️ **La mobilità non è più una card: è dentro la scheda del giorno** (30/9/2026, richiesta di Fabrizio — "così com'è è troppo trascurata"). Blocchi **Prima** (`#co-mob-pre`, sopra la lista esercizi) e **Dopo** (`#co-mob-post`, sotto il pulsante Registra), con esercizi e tempi veri: costanti `MOB_PRE`, `MOB_POST`, `MOB_CASA`, `MOB_FLOW`, `MOB_CORSA`, mappate per giornata in `MOBILITA` (chiavi `standard`/`mercoledi`/`sabato`/`domenica`/`minima`). La spunta giornaliera e il contatore 7/7 vivono nel blocco Dopo, su `po_mobility` come prima. ⚠️ Gli **esercizi di mobilità sono l'unica parte della scheda non trascritta da `TRAINING_PLAN.md`**: il piano dava solo durate e aree prioritarie, il resto è una proposta concordata — documentata nell'estensione della sezione 2.6.
+
+⚠️ **Ordine delle card nel tab Corpo** (30/9/2026): Blocco → avvisi → Peso → Palestra → Giornata → **Esercizi (con mobilità prima/dopo) → Condizionamento → Corsa** → Volume → Ultimi 7 giorni → Andamento → Record → Diario → Benchmark → Come funziona il piano → Aggiungi esercizio. Condizionamento e corsa stanno sotto la scheda perché è l'ordine in cui si allena: prima il ferro, poi il resto.
 
 ⚠️ **La card Proteine non esiste più** (30/9/2026): era una moltiplicazione che non cambia mai. Il numero (2,0-2,2 g/kg) vive come nota in "Come funziona il piano", calcolato da `notaProteine()` sull'ultimo peso o su `PESO_FALLBACK`. La card **Peso resta**, per scelta esplicita di Fabrizio, anche se `po_weight` è vuota.
 

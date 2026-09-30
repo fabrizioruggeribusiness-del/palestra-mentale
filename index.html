@@ -127,6 +127,12 @@
   .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top: 4px; }
   .chip { padding: 8px 12px; border-radius: 99px; background: var(--bg2); border:1px solid var(--line); color: var(--dim); font-size: 13px; font-weight:600; cursor:pointer; }
   .chip.on { background: var(--gold); border-color: var(--gold); color:#1a1408; }
+  /* Mobilità dentro la seduta: pre e post, scritte come gli altri esercizi */
+  .mob { background: var(--card2); border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+  .mob-head { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--gold); margin-bottom: 7px; }
+  .mob-row { font-size: 13px; padding: 5px 0; border-top: 1px solid var(--line); }
+  .mob-row:nth-of-type(1) { border-top: 0; }
+  .mob-row span { color: var(--dim); font-size: 12px; }
   .ex { padding: 11px 0; border-bottom: 1px solid var(--line); }
   .ex:last-child { border-bottom: none; }
   .ex .exhead { display:flex; align-items:baseline; gap:8px; cursor:pointer; }
@@ -399,37 +405,14 @@
       <div class="card">
         <h2 id="co-daytitle">Esercizi</h2>
         <div id="co-dayinfo"></div>
+        <div id="co-mob-pre"></div>
         <p class="muted">Scrivi le serie come <b>90x7, 95x6, 95x6</b> (peso x ripetizioni, <b>@8</b> per l'RPE). A corpo libero bastano le ripetizioni: <b>12, 10, 8</b>. Tocca il nome per lo storico, ⏱ per il recupero.</p>
         <div id="co-exlist"></div>
         <input id="co-note" placeholder="nota di oggi (facoltativa): come ti sei sentito" style="margin-top:10px">
         <button id="btn-saveworkout">Registra allenamento</button>
         <div id="co-msg" class="ok-msg"></div>
         <div id="co-err" class="err"></div>
-      </div>
-      <div class="card" id="co-mob-card">
-        <h2>🧘 Mobilità <small>— non si taglia mai</small></h2>
-        <div id="co-mob"></div>
-      </div>
-      <div class="card" id="co-vol-card">
-        <h2>Volume settimanale <small>— serie per gruppo</small></h2>
-        <div id="co-volgroups"></div>
-      </div>
-      <div class="card">
-        <h2>Ultimi 7 giorni</h2>
-        <div class="week" id="co-week"></div>
-      </div>
-      <div class="card">
-        <h2>Andamento <small>— mese + volume</small></h2>
-        <div id="co-heatmap"></div>
-        <div id="co-volume" style="margin-top:12px"></div>
-      </div>
-      <div class="card">
-        <h2>Record 💪 <small>— massimali per esercizio</small></h2>
-        <div id="co-records"></div>
-      </div>
-      <div class="card">
-        <h2>Diario allenamenti</h2>
-        <div id="co-diario" style="max-height:320px;overflow:auto"></div>
+        <div id="co-mob-post"></div>
       </div>
       <div class="card">
         <h2>Condizionamento <small>— sempre dopo i pesi</small></h2>
@@ -459,6 +442,27 @@
         <div id="ru-err" class="err"></div>
         <div id="ru-charts" style="margin-top:12px"></div>
         <div id="ru-list" style="max-height:240px;overflow:auto;margin-top:10px"></div>
+      </div>
+      <div class="card" id="co-vol-card">
+        <h2>Volume settimanale <small>— serie per gruppo</small></h2>
+        <div id="co-volgroups"></div>
+      </div>
+      <div class="card">
+        <h2>Ultimi 7 giorni</h2>
+        <div class="week" id="co-week"></div>
+      </div>
+      <div class="card">
+        <h2>Andamento <small>— mese + volume</small></h2>
+        <div id="co-heatmap"></div>
+        <div id="co-volume" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h2>Record 💪 <small>— massimali per esercizio</small></h2>
+        <div id="co-records"></div>
+      </div>
+      <div class="card">
+        <h2>Diario allenamenti</h2>
+        <div id="co-diario" style="max-height:320px;overflow:auto"></div>
       </div>
       <div class="card" id="co-bench-card">
         <h2>Benchmark <small>— settimana 0 e 8</small></h2>
@@ -893,13 +897,56 @@ const MUSCLE_UP = {
   consolidamento:'Raggiunto: 4-5 x 1-2 reps pulite, mai oltre 10 rep totali. Fermarsi lontano dalla fatica è ciò che lo rende stabile.',
 };
 
-// ── Mobilità: lavoro strutturale, non riempitivo. È l'ultima cosa che si taglia ──
+/* ── Mobilità: dentro la seduta, scritta come gli altri esercizi (30/9/2026) ──
+   Il piano la chiama lavoro strutturale e la mette come ultima cosa da tagliare, ma
+   finché era una spunta in una card staccata restava l'unica che saltava sempre.
+   Adesso è PRIMA e DOPO dentro la scheda del giorno, con esercizi, ripetizioni e tempi.
+   ⚠️ TRAINING_PLAN.md dava solo durate e aree prioritarie (colonna toracica, spalle,
+   anche, caviglie): questi esercizi sono una proposta costruita su quelle aree e
+   concordata con Fabrizio — sono l'unica parte della scheda non trascritta dal piano. */
+const MOB_PRE = [
+  ['Gatto-cammello', '10 rip · lente, respirando'],
+  ['Apertura toracica in quadrupedia', '8 per lato · braccio sotto e poi aperto al soffitto'],
+  ['Circonduzioni spalle con bastone', '10 rip · presa larga, braccia tese'],
+  ['90/90 anche', '8 cambi per lato · seduto a terra'],
+  ['Affondo con rotazione', '5 per lato · anca, toracica e caviglia in un movimento'],
+  ['Caviglia al muro', '10 per lato · ginocchio oltre le dita, tallone a terra'],
+];
+const MOB_POST = [
+  ['Pettorale al muro', '30" per lato'],
+  ['Flessori d\'anca in affondo', '30" per lato'],
+  ['Piriforme da seduto', '30" per lato'],
+  ['Polpaccio al muro', '30" per lato'],
+  ['Respirazione 90/90 supino', '1\' · cinque respiri lunghi, costole che si allargano'],
+];
+const MOB_CASA = [
+  ['Gatto-cammello', '10 rip'],
+  ['Apertura toracica in quadrupedia', '8 per lato'],
+  ['Circonduzioni spalle con bastone', '10 rip'],
+  ['90/90 anche', '10 cambi per lato'],
+  ['Ponte glutei', '12 rip · fermata di 2" in alto'],
+  ['Bambino con braccia distese', '1\' · respirando nella schiena'],
+];
+const MOB_FLOW = [
+  ['Affondo con rotazione', '8 per lato · lento, senza fretta'],
+  ['Accovacciata profonda tenuta', '1-2\' · gomiti dentro le ginocchia'],
+  ['90/90 con inclinazione avanti', '8 per lato + 30" di tenuta'],
+  ['Apertura toracica sdraiato di lato', '10 per lato'],
+  ['Dislocazioni con bastone', '10 rip · presa via via più stretta'],
+  ['Piccione o flessori d\'anca', '1\' per lato'],
+];
+const MOB_CORSA = [
+  ['Flessori d\'anca in affondo', '45" per lato'],
+  ['Polpaccio al muro', '45" per lato · ginocchio teso e poi piegato'],
+  ['Femorali seduto', '45" per lato'],
+  ['Respirazione 90/90 supino', '1\''],
+];
 const MOBILITA = {
-  standard:{ label:'8-10\' riscaldamento + 5\' defaticamento', min:13 },
-  mercoledi:{ label:'10-12\' mobilità pura a casa: colonna toracica, anche, spalle', min:11 },
-  sabato:{ label:'15-20\' flow esteso', min:17 },
-  domenica:{ label:'5-8\' stretching mirato post-corsa (flessori anca, polpacci)', min:6 },
-  minima:{ label:'5\' minimo — sempre, anche nei giorni storti', min:5 },
+  standard:{ label:'8-10\' prima, 5\' dopo', min:13, pre:MOB_PRE, post:MOB_POST },
+  mercoledi:{ label:'10-12\' di mobilità pura, a casa', min:11, pre:MOB_CASA },
+  sabato:{ label:'8-10\' prima, flow esteso 15-20\' dopo', min:17, pre:MOB_PRE, post:MOB_FLOW },
+  domenica:{ label:'5-8\' di stretching mirato dopo la corsa', min:6, post:MOB_CORSA },
+  minima:{ label:'5\' minimo — sempre, anche nei giorni storti', min:5, pre:MOB_PRE.slice(0, 3), post:MOB_POST.slice(0, 2) },
 };
 const MOBILITA_AREE = 'Priorità: colonna toracica, spalle, anche, caviglie.';
 
@@ -2483,18 +2530,23 @@ async function tickCardio(day = today()) {
 /* ───────────────── MOBILITÀ ─────────────────
    Costa poca energia ed è il lavoro su cui si regge il resto: è l'ultima cosa che si taglia. */
 function renderMobilita() {
-  const el = $('co-mob'); if (!el) return;
-  if (!planReady) { el.innerHTML = ''; return; }
+  const pre = $('co-mob-pre'), post = $('co-mob-post');
+  if (!pre || !post) return;
+  if (!planReady) { pre.innerHTML = ''; post.innerHTML = ''; return; }
   const sed = sedutaDi(selDay);
-  const key = currentMode() === 'minima' ? 'minima' : (sed && sed.mobilita) || 'standard';
+  const key = currentMode() !== 'piena' ? 'minima' : (sed && sed.mobilita) || 'standard';
   const m = MOBILITA[key] || MOBILITA.standard;
   const fatta = mobility.some(x => x.day === today());
-  const ultimi = lastNDays(7);
-  const fatte = ultimi.filter(d => mobility.some(x => x.day === d)).length;
-  el.innerHTML = `
-    <div class="presc">${esc(m.label)}<div class="muted" style="font-size:12px;margin-top:4px">${MOBILITA_AREE}</div></div>
-    <button id="btn-mob" class="mini${fatta ? ' ghost' : ''}" style="margin-top:10px">${fatta ? 'Fatta oggi ✓' : `Segna fatta +${MOB_XP} XP`}</button>
-    <div class="muted" style="font-size:12px;margin-top:8px">Ultimi 7 giorni: <b>${fatte}/7</b>. ${fatte >= 5 ? 'Sta reggendo.' : 'È il lavoro strutturale: non è riempitivo.'}</div>`;
+  const fatte = lastNDays(7).filter(d => mobility.some(x => x.day === d)).length;
+  const blocco = (titolo, arr) => `<div class="mob"><div class="mob-head">${titolo}</div>${
+    arr.map(([n, d]) => `<div class="mob-row"><b>${esc(n)}</b> <span>${esc(d)}</span></div>`).join('')}</div>`;
+  pre.innerHTML = m.pre
+    ? blocco(`🧘 Prima — mobilità ${esc(m.label)}`, m.pre) +
+      `<div class="muted" style="font-size:11px;margin-top:5px">${MOBILITA_AREE} Non è riscaldamento generico: è la parte strutturale, e si fa anche nei giorni storti.</div>`
+    : '';
+  post.innerHTML = (m.post ? blocco('🧘 Dopo', m.post) : '') +
+    `<button id="btn-mob" class="mini${fatta ? ' ghost' : ''}" style="margin-top:10px">${fatta ? 'Mobilità fatta oggi ✓' : `Segna la mobilità +${MOB_XP} XP`}</button>
+     <div class="muted" style="font-size:12px;margin-top:8px">Ultimi 7 giorni: <b>${fatte}/7</b>. ${fatte >= 5 ? 'Sta reggendo.' : 'È il lavoro su cui si regge tutto il resto: è l\'ultima cosa da tagliare.'}</div>`;
   $('btn-mob').onclick = () => toggleMobilita(m.min);
 }
 

@@ -292,6 +292,19 @@ L'app dovrebbe calcolare il volume effettivo per gruppo muscolare e segnalare gl
 }
 ```
 
+> **Estensione del 30/9/2026 — la mobilità diventa una scheda, dentro la seduta.** Questa sezione dava durate e aree, non esercizi: in app era una card staccata con un pulsante "fatta", e per Fabrizio era l'unica cosa che saltava sempre. Ora sta **dentro la scheda del giorno**, come blocco *Prima* e blocco *Dopo*, con esercizi, ripetizioni e tempi come gli altri.
+>
+> Gli esercizi qui sotto sono **una proposta costruita sulle quattro aree prioritarie**, non una trascrizione: è l'unica parte della scheda che non viene da questo file. Se non ti tornano, si cambiano qui.
+>
+> **Prima (8-10', dinamica)** — gatto-cammello 10 · apertura toracica in quadrupedia 8 per lato · circonduzioni spalle con bastone 10 · 90/90 anche 8 cambi per lato · affondo con rotazione 5 per lato · caviglia al muro 10 per lato.
+> **Dopo (5', statica)** — pettorale al muro 30" per lato · flessori d'anca in affondo 30" per lato · piriforme da seduto 30" per lato · polpaccio al muro 30" per lato · respirazione 90/90 supino 1'.
+> **Mercoledì (10-12', a casa, mobilità pura)** — gatto-cammello · apertura toracica · circonduzioni spalle · 90/90 · ponte glutei 12 con fermata · bambino con braccia distese 1'.
+> **Sabato (flow esteso 15-20', dopo la seduta)** — affondo con rotazione 8 per lato · accovacciata profonda tenuta 1-2' · 90/90 con inclinazione avanti 8 + 30" · apertura toracica sdraiato di lato 10 per lato · dislocazioni con bastone 10 · piccione o flessori d'anca 1' per lato.
+> **Domenica (5-8', dopo la corsa)** — flessori d'anca 45" per lato · polpaccio al muro 45" per lato · femorali seduto 45" per lato · respirazione 90/90 1'.
+> **Minima e casa (5' minimo)** — i primi 3 esercizi del blocco Prima e i primi 2 del blocco Dopo.
+>
+> Verificato: tutte e 13 le giornate delle tre versioni hanno un blocco Prima o Dopo. Nessuna resta scoperta.
+
 ### 2.7 Benchmark (settimana 0 e settimana 8)
 
 ```json
