@@ -99,8 +99,9 @@ Profilo psicologico "tutto o niente": se salta troppo, perde lo stimolo. Per que
           ], "rest_sec": 75 },
         { "superset": [
             { "name": "Push-down tricipiti",   "sets": 4, "reps": "12-15", "rpe": 9, "rir": 1 },
-            { "name": "French press",          "sets": 3, "reps": "12",    "rpe": 9, "rir": 1 }
+            { "name": "Reverse fly",           "sets": 4, "reps": "15",    "rpe": 8 }
           ], "rest_sec": 75 },
+        { "name": "French press",              "sets": 3, "reps": "12",    "rest_sec": 90, "rpe": 9, "rir": 1 },
         { "name": "Cable crunch",              "sets": 3, "reps": "12-15", "rest_sec": 60, "core": true }
       ],
       "warmup_extra": "corda_5_8min",
@@ -271,7 +272,7 @@ Profilo psicologico "tutto o niente": se salta troppo, perde lo stimolo. Per que
 
 L'app dovrebbe calcolare il volume effettivo per gruppo muscolare e segnalare gli scostamenti da questi target — è il modo per accorgersi in anticipo che una modifica alla scheda ha sbilanciato qualcosa.
 
-> **Nota di implementazione (24/9/2026):** gli esercizi elencati nella sezione 2.2 producono **8 serie di deltoidi posteriori contro le 12 dichiarate** qui, e **111 serie dirette totali contro 115**. Tutti gli altri gruppi tornano esatti. Lo scostamento è reale e l'app lo mostra nella card Volume: va deciso, non corretto in silenzio.
+> **Risolto il 30/9/2026.** Gli esercizi della sezione 2.2 producevano 8 serie di deltoidi posteriori contro le 12 dichiarate e 111 serie dirette contro 115. La correzione è una sola: **4 serie di reverse fly il martedì**, in superset col push-down. Ora tutti e nove i gruppi tornano esatti e il totale è **115 su 115** (verificato sulle costanti dell'app). Lo stesso esercizio chiude anche la contraddizione della sezione 3.6.
 
 ### 2.6 Mobilità
 
@@ -363,6 +364,8 @@ Incrementi suggeriti: +2,5 kg sui lower body e sui bilancieri grossi, +1-2 kg su
 }
 ```
 
+> **Deroga del 30/9/2026 — lo scarico lo accende lui.** Non scatta più alla settimana 6 di calendario: nella card Blocco c'è un chip **🛠 Scarico** che dimezza gli accessori, lascia i big lift e tiene l'RPE a 7 per 7 giorni, poi si spegne da sé. Due ragioni: una settimana 6 di calendario può cadere in una settimana già scarica (e allora dimezza il volume nel momento sbagliato), e il segnale che serve uno scarico lo sente lui prima di qualunque conteggio. Dalla settimana 4 l'app ricorda che a metà blocco ci vuole, senza accenderlo. La regola `autoregulated` qui sopra decade: non serve più evitare un doppio scarico automatico.
+
 ### 3.3 Trigger versione minima
 
 ```json
@@ -377,7 +380,7 @@ Incrementi suggeriti: +2,5 kg sui lower body e sui bilancieri grossi, +1-2 kg su
 }
 ```
 
-> **Nota di implementazione:** il trigger `sonno` non è automatizzabile — Player One non traccia il sonno. Gli altri tre sono calcolati dall'app.
+> **Deroga del 30/9/2026 — nessun trigger è automatico.** Player One non calcola più nessuno di questi quattro: il passaggio fra piena, minima e casa è un tap sui chip, e quando farlo lo decide Fabrizio. Sono stati tolti l'avviso "N sedute non fatte questa settimana", il suggerimento su RPE fuori scala e la minima forzata post-parto. Al loro posto una riga di fatti nella card Blocco: sedute e serie della settimana in corso, senza commento. Resta un solo avviso, quello della sezione 3.5, perché non riguarda la sua costanza ma l'interferenza fra condizionamento e forza — cosa che dall'interno non si vede.
 
 ### 3.4 Versione minima — contenuto
 
@@ -449,7 +452,7 @@ L'app dovrebbe rilevare questo trend automaticamente sui quattro big lift e most
 
 **Perché gli antagonisti e non gli agonisti:** con muscoli opposti, mentre uno lavora l'altro recupera davvero — non si perde forza né stimolo, si taglia solo il tempo morto. I superset agonisti (stesso muscolo due volte di fila) aumentano la fatica metabolica ma tagliano il carico sulla seconda serie: in deficit calorico costano recupero senza dare stimolo extra.
 
-> **Contraddizione nota nel piano:** il martedì abbina in superset *Push-down tricipiti* e *French press* (stesso muscolo), e il sabato *Curl* + *Estensioni tricipiti* (antagonisti, ok). L'app implementa la scheda come scritta nella sezione 2.2. Il martedì è da sciogliere.
+> **Sciolta il 30/9/2026.** Il martedì abbinava in superset *Push-down* e *French press* — stesso muscolo, contro la regola qui sopra. Ora il push-down va in superset col **reverse fly** (tricipiti + posteriori: non interferiscono) e il French press resta una serie normale a fine seduta, con 90" di recupero. Il sabato (*Curl* + *Estensioni tricipiti*) era già corretto: sono antagonisti.
 
 ### 3.7 Blocco 2 — ponte dicembre
 
@@ -515,3 +518,9 @@ Cose che l'app dovrebbe fare, in ordine di utilità:
 ---
 
 *Implementato in Player One il 24 settembre 2026 (`PLAN_ID = 'ibrido-2026-09'`). Le costanti in `index.html` sono la trascrizione di questo file: se cambi il piano, cambia prima qui.*
+
+*Revisione del 30 settembre 2026 — chiusi i due buchi dichiarati (posteriori a 12, superset agonista del martedì) con l'aggiunta del reverse fly. Lato app: il corpo libero è registrabile (trazioni, dip, plank, progressione muscle-up), i target del volume si dimezzano nel deload sugli accessori, il mercoledì di riposo non conta più come seduta saltata.*
+
+*Deroga di fondo (30/9/2026) — **le 8 settimane non sono 8 settimane di calendario**. La settimana del blocco avanza quando una settimana si chiude con almeno 2 sedute registrate; le settimane vuote non la fanno salire, e la settimana in corso non conta finché non finisce (così la prescrizione non cambia a metà settimana). Le progressioni di sacco, vogatore, corsa e muscle-up, il retest e la fascia di volume seguono quel contatore, non le date. Il sovraccarico progressivo segue il lavoro fatto: con 5 sedute in tre settimane, la prescrizione della settimana 5 non ha senso di esistere. La data di inizio serve solo a raggruppare i log per settimana.*
+
+*Deroga alla sezione 3.7 (30/9/2026): la **minima automatica post-parto non è attiva**. L'app non chiede la data del parto — il passaggio fra piena, minima e casa è una scelta manuale, un tap sui chip. Le 4 settimane restano scritte qui come indicazione di allenamento, non come automatismo.*

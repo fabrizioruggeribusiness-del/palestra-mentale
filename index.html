@@ -399,7 +399,7 @@
       <div class="card">
         <h2 id="co-daytitle">Esercizi</h2>
         <div id="co-dayinfo"></div>
-        <p class="muted">Scrivi le serie come <b>90x7, 95x6, 95x6</b> (peso x ripetizioni, <b>@8</b> per l'RPE). Tocca il nome per lo storico, ⏱ per il recupero.</p>
+        <p class="muted">Scrivi le serie come <b>90x7, 95x6, 95x6</b> (peso x ripetizioni, <b>@8</b> per l'RPE). A corpo libero bastano le ripetizioni: <b>12, 10, 8</b>. Tocca il nome per lo storico, ⏱ per il recupero.</p>
         <div id="co-exlist"></div>
         <input id="co-note" placeholder="nota di oggi (facoltativa): come ti sei sentito" style="margin-top:10px">
         <button id="btn-saveworkout">Registra allenamento</button>
@@ -775,8 +775,12 @@ const SEDUTE = [
     { n:'Dip o chest press', s:4, r:'10-12', rest:90, rpe:8, rir:2, m:'petto' },
     { n:'Alzate laterali', s:4, r:'12-15', rest:75, rpe:9, rir:1, m:'deltoidi_laterali', ss:'A' },
     { n:'Face pull', s:4, r:'15', rest:75, rpe:8, m:'deltoidi_posteriori', ss:'A' },
+    /* Push-down + reverse fly: tricipiti e posteriori non interferiscono (il superset
+       tricipiti+tricipiti di prima era agonista) e le 4 serie di posteriori qui
+       chiudono il buco del piano: 12 su 12, 115 serie dirette su 115. */
     { n:'Push-down tricipiti', s:4, r:'12-15', rest:75, rpe:9, rir:1, m:'tricipiti', ss:'B' },
-    { n:'French press', s:3, r:'12', rest:75, rpe:9, rir:1, m:'tricipiti', ss:'B' },
+    { n:'Reverse fly', s:4, r:'15', rest:75, rpe:8, m:'deltoidi_posteriori', ss:'B' },
+    { n:'French press', s:3, r:'12', rest:90, rpe:9, rir:1, m:'tricipiti' },
     { n:'Cable crunch', s:3, r:'12-15', rest:60, core:true },
   ]},
   { day:'Mercoledì', variant:'piena', order:2, focus:'Riposo', riposo:true, mobilita:'mercoledi',
@@ -919,6 +923,8 @@ const NOTE_PIANO = [
   ['Ordine degli esercizi','I big lift a inizio seduta, recuperi pieni di 2-2,5\'. Il muscle-up prima di tutto il venerdì: la transizione sotto fatica è dove ci si fa male alla spalla.'],
   ['Perché i fondamentali restano liberi','Squat, panca, stacco rumeno e trazioni restano a bilanciere anche nei giorni stanchi: sono i benchmark di forza vera e allenano la stabilizzazione che trasferisce a MMA e muscle-up. Quando sei stanco abbassi l\'RPE, non cambi attrezzo.'],
   ['Gerarchia dei tagli','1. Corsa lunga della domenica · 2. Volume accessorio · 3. Durata dei finisher · 4. <b>Mai la mobilità</b>.'],
+  ['Come avanza il piano','La settimana sale quando una settimana chiude con almeno 2 sedute registrate. Se una settimana salta, la progressione resta dov\'era: non è una punizione, è che il sovraccarico segue il lavoro fatto, non i giorni passati.'],
+  ['Scarico','A metà blocco serve, ma il quando lo decidi tu: il chip 🛠 dimezza gli accessori e lascia i big lift, per 7 giorni. Poi si spegne da sé.'],
   ['Superset','Solo antagonisti o muscoli non interferenti. A → 10-15" → B → 60-75" recupero. Se una postazione è occupata, falli come serie normali: non è un fallimento del piano.'],
   ['Sicurezza MMA','Paratibia obbligatori nelle settimane 1-4. Calci al 50% nelle settimane 1-2, al 70% nelle 3-4. Le ossa si adattano molto più lentamente dei muscoli.'],
   ['Dopo il parto','Realisticamente si vive in minima o vicino per 2-4 mesi. Non è un fallimento del piano né tuo: è fisiologia.'],
@@ -1208,7 +1214,7 @@ async function loadAll() {
     planReady = (!sample || 'plan' in sample) && !bl.error && !co.error && !mo.error && !be.error;
     if (planReady) {
       if (!exercises.some(e => e.plan === PLAN_ID && e.active)) await seedPlan();
-      else for (const v of ['minima', 'casa']) await syncVariant(v); // revisioni della scheda
+      else for (const v of ['piena', 'minima', 'casa']) await syncVariant(v); // revisioni della scheda
       if (!block) await ensureBlock();
     }
     if (!habits.length) {
@@ -1283,15 +1289,44 @@ async function ensureBlock() {
    Il blocco dura 8 settimane, poi diventa "ponte dicembre" (blocco 2):
    progressione congelata, RPE 7, mantenimento — non crescita. */
 const blockStart = () => (block && block.start_date) || DEFAULT_BLOCK_START;
-const weekIndex = (d = today()) =>
+// Settimana di CALENDARIO dal via: serve a raggruppare i log, non a far salire il piano.
+const calWeek = (d = today()) =>
   Math.floor((new Date(d + 'T12:00') - new Date(blockStart() + 'T12:00')) / 604800000) + 1;
-const blockWeek = () => Math.max(1, weekIndex());
-const isBlock2 = () => weekIndex() > BLOCK_WEEKS;
+const calWeekNow = () => Math.max(1, calWeek());
+// Sedute (giorni distinti con almeno un log) per settimana di calendario
+const sedutePerSett = () => {
+  const out = {};
+  for (const l of workoutLogs) { const w = calWeek(l.day); if (w >= 1) (out[w] ??= new Set()).add(l.day); }
+  return out;
+};
+const sedutePerSettN = w => (sedutePerSett()[w] || new Set()).size;
+/* ── La settimana del piano avanza col lavoro fatto, non col calendario ──
+   Scelta del 30/9/2026. Una settimana conta come allenata quando ci hai registrato
+   almeno MIN_SEDUTE_SETT sedute; la settimana in corso non viene contata finché non
+   finisce, così la prescrizione non cambia sotto le mani a metà settimana.
+   Il sovraccarico progressivo segue le sedute: se una settimana salta, la progressione
+   non ha materiale per salire e resta dov'era. Non è una penalità, è aritmetica. */
+const MIN_SEDUTE_SETT = 2;
+const settimaneAllenate = () => {
+  const per = sedutePerSett(), cur = calWeekNow();
+  let n = 0;
+  for (let w = 1; w < cur; w++) if ((per[w] || new Set()).size >= MIN_SEDUTE_SETT) n++;
+  return n;
+};
+const blockWeek = () => 1 + settimaneAllenate();
+const isBlock2 = () => blockWeek() > BLOCK_WEEKS;
 // Fascia di progressione: nel blocco 2 il condizionamento resta ai livelli della settimana 6.
-const weekBand = () => { const w = isBlock2() ? 6 : blockWeek(); return w <= 2 ? '1-2' : w <= 4 ? '3-4' : w <= 6 ? '5-6' : '7-8'; };
+const weekBand = () => {
+  const w = isBlock2() ? 6 : blockWeek();
+  return w <= 2 ? '1-2' : w <= 4 ? '3-4' : w <= 6 ? '5-6' : '7-8';
+};
 
 const daysBetween = (a, b) => Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 86400000);
-// Prime 4 settimane dal parto: minima automatica, non negoziabile.
+/* Prime 4 settimane dal parto: minima automatica.
+   ⚠️ Scelta di Fabrizio (30/9/2026): NON esiste un campo per scrivere start_date e
+   birth_date — quando passare da una versione all'altra lo decide lui, con i chip.
+   Quindi birth_date resta vuota e questo ramo non scatta, a meno di scriverla a mano
+   su po_block. Non è una dimenticanza: non rimettere la card senza chiederglielo. */
 const postPartum = () => {
   const bd = block && block.birth_date;
   if (!bd) return false;
@@ -1299,9 +1334,21 @@ const postPartum = () => {
   return d >= 0 && d < POST_PARTUM_WEEKS * 7;
 };
 const currentMode = () => postPartum() ? 'minima' : ((block && block.mode) || 'piena');
-// Due settimane o più in minima valgono già come deload: non se ne aggiunge un altro subito dopo.
-const deloadGiaSvolto = () => currentMode() === 'minima' && block && block.mode_since && daysBetween(block.mode_since, today()) >= 14;
-const isDeload = () => !isBlock2() && blockWeek() === 6 && !deloadGiaSvolto();
+/* ── Scarico: lo accendi tu ──
+   Non scatta più a una data. Una settimana 6 di calendario può cadere in una settimana
+   in cui sei già scarico: lo scarico serve quando lo senti, e sei tu a saperlo.
+   Dura 7 giorni e poi si spegne da sé — uno scarico dimenticato che dimezza gli
+   accessori per un mese è un danno, non un aiuto. Sta in localStorage: è una
+   decisione del momento su questo telefono, non uno stato da sincronizzare. */
+const DELOAD_DAYS = 7;
+const deloadFrom = () => localStorage.getItem('po_deload') || '';
+const deloadGiorno = () => { const d = deloadFrom(); return d ? daysBetween(d, today()) : -1; };
+const isDeload = () => { const g = deloadGiorno(); return g >= 0 && g < DELOAD_DAYS; };
+function toggleDeload() {
+  if (isDeload()) localStorage.removeItem('po_deload');
+  else localStorage.setItem('po_deload', today());
+  renderCorpo();
+}
 
 const seduteDi = v => SEDUTE.filter(s => s.variant === v);
 const sedutaDi = name => SEDUTE.find(s => s.day === name) || null;
@@ -1343,7 +1390,12 @@ const maxW = sets => Math.max(0, ...(sets || []).map(s => +s.w || 0));
 // 1RM stimato (Epley): premia la crescita generica — più peso O più ripetizioni
 const est1rm = s => (+s.w || 0) * (1 + (+s.r || 0) / 30);
 const best1rm = sets => Math.max(0, ...(sets || []).map(est1rm));
-const bestSet = sets => (sets || []).reduce((b, s) => est1rm(s) > est1rm(b) ? s : b, { w: 0, r: 0 });
+/* Corpo libero: sessione senza carico (trazioni, dip, push-up, plank). Lì il metro
+   sono le ripetizioni, non i chili — e le due scale non si confrontano fra loro. */
+const bwOnly = sets => !!(sets || []).length && (sets || []).every(s => !(+s.w));
+const scoreLog = sets => bwOnly(sets) ? Math.max(0, ...(sets || []).map(s => +s.r || 0)) : best1rm(sets);
+const bestSet = sets => (sets || []).reduce((b, s) =>
+  (bwOnly(sets) ? (+s.r || 0) > (+b.r || 0) : est1rm(s) > est1rm(b)) ? s : b, { w: 0, r: 0 });
 // Palestra di un log: i log pre-palestra (gym null) ricadono sulla sede abituale.
 const gymOf = l => l.gym || DEFAULT_GYM;
 
@@ -1904,11 +1956,17 @@ function suggerimento(e) {
   if (currentMode() !== 'piena') return 'Carico che ti lascia margine, RPE 6-7. Qui si mantiene, non si cresce — ed è esattamente il lavoro giusto.';
   if (isBlock2()) return '🌉 Blocco 2: stesso carico, RPE 7. Mantenimento, non crescita.';
   if (isDeload() && !e.big_lift) return '🛠 Deload: metà volume, RPE massimo 7. Serve ad arrivare veri al retest.';
-  const last = logsOfEx(e).filter(l => l.day !== today()).sort((a, b) => a.day < b.day ? 1 : -1)[0];
+  // Stessa palestra del selettore: i macchinari non sono confrontabili, e il consiglio
+  // di progressione deve nascere dalla sede dove ti allenerai oggi.
+  const last = logsOfEx(e).filter(l => l.day !== today() && gymOf(l) === currentGym)
+    .sort((a, b) => a.day < b.day ? 1 : -1)[0];
   if (!last) return `Prima volta: carico che ti lascia ${e.rir ?? 2} ripetizioni in canna.`;
   const sets = last.sets || [];
   const chiuso = sets.length >= e.sets_target && sets.every(s => (+s.r || 0) >= top);
   const pesante = e.big_lift || ['quadricipiti', 'femorali_glutei'].includes(e.muscle);
+  if (bwOnly(sets)) return chiuso
+    ? '⬆️ Chiuso il range a corpo libero: aggiungi zavorra e riparti dal fondo.'
+    : 'A corpo libero: punta a una ripetizione in più.';
   return chiuso
     ? `⬆️ Chiuso il range: +${pesante ? '2,5' : '1-2'} kg e riparti dal fondo (${String(e.reps_target).split('-')[0]}).`
     : `Stesso carico (${Math.max(0, ...sets.map(s => +s.w || 0))} kg): punta a una ripetizione in più.`;
@@ -1917,10 +1975,11 @@ function suggerimento(e) {
 // Serie previste oggi: nel deload gli accessori scendono del 50%, i big lift restano.
 const serieOggi = e => (isDeload() && !e.big_lift && e.sets_target) ? Math.max(1, Math.round(e.sets_target / 2)) : e.sets_target;
 
-// Settimana del blocco come 7 giorni concreti (lunedì → domenica)
+// La settimana in corso come 7 giorni concreti: di calendario, perché il volume
+// settimanale è una fotografia di questi giorni, non della settimana del piano.
 const weekDays = () => {
   const s = new Date(blockStart() + 'T12:00');
-  s.setDate(s.getDate() + (blockWeek() - 1) * 7);
+  s.setDate(s.getDate() + (calWeekNow() - 1) * 7);
   return Array.from({ length: 7 }, (_, i) => { const d = new Date(s); d.setDate(d.getDate() + i); return d.toLocaleDateString('sv-SE'); });
 };
 
@@ -1943,7 +2002,7 @@ function bigLiftAlert() {
     const e = exercises.find(x => x.plan === PLAN_ID && x.name === name && x.active);
     if (!e) continue;
     const per = {};
-    for (const l of logsOfEx(e)) { const w = weekIndex(l.day); if (w >= 1) per[w] = Math.max(per[w] || 0, best1rm(l.sets)); }
+    for (const l of logsOfEx(e)) { const w = calWeek(l.day); if (w >= 1) per[w] = Math.max(per[w] || 0, best1rm(l.sets)); }
     const ws = Object.keys(per).map(Number).sort((a, b) => a - b).slice(-4);
     if (ws.length < 4) continue;
     let giu = 0;
@@ -1953,23 +2012,17 @@ function bigLiftAlert() {
   return cali;
 }
 
-/* Trigger della versione minima. Il sonno non è tracciato dall'app: quello resta
-   una domanda a te, non un allarme automatico. */
-function triggerMinima() {
-  const out = [];
-  if (postPartum()) out.push('🍼 Prime 4 settimane dal parto: minima automatica. Non un giorno di meno — la prima settimana ci si sente bene, è adrenalina, non recupero.');
-  const wd = weekDays(), passati = wd.filter(d => d <= today());
-  const previste = seduteDi('piena').filter(s => s.ex.length).length;
-  const fatte = new Set(workoutLogs.filter(l => wd.includes(l.day)).map(l => l.day)).size;
-  const saltate = Math.min(passati.length, previste) - fatte;
-  if (saltate >= 2) out.push(`📅 ${saltate} sedute non fatte questa settimana. La minima è pensata per questo.`);
-  const rpeMedio = days => {
-    const v = workoutLogs.filter(l => days.includes(l.day)).flatMap(l => (l.sets || []).filter(s => s.rpe).map(s => s.rpe));
-    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+/* Riepilogo neutro della settimana in corso: fatti, non giudizi. Qui non c'è nessun
+   "hai saltato" e nessun suggerimento di cambiare versione — quando passare da piena a
+   minima, o accendere lo scarico, lo decidi tu (scelta del 30/9/2026). */
+function settimanaOra() {
+  const wd = weekDays();
+  const miei = workoutLogs.filter(l => wd.includes(l.day));
+  return {
+    sedute: new Set(miei.map(l => l.day)).size,
+    serie: miei.reduce((s, l) => s + (l.sets || []).length, 0),
+    extra: conditioning.filter(c => wd.includes(c.day)).length + runs.filter(r => wd.includes(r.day)).length,
   };
-  const ora = rpeMedio(lastNDays(7)), prima = rpeMedio(lastNDays(28).slice(0, 21));
-  if (ora != null && prima != null && ora - prima >= 2) out.push('📈 RPE percepito 2 punti sopra il tuo normale: il corpo sta chiedendo meno carico, non più volontà.');
-  return out;
 }
 
 function parseSets(str) {
@@ -1982,9 +2035,20 @@ function parseSets(str) {
     if (m[3] != null) { const rpe = parseFloat(m[3].replace(',', '.')); if (rpe >= 1 && rpe <= 10) s.rpe = rpe; }
     out.push(s);
   }
+  if (out.length) return out;
+  /* Corpo libero: sole ripetizioni ("12, 10, 8", "8@9"). Serve per trazioni, dip,
+     push-up, plank e tutta la progressione muscle-up, che senza questo non erano
+     registrabili. Peso 0 = a corpo libero: conta nel volume e nello storico, e fa
+     record sulle ripetizioni — mai mescolato con le sessioni zavorrate. */
+  const bw = /(\d+)\s*(?:@\s*(\d+(?:[.,]\d+)?))?/g;
+  while ((m = bw.exec(str))) {
+    const s = { w: 0, r: parseInt(m[1], 10) };
+    if (m[2] != null) { const rpe = parseFloat(m[2].replace(',', '.')); if (rpe >= 1 && rpe <= 10) s.rpe = rpe; }
+    out.push(s);
+  }
   return out;
 }
-const fmtSets = sets => (sets || []).map(s => `${s.w}x${s.r}${s.rpe ? `@${s.rpe}` : ''}`).join(', ');
+const fmtSets = sets => (sets || []).map(s => `${+s.w ? `${s.w}x` : ''}${s.r}${s.rpe ? `@${s.rpe}` : ''}`).join(', ');
 // RPE medio di una sessione (solo sulle serie che ce l'hanno)
 const avgRpe = sets => { const r = (sets || []).filter(s => s.rpe).map(s => s.rpe); return r.length ? +(r.reduce((a, b) => a + b, 0) / r.length).toFixed(1) : null; };
 // Volume di una sessione: somma di peso×ripetizioni (tonnellaggio)
@@ -2079,8 +2143,12 @@ function renderCorpo() {
     const histG = (openHistory === e.id && histGym && exGyms.includes(histGym)) ? histGym : currentGym;
     const logs = exLogsAll.filter(l => gymOf(l) === histG).sort((a, b) => a.day < b.day ? 1 : -1);
     const last = logs.find(l => l.day !== today());
-    const bestLog = logs.reduce((b, l) => best1rm(l.sets) > best1rm(b?.sets) ? l : b, null);
+    /* Best: fra sessioni dello stesso tipo. Se su questo esercizio hai mai usato un
+       carico, il record è quello; se è sempre stato a corpo libero, sono le reps. */
+    const pool = logs.some(l => !bwOnly(l.sets)) ? logs.filter(l => !bwOnly(l.sets)) : logs;
+    const bestLog = pool.reduce((b, l) => scoreLog(l.sets) > scoreLog(b?.sets) ? l : b, null);
     const bs = bestLog ? bestSet(bestLog.sets) : null;
+    const bestTxt = !bs ? '' : bs.w ? `${bs.w}x${bs.r} (≈${Math.round(est1rm(bs))} 1RM)` : bs.r ? `${bs.r} reps a corpo libero` : '';
     const todayLog = workoutLogs.find(l => l.exercise_id === e.id && l.day === today() && gymOf(l) === currentGym);
     const pending = todayLog && String(todayLog.id).startsWith('tmp');
     let hist = '';
@@ -2088,13 +2156,15 @@ function renderCorpo() {
       const gymChips = exGyms.length > 1
         ? `<div class="chips" style="margin-bottom:6px">${exGyms.map(g => `<span class="chip ${g === histG ? 'on' : ''}" data-histgym="${esc(g)}" data-ex="${e.id}">${esc(g)}</span>`).join('')}</div>`
         : '';
-      const asc = [...logs].sort((a, b) => a.day < b.day ? -1 : 1);
+      // Il grafico segue lo stesso metro del best: 1RM se c'è il carico, ripetizioni se no.
+      const asc = [...pool].sort((a, b) => a.day < b.day ? -1 : 1);
+      const bwPool = pool.length && pool.every(l => bwOnly(l.sets));
       const chart = asc.length >= 2
-        ? `<div class="muted" style="font-size:11px">1RM stimato nel tempo · ${esc(histG)}</div>${lineSvg(asc.map(l => Math.round(best1rm(l.sets))), '#7aa2f7')}
-           <div class="muted" style="font-size:11px;margin-top:4px">Volume (kg) nel tempo</div>${lineSvg(asc.map(l => Math.round(volume(l.sets))), '#5ec97c')}`
+        ? `<div class="muted" style="font-size:11px">${bwPool ? 'Ripetizioni migliori' : '1RM stimato'} nel tempo · ${esc(histG)}</div>${lineSvg(asc.map(l => Math.round(scoreLog(l.sets))), '#7aa2f7')}
+           ${bwPool ? '' : `<div class="muted" style="font-size:11px;margin-top:4px">Volume (kg) nel tempo</div>${lineSvg(asc.map(l => Math.round(volume(l.sets))), '#5ec97c')}`}`
         : '<div class="muted" style="font-size:11px">Servono almeno 2 sessioni in questa palestra per il grafico.</div>';
       const list = logs.length
-        ? logs.map(l => `${l.day} — ${fmtSets(l.sets)} · ${Math.round(volume(l.sets))}kg · ≈${Math.round(best1rm(l.sets))}${String(l.id).startsWith('tmp') ? ' 📴' : ` <span class="del" data-dellog="${l.id}" title="elimina">🗑</span>`}`).join('<br>')
+        ? logs.map(l => `${l.day} — ${fmtSets(l.sets)} · ${bwOnly(l.sets) ? 'corpo libero' : `${Math.round(volume(l.sets))}kg · ≈${Math.round(best1rm(l.sets))}`}${String(l.id).startsWith('tmp') ? ' 📴' : ` <span class="del" data-dellog="${l.id}" title="elimina">🗑</span>`}`).join('<br>')
         : 'Nessuna sessione in questa palestra.';
       hist = `<div class="history">${gymChips}${chart}<div style="max-height:170px;overflow:auto;margin-top:6px">${list}</div></div>`;
     }
@@ -2118,12 +2188,12 @@ function renderCorpo() {
       </div>
       ${intensita || e.rest_sec ? `<div class="lastbest">${esc(intensita)}${intensita && e.rest_sec ? ' · ' : ''}${e.rest_sec ? `<span class="exctl" data-rest="${e.rest_sec}" data-restname="${esc(e.name)}" data-restss="${e.superset_group || ''}" style="cursor:pointer">⏱ ${e.superset_group ? '15" + 75"' : fmtDur(e.rest_sec)}</span>` : ''}</div>` : ''}
       ${e.note ? `<div class="lastbest">📝 ${esc(e.note)}</div>` : ''}
-      ${skill ? `<div class="presc">Settimana ${blockWeek()}: <b>${esc(skill)}</b></div>` : ''}
-      <div class="lastbest">${exGyms.length > 1 ? `<span class="muted" style="font-size:10px">🏋 ${esc(histG)}</span> · ` : ''}${last ? `ultima: ${fmtSets(last.sets)} (${last.day}) · ` : ''}${bs && bs.w ? `best: <span class="pr-tag">${bs.w}x${bs.r} (≈${Math.round(est1rm(bs))} 1RM)</span>` : 'mai registrato qui'}</div>
+      ${skill ? `<div class="presc">Settimana ${blockWeek()}: <b>${esc(skill)}</b>${muFatto() ? '' : '<div style="margin-top:8px"><button class="mini ghost" data-mudone="1">🏅 Fatto il primo muscle-up</button></div>'}</div>` : ''}
+      <div class="lastbest">${exGyms.length > 1 ? `<span class="muted" style="font-size:10px">🏋 ${esc(histG)}</span> · ` : ''}${last ? `ultima: ${fmtSets(last.sets)} (${last.day}) · ` : ''}${bestTxt ? `best: <span class="pr-tag">${bestTxt}</span>` : 'mai registrato qui'}</div>
       ${sugg ? `<div class="sugg">${sugg}</div>` : ''}
       ${pending
         ? '<div class="lastbest">oggi: <b>' + esc(fmtSets(todayLog.sets)) + '</b> 📴 in attesa di rete</div>'
-        : `<input class="sets" data-ex="${e.id}" ${todayLog ? `data-logid="${todayLog.id}"` : ''} value="${esc(inputVal)}" placeholder="es. 90x7@8, 95x6@9 (l'@RPE è facoltativo)" inputmode="text">`}
+        : `<input class="sets" data-ex="${e.id}" ${todayLog ? `data-logid="${todayLog.id}"` : ''} value="${esc(inputVal)}" placeholder="90x7@8, 95x6 — a corpo libero: 12, 10, 8" inputmode="text">`}
       ${hist}
     </div>`;
   }).join('') || '<p class="muted">Nessun esercizio in questa giornata.</p>';
@@ -2134,6 +2204,18 @@ function renderCorpo() {
     openHistory = openHistory === el.dataset.hist ? null : el.dataset.hist;
     histGym = null; // riparte dalla palestra corrente a ogni apertura
     renderCorpo();
+  });
+  /* Muscle-up raggiunto: da qui la prescrizione passa al consolidamento. Senza questo
+     pulsante il ramo esisteva nel codice ma non c'era modo di accenderlo. */
+  document.querySelectorAll('[data-mudone]').forEach(el => el.onclick = async ev => {
+    ev.stopPropagation();
+    if (!confirm('Primo muscle-up pulito fatto?\nDa qui la prescrizione diventa consolidamento: poche reps pulite, lontano dalla fatica.')) return;
+    const row = { id: crypto.randomUUID(), user_id: user.id, test_id: 'muscle_up', week: blockWeek(), value: today(), day: today() };
+    try {
+      const { error } = await sb.from('po_benchmarks').upsert(row, { onConflict: 'user_id,test_id,week' });
+      if (error) throw new Error(error.message);
+      await loadAll(); renderAll();
+    } catch (err) { alert(isNetErr(err) ? 'Serve la rete per salvarlo. Riprova dopo.' : 'Errore: ' + err.message); }
   });
   document.querySelectorAll('[data-histgym]').forEach(el => el.onclick = ev => {
     ev.stopPropagation();
@@ -2198,21 +2280,26 @@ function renderBlocco() {
   $('co-plan-warn').classList.toggle('hidden', planReady);
   if (!planReady) { el.innerHTML = '<p class="muted">Scheda precedente in uso.</p>'; return; }
   const w = blockWeek(), mode = currentMode(), pp = postPartum();
-  const inizio = weekIndex() < 1;
+  const inizio = calWeek() < 1;
+  const sett = settimanaOra();
   const testa = isBlock2()
     ? `<span class="wk">Blocco 2</span><span class="muted">ponte fino al parto · mantenimento</span>`
-    : `<span class="wk">Settimana ${w}</span><span class="muted">di ${BLOCK_WEEKS}${isDeload() ? ' · 🛠 deload' : ''}</span>`;
+    : `<span class="wk">Settimana ${w}</span><span class="muted">di ${BLOCK_WEEKS}${isDeload() ? ' · 🛠 scarico' : ''}</span>`;
   const retest = !isBlock2() && w === BLOCK_WEEKS ? '<div class="presc">📏 Settimana di <b>retest</b>: rifai i benchmark e confronta con la settimana 0.</div>' : '';
+  // Fatti sulla settimana in corso. Nessun commento: i numeri parlano da soli.
+  const ora = `<div class="muted" style="font-size:12px;margin-top:8px">Questa settimana: <b style="color:var(--txt)">${sett.sedute} ${sett.sedute === 1 ? 'seduta' : 'sedute'}</b> · ${sett.serie} serie${sett.extra ? ` · ${sett.extra} fra corse e condizionamento` : ''}</div>
+    <div class="muted" style="font-size:11px;margin-top:3px">La settimana del piano avanza quando una settimana chiude con almeno ${MIN_SEDUTE_SETT} sedute: le progressioni seguono il lavoro, non il calendario.</div>`;
   const deload = isDeload()
-    ? '<div class="presc">🛠 <b>Deload programmato.</b> Accessori a metà volume, big lift invariati, RPE massimo 7. Serve ad arrivare veri al retest della settimana 8.</div>'
-    : (blockWeek() === 6 && deloadGiaSvolto() ? '<div class="presc">🛠 Deload della settimana 6 <b>già svolto</b>: due settimane in minima contano come scarico. Non se ne aggiunge un altro.</div>' : '');
+    ? `<div class="presc">🛠 <b>Scarico acceso</b> (giorno ${deloadGiorno() + 1} di ${DELOAD_DAYS}). Accessori a metà volume, big lift invariati, RPE massimo 7. Si spegne da sé fra ${DELOAD_DAYS - deloadGiorno()} giorni, o quando lo tocchi.</div>`
+    : (w >= 4 && !isBlock2() ? '<div class="muted" style="font-size:12px;margin-top:6px">A metà blocco uno scarico ci vuole: accendilo quando lo senti, non a una data.</div>' : '');
   el.innerHTML = `
     <div class="blk">${testa}</div>
-    ${inizio ? `<div class="presc">Il blocco parte il <b>${blockStart()}</b>. Da lì scattano le progressioni.</div>` : ''}
+    ${inizio ? `<div class="presc">Il blocco parte il <b>${blockStart()}</b>.</div>` : ''}
     <div class="chips" style="margin-top:10px">
       <span class="chip ${mode === 'piena' ? 'on' : ''}" data-mode="piena">Piena</span>
       <span class="chip ${mode === 'minima' ? 'on' : ''}" data-mode="minima">Minima</span>
       <span class="chip ${mode === 'casa' ? 'on' : ''}" data-mode="casa">Casa</span>
+      <span class="chip ${isDeload() ? 'on' : ''}" data-deload="1" title="scarico: accessori a metà, big lift invariati">🛠 Scarico</span>
     </div>
     <div class="muted" style="font-size:12px;margin-top:6px">${pp
       ? '🍼 Minima automatica: prime 4 settimane dal parto. Non è negoziabile ed è giusto così.'
@@ -2220,9 +2307,10 @@ function renderBlocco() {
         ? 'Piano C: due sedute a casa, 20-25\', manubri e corda. Quando la palestra non è raggiungibile questo È l\'allenamento, non un ripiego.'
         : mode === 'minima'
           ? 'Sei in minima: 4 sedute, superset, RPE 6-7. Le due di pesi coprono entrambe tutto il corpo, così anche saltandone una hai toccato tutto. È il piano B, non un passo indietro.'
-          : 'Versione piena: 5 sedute + 2 facoltative. Se la settimana si stringe, passa alla minima senza pensarci.'}</div>
-    ${deload}${retest}`;
+          : 'Versione piena: 5 sedute + 2 facoltative. Quando la settimana si stringe, il chip è lì.'}</div>
+    ${ora}${deload}${retest}`;
   el.querySelectorAll('[data-mode]').forEach(c => c.onclick = () => setMode(c.dataset.mode));
+  el.querySelector('[data-deload]').onclick = toggleDeload;
 }
 
 async function saveBlock(patch) {
@@ -2248,10 +2336,12 @@ async function setMode(m) {
 function renderAlerts() {
   const el = $('co-alerts'); if (!el) return;
   if (!planReady) { el.innerHTML = ''; return; }
+  /* Resta un solo avviso, e non parla di te: dice che il condizionamento sta mangiando
+     la forza, che dall'interno non si vede. Tutto il resto (sedute mancate, passa in
+     minima, RPE alto) è stato tolto il 30/9/2026 — decidi tu, l'app conta e mostra. */
   const out = [];
   const cali = bigLiftAlert();
   if (cali.length) out.push(`<div class="warn">📉 <b>${cali.join(', ')}</b> in calo da 3 settimane. Il primo taglio è il <b>volume di condizionamento</b> — non il cibo, non il sonno. L'interferenza sta vincendo.</div>`);
-  if (currentMode() === 'piena') for (const t of triggerMinima()) out.push(`<div class="presc">${t}</div>`);
   el.innerHTML = out.join('');
 }
 
@@ -2311,9 +2401,9 @@ const prescCond = k => {
   const c = COND[k]; if (!c) return '';
   return c.fisso || (c.weeks ? c.weeks[weekBand()] : '');
 };
+const muFatto = () => benchmarks.some(b => b.test_id === 'muscle_up');
 const muscleUpPresc = () => {
-  const fatto = benchmarks.some(b => b.test_id === 'muscle_up');
-  if (fatto) return MUSCLE_UP.consolidamento;
+  if (muFatto()) return MUSCLE_UP.consolidamento;
   if (isBlock2()) return 'In pausa fino a primavera se non è arrivato entro la settimana 8: richiede sistema nervoso fresco.';
   return MUSCLE_UP.weeks[weekBand()];
 };
@@ -2327,24 +2417,37 @@ function renderCond() {
   const presc = k ? prescCond(k) : '';
   const c = k ? COND[k] : null;
   const box = !k
-    ? '<p class="muted">Nessun finisher previsto oggi.</p>'
+    ? '<p class="muted">Nessun finisher previsto in questa giornata.</p>'
     : c.log === 'run'
       ? `<div class="presc">${c.emoji} <b>${esc(c.label)}</b> — ${esc(presc)}${c.opzionale ? ' · facoltativa' : ''}<div class="muted" style="font-size:12px;margin-top:6px">${Z2_NOTA}</div></div>
          <p class="muted" style="margin-top:8px">Registrala qui sotto, nella scheda Corsa.</p>`
-      : `<div class="presc">${c.emoji} <b>${esc(c.label)}</b> — ${esc(presc)}</div>
-         <input id="cond-note" placeholder="nota (facoltativa): come è andata" style="margin-top:8px">
-         <button id="btn-savecond" class="mini" style="margin-top:8px">Fatto ✓ +${COND_XP} XP</button>`;
+      : `<div class="presc">${c.emoji} <b>${esc(c.label)}</b> — ${esc(presc)}</div>`;
+  /* Si registra qualunque tipo, in qualunque giorno: il sacco può capitare di giovedì
+     e il vogatore lo ricordi la sera. Il default è il finisher della giornata aperta. */
+  const loggabili = Object.entries(COND).filter(([, x]) => x.log === 'cond');
+  const def = (k && COND[k] && COND[k].log === 'cond') ? k : loggabili[0][0];
+  const form = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <select id="cond-kind" style="flex:2;min-width:150px">
+        ${loggabili.map(([key, x]) => `<option value="${key}"${key === def ? ' selected' : ''}>${x.emoji} ${esc(x.label)}</option>`).join('')}
+      </select>
+      <input id="cond-day" type="date" value="${today()}" max="${today()}" style="flex:1;min-width:130px">
+    </div>
+    <input id="cond-note" placeholder="nota (facoltativa): come è andata" style="margin-top:8px">
+    <button id="btn-savecond" class="mini" style="margin-top:8px">Fatto ✓ +${COND_XP} XP</button>`;
   const storico = conditioning.slice().sort((a, b) => a.day < b.day ? 1 : -1).slice(0, 8).map(x => {
     const lab = (COND[x.kind] || {}).label || x.kind;
     const d = new Date(x.day + 'T12:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
     return `<div class="plan-row"><b>${d}</b> · ${esc(lab)}${x.detail ? ` <span class="muted" style="font-size:12px">— ${esc(x.detail)}</span>` : ''} <span class="del" data-delcond="${x.id}" title="elimina">🗑</span>${x.note ? `<div class="muted" style="font-size:12px">📝 ${esc(x.note)}</div>` : ''}</div>`;
   }).join('');
-  el.innerHTML = `${box}
+  el.innerHTML = `${box}${form}
     ${oggi.length ? `<div class="ok-msg">Oggi: ${oggi.map(o => esc((COND[o.kind] || {}).label || o.kind)).join(', ')} ✓</div>` : ''}
     ${sed && sed.warmup ? `<div class="muted" style="font-size:12px;margin-top:8px">🪢 Warm-up: ${esc(COND.corda.fisso)}</div>` : ''}
     ${storico ? `<div style="margin-top:12px;max-height:200px;overflow:auto">${storico}</div>` : ''}`;
-  const btn = $('btn-savecond');
-  if (btn) btn.onclick = () => salvaCond(k, presc, ($('cond-note').value || '').trim() || null);
+  $('btn-savecond').onclick = () => {
+    const kind = $('cond-kind').value;
+    const day = $('cond-day').value || today();
+    salvaCond(kind, prescCond(kind), ($('cond-note').value || '').trim() || null, day);
+  };
   el.querySelectorAll('[data-delcond]').forEach(x => x.onclick = async () => {
     if (!confirm('Eliminare questa sessione di condizionamento?')) return;
     const id = x.dataset.delcond;
@@ -2358,11 +2461,12 @@ function renderCond() {
   });
 }
 
-async function salvaCond(kind, detail, note) {
-  const row = { id: crypto.randomUUID(), user_id: user.id, day: today(), kind, detail, week: blockWeek(), note };
+async function salvaCond(kind, detail, note, day = today()) {
+  const row = { id: crypto.randomUUID(), user_id: user.id, day, kind, detail, week: blockWeek(), note };
   conditioning.push(row); renderCorpo();
   try {
     await runOp({ kind: 'cond', row });
+    await tickCardio(day);
     await loadAll(); renderAll();
   } catch (e) {
     if (isNetErr(e)) { qPush({ kind: 'cond', row }); renderSyncStatus(); return; }
@@ -2370,6 +2474,13 @@ async function salvaCond(kind, detail, note) {
     alert(/relation|does not exist|po_conditioning|schema cache/i.test(e.message)
       ? 'Esegui prima migration-blocco-ibrido.sql nel SQL Editor di Supabase.' : 'Errore: ' + e.message);
   }
+}
+
+/* Condizionamento e corsa spuntano l'abitudine "Cardio", come l'allenamento spunta
+   "Palestra": se il lavoro è fatto, il tracker lo sa senza un secondo tap. */
+async function tickCardio(day = today()) {
+  const h = habits.find(x => x.name === 'Cardio');
+  if (h) await setHabitState(h.id, day, 'yes', true);
 }
 
 /* ───────────────── MOBILITÀ ─────────────────
@@ -2413,6 +2524,17 @@ async function toggleMobilita(min) {
 
 /* ───────────────── VOLUME PER GRUPPO ─────────────────
    Serve ad accorgersi in anticipo che una modifica alla scheda ha sbilanciato qualcosa. */
+/* Target della settimana. Nel deload gli accessori valgono metà serie e i big lift no
+   (come serieOggi): senza questo, nella settimana in cui fare meno È la prescrizione
+   tutte le barre direbbero "ti manca" — l'esatto contrario del messaggio. */
+const targetGruppo = k => {
+  if (!isDeload()) return VOLUME_TARGET[k];
+  let t = 0;
+  for (const s of seduteDi('piena')) for (const e of s.ex)
+    if (e.m === k && e.s) t += e.big ? e.s : Math.max(1, Math.round(e.s / 2));
+  return t || VOLUME_TARGET[k];
+};
+
 function renderVolGroups() {
   const el = $('co-volgroups'); if (!el) return;
   if (!planReady) { el.innerHTML = ''; return; }
@@ -2422,7 +2544,7 @@ function renderVolGroups() {
   const rows = Object.keys(MUSCOLI).map(k => {
     const fatto = v[k] || 0;
     const band = minima ? (GRUPPI_GRANDI.includes(k) ? fasce.grandi : fasce.piccoli) : null;
-    const target = minima ? band[1] : VOLUME_TARGET[k];
+    const target = minima ? band[1] : targetGruppo(k);
     const pct = Math.min(100, Math.round(fatto / target * 100));
     const col = minima ? 'var(--gold)' : (fatto > target * 1.15 ? 'var(--red)' : fatto >= target * 0.85 ? 'var(--green)' : 'var(--gold)');
     return `<div class="vol-row"><span class="lab">${MUSCOLI[k]}</span>
@@ -2430,10 +2552,13 @@ function renderVolGroups() {
       <span class="num">${fatto}/${minima ? band.join('-') : target}</span></div>`;
   }).join('');
   const tot = Object.values(v).reduce((a, b) => a + b, 0);
-  el.innerHTML = `<div class="muted" style="font-size:12px;margin-bottom:6px">Settimana ${blockWeek()} · ${tot} serie dirette${minima ? '' : ' su 115 previste'}</div>${rows}
+  const totTarget = Object.keys(MUSCOLI).reduce((s, k) => s + targetGruppo(k), 0);
+  el.innerHTML = `<div class="muted" style="font-size:12px;margin-bottom:6px">Questa settimana · ${tot} serie dirette${minima ? '' : ` su ${totTarget} previste${isDeload() ? ' (scarico: accessori a metà)' : ''}`}</div>${rows}
     <div class="muted" style="font-size:12px;margin-top:8px">${minima
       ? `Fascia: ${fasce.grandi.join('-')} serie per i gruppi grandi, ${fasce.piccoli.join('-')} per i piccoli. Starci dentro è il risultato, non il minimo sindacale.`
-      : 'Fascia alta del range produttivo per un avanzato in deficit. Oltre questi numeri aggiungi fatica, non stimolo.'}</div>`;
+      : isDeload()
+        ? 'Scarico acceso: i target qui sono già dimezzati sugli accessori. Starci dentro vuol dire fare meno, ed è giusto così.'
+        : 'Fascia alta del range produttivo per un avanzato in deficit. Oltre questi numeri aggiungi fatica, non stimolo.'}</div>`;
 }
 
 /* ───────────────── BENCHMARK ───────────────── */
@@ -2441,7 +2566,13 @@ function renderBench() {
   const el = $('co-bench'); if (!el) return;
   if (!planReady) { el.innerHTML = ''; return; }
   const val = (id, w) => (benchmarks.find(b => b.test_id === id && b.week === w) || {}).value || '';
-  el.innerHTML = BENCHMARKS.map(b => {
+  /* Senza bilancia i benchmark sono l'unico metro: se manca la S0, il retest della
+     settimana 8 non si confronta con niente. Finché il blocco è giovane va detto. */
+  const mancanti = BENCHMARKS.filter(b => !val(b.id, 0)).length;
+  const nudge = (mancanti && !isBlock2() && blockWeek() <= 3)
+    ? `<div class="warn" style="margin-bottom:10px">📏 <b>${mancanti} benchmark su ${BENCHMARKS.length} senza valore di partenza</b>, e sei alla settimana ${blockWeek()}. Senza la S0 il retest della settimana 8 non ha con cosa confrontarsi: mezz'ora adesso vale otto settimane di dati.</div>`
+    : '';
+  el.innerHTML = nudge + BENCHMARKS.map(b => {
     const v0 = val(b.id, 0), v8 = val(b.id, 8);
     return `<div class="plan-row"><b>${esc(b.test)}</b> <span class="muted" style="font-size:11px">${esc(b.unit)} · storico ${esc(b.base)}</span>
       <div style="display:flex;gap:8px;margin-top:6px">
@@ -2563,22 +2694,33 @@ function renderTrends() {
 }
 
 // B — registro record: miglior set per esercizio, con data, più recenti in alto
+/* Record del blocco corrente, per NOME + palestra. Due ragioni:
+   - le righe archiviate dello stesso nome (dopo una revisione della scheda) sono lo
+     stesso esercizio, non un record a parte;
+   - la scheda precedente resta fuori, come deciso quando il blocco è ripartito pulito:
+     altrimenti qui comparivano PR che nella riga dell'esercizio non esistono. */
 function renderRecords() {
   const multiGym = new Set(workoutLogs.map(gymOf)).size > 1;
-  const rows = [];
-  for (const e of exercises) {
-    const byGym = {};
-    for (const l of workoutLogs.filter(l => l.exercise_id === e.id)) (byGym[gymOf(l)] ??= []).push(l);
-    for (const g in byGym) { // un record per esercizio per palestra
-      const bestLog = byGym[g].reduce((b, l) => best1rm(l.sets) > best1rm(b.sets) ? l : b);
-      const bs = bestSet(bestLog.sets);
-      if (!bs.w) continue;
-      rows.push({ name: e.name, gym: g, w: bs.w, r: bs.r, orm: Math.round(est1rm(bs)), day: bestLog.day });
-    }
+  const delBlocco = planReady ? exercises.filter(e => e.plan === PLAN_ID) : exercises;
+  const byId = new Map(delBlocco.map(e => [e.id, e]));
+  const best = new Map(); // "nome|palestra" → log migliore
+  for (const l of workoutLogs) {
+    const e = byId.get(l.exercise_id); if (!e) continue;
+    const k = `${e.name}|${gymOf(l)}`;
+    const cur = best.get(k);
+    // carico e corpo libero non si confrontano: il carico vince come record
+    const meglio = !cur || (bwOnly(cur.sets) && !bwOnly(l.sets)) ||
+      (bwOnly(cur.sets) === bwOnly(l.sets) && scoreLog(l.sets) > scoreLog(cur.sets));
+    if (meglio) best.set(k, l);
   }
+  const rows = [...best.entries()].map(([k, l]) => {
+    const i = k.lastIndexOf('|');
+    const bs = bestSet(l.sets);
+    return { name: k.slice(0, i), gym: k.slice(i + 1), bs, day: l.day };
+  }).filter(r => r.bs.w || r.bs.r);
   rows.sort((a, b) => a.day < b.day ? 1 : -1);
   $('co-records').innerHTML = rows.length
-    ? rows.map(r => `<div class="rec-row"><span>${esc(r.name)}${multiGym ? ` <span class="muted" style="font-size:10px">🏋 ${esc(r.gym)}</span>` : ''}</span><span class="pr-tag">${r.w}x${r.r} ≈${r.orm}</span><span class="muted" style="font-size:11px">${r.day}</span></div>`).join('')
+    ? rows.map(r => `<div class="rec-row"><span>${esc(r.name)}${multiGym ? ` <span class="muted" style="font-size:10px">🏋 ${esc(r.gym)}</span>` : ''}</span><span class="pr-tag">${r.bs.w ? `${r.bs.w}x${r.bs.r} ≈${Math.round(est1rm(r.bs))}` : `${r.bs.r} reps`}</span><span class="muted" style="font-size:11px">${r.day}</span></div>`).join('')
     : '<p class="muted">Ancora nessun record. Registra il primo allenamento.</p>';
 }
 
@@ -2628,9 +2770,12 @@ $('btn-saveworkout').onclick = async () => {
       if (cur && fmtSets(cur.sets) === fmtSets(sets) && (cur.note || null) === note) continue; // invariato
       updates.push({ id: logId, sets });
     } else {
-      // il PR si conta solo battendo il best nella STESSA palestra (macchinari non confrontabili)
-      const prevBest = Math.max(0, ...workoutLogs.filter(l => l.exercise_id === exId && gymOf(l) === currentGym).map(l => best1rm(l.sets)));
-      if (prevBest > 0 && best1rm(sets) > prevBest) prCount++;
+      /* Il PR si conta solo battendo il best nella STESSA palestra (macchinari non
+         confrontabili) e nello stesso tipo di serie: le reps a corpo libero e i chili
+         non stanno sulla stessa scala. */
+      const prev = workoutLogs.filter(l => l.exercise_id === exId && gymOf(l) === currentGym && bwOnly(l.sets) === bwOnly(sets));
+      const prevBest = Math.max(0, ...prev.map(l => scoreLog(l.sets)));
+      if (prevBest > 0 && scoreLog(sets) > prevBest) prCount++;
       inserts.push({ user_id: user.id, exercise_id: exId, day: today(), sets, note, gym: currentGym });
     }
   }
@@ -2725,6 +2870,7 @@ $('btn-saverun').onclick = async () => {
   renderCorpo();
   try {
     await runOp({ kind: 'run', row });
+    await tickCardio(row.day);
     await loadAll(); renderAll();
     msg.textContent = `Corsa registrata ✓ +${RUN_XP} XP · ${fmtPace(sec, km)}`;
     setTimeout(() => { msg.textContent = ''; }, 4000);
