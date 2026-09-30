@@ -1129,7 +1129,11 @@ const DEFAULT_GYM = 'Fit Active Portuense'; // etichetta dello storico senza pal
 const RUN_XP = 8; // XP bonus per ogni corsa (facoltativa: nessuna penalità se salti)
 let currentGym = localStorage.getItem('po_gym') || DEFAULT_GYM; // palestra di oggi
 let histGym = null; // palestra selezionata nello storico esercizio aperto (null = quella corrente)
-let selDay = localStorage.getItem('po_selday') || '';
+/* Giornata scelta a mano: vale solo per oggi. Salvata come "data|giornata" — prima
+   restava per sempre, quindi se ieri guardavi il sabato, stamattina l'app si apriva
+   ancora sul sabato invece che sulla seduta di oggi. */
+const _selDaySaved = (localStorage.getItem('po_selday') || '').split('|');
+let selDay = _selDaySaved.length === 2 && _selDaySaved[0] === new Date().toLocaleDateString('sv-SE') ? _selDaySaved[1] : '';
 let bootDay = today(); // per rilevare il cambio giorno quando si rientra nell'app
 let openHistory = null;
 let openDiario = null; // giornata aperta nel diario allenamenti (una alla volta)
@@ -2319,7 +2323,7 @@ function renderCorpo() {
   $('co-days').innerHTML = dayNames().map(d =>
     `<span class="chip ${d === selDay ? 'on' : ''}" data-day="${esc(d)}">${esc(d)}</span>`).join('');
   document.querySelectorAll('#co-days .chip').forEach(ch => ch.onclick = () => {
-    selDay = ch.dataset.day; localStorage.setItem('po_selday', selDay); renderCorpo();
+    selDay = ch.dataset.day; localStorage.setItem('po_selday', today() + '|' + selDay); renderCorpo();
   });
 
   const sed = sedutaDi(selDay);
@@ -3043,7 +3047,12 @@ $('btn-saveworkout').onclick = async () => {
       /* Il PR si conta solo battendo il best nella STESSA palestra (macchinari non
          confrontabili) e nello stesso tipo di serie: le reps a corpo libero e i chili
          non stanno sulla stessa scala. */
-      const prev = workoutLogs.filter(l => l.exercise_id === exId && gymOf(l) === currentGym && bwOnly(l.sets) === bwOnly(sets));
+      /* Confronto per NOME dentro il blocco, come fa il "best" nella riga: il curl del
+         lunedì e quello del venerdì sono lo stesso esercizio. Prima il PR guardava solo
+         la singola riga, quindi battere il record su un'altra giornata non contava. */
+      const ex = exercises.find(x => x.id === exId);
+      const prev = (ex ? logsOfEx(ex) : workoutLogs.filter(l => l.exercise_id === exId))
+        .filter(l => gymOf(l) === currentGym && bwOnly(l.sets) === bwOnly(sets));
       const prevBest = Math.max(0, ...prev.map(l => scoreLog(l.sets)));
       if (prevBest > 0 && scoreLog(sets) > prevBest) prCount++;
       inserts.push({ user_id: user.id, exercise_id: exId, day: today(), sets, note, gym: currentGym });
@@ -3706,7 +3715,8 @@ async function onResume() {
   if (!user || _resuming) return;
   _resuming = true;
   try {
-    if (today() !== bootDay) { bootDay = today(); diDay = today(); await loadAll(); renderAll(); }
+    // cambio giorno con l'app aperta: torna sulla seduta di oggi (loadAll la ricalcola)
+    if (today() !== bootDay) { bootDay = today(); diDay = today(); selDay = ''; await loadAll(); renderAll(); }
     else { await qFlush(); }
   } finally { _resuming = false; }
 }
