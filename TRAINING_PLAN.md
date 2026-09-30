@@ -307,6 +307,8 @@ L'app dovrebbe calcolare il volume effettivo per gruppo muscolare e segnalare gl
 >
 > **Ogni esercizio porta come si fa e l'errore tipico** (si aprono col tap): Fabrizio ha anni di sala pesi e zero esperienza di mobilità, e un nome senza spiegazione è un esercizio che non verrà fatto. 19 esercizi distinti, tutti con istruzione e tip.
 >
+> **Legata alla giornata (30/9/2026).** Il nucleo del blocco Prima resta identico ogni giorno — per un corpo rigido è la frequenza sulle stesse posizioni che apre, non la varietà — ma sopra ci va un blocco **"Prepara la seduta di oggi"** e il blocco Dopo allunga **quello che hai allenato**: lunedì femorali-glutei-flessori, martedì pettorale-tricipiti-dorsale, giovedì quadricipiti-flessori-polpacci, venerdì dorsale-bicipiti-pettorale, sabato flow, domenica post-corsa. Preparazione specifica: hinge al muro e ponte a una gamba prima degli stacchi, scivolamenti al muro e aperture con elastico prima delle spinte, accovacciata tenuta prima dello squat, trazioni scapolari e sospensione prima delle trazioni, rotazioni del busto prima del sacco. 31 esercizi in tutto, tutti con istruzione e tip.
+>
 > **Regola dietro la divisione:** prima della seduta solo movimento, mai tenute lunghe — lo stretching statico prima di spingere abbassa la forza per qualche minuto. Le tenute stanno nel blocco Dopo e nei giorni senza pesi.
 
 ### 2.7 Benchmark (settimana 0 e settimana 8)
@@ -498,6 +500,9 @@ L'app dovrebbe rilevare questo trend automaticamente sui quattro big lift e most
 
 ### Sicurezza MMA
 Il sacco misto con calci bassi scarica sullo stinco. **Paratibia obbligatori nelle settimane 1-4**, intensità dei calci al 50% nelle settimane 1-2 e al 70% nelle settimane 3-4. Le ossa dello stinco si adattano molto più lentamente dei muscoli, esattamente come le nocche per i pugni a mani nude.
+
+### Serie di avvicinamento (aggiunta del 30/9/2026)
+Il piano non le prevedeva: gli "8-10' di riscaldamento" della sezione 2.6 sono mobilità, non rampa di carico. Sui quattro big lift, prima della prima serie vera: **50% x 8, 70% x 5, 85% x 3**. Sono serie tecniche, non contano nel volume e non si registrano. L'app le calcola sul carico dell'ultima sessione nella stessa palestra.
 
 ### Ordine degli esercizi
 I big lift vanno sempre a inizio seduta, con recuperi pieni di 2-2,5'. Lo skill muscle-up va prima di tutto il resto il venerdì: la transizione eseguita sotto fatica è il punto in cui ci si fa male alla spalla.
