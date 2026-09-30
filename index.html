@@ -89,7 +89,7 @@
   .wheel-legend div { display:flex; align-items:center; gap:7px; color: var(--dim); }
   .wheel-legend b { color: var(--txt); margin-left:auto; }
   .wheel-legend .swatch { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
-  .direction-weak { background:rgba(232,184,75,.1); border:1px solid rgba(232,184,75,.35); border-radius:10px; padding:9px 12px; font-size:13px; color:var(--gold2); margin-top:12px; }
+  .direction-weak { background:rgba(227,22,35,.1); border:1px solid rgba(227,22,35,.35); border-radius:10px; padding:9px 12px; font-size:13px; color:var(--gold2); margin-top:12px; }
   .direction-vote { background:var(--bg2); border:1px solid var(--line); border-radius:10px; padding:9px 12px; font-size:13px; color:var(--dim); margin-top:8px; }
 
   /* ── piano ── */
@@ -112,7 +112,7 @@
   .anno-m { text-align:center; padding:7px 2px; border-radius:8px; font-size:11px; font-weight:700; border:1px solid var(--line); line-height:1.5; color:var(--dim); }
   .anno-m.buono { background:rgba(76,175,125,.18); color:var(--green); border-color:var(--green); }
   .anno-m.ricaduta, .anno-m.sotto { background:rgba(242,101,107,.14); color:var(--red); border-color:rgba(242,101,107,.4); }
-  .anno-m.parziale, .anno-m.corso { background:rgba(232,184,75,.15); color:var(--gold2); border-color:rgba(232,184,75,.4); }
+  .anno-m.parziale, .anno-m.corso { background:rgba(227,22,35,.15); color:var(--gold2); border-color:rgba(227,22,35,.4); }
   .plan-now { display:flex; gap:10px; }
   .plan-now .pn { flex:1; background:var(--bg2); border:1px solid var(--line); border-radius:12px; padding:12px 8px; text-align:center; }
   .plan-now .pn b { display:block; font-size:28px; line-height:1.1; }
@@ -122,7 +122,7 @@
   .scalinata { width:100%; border-radius:16px; display:block; margin-top:8px; border:1px solid var(--line); animation: scal-breath 4.5s ease-in-out infinite; }
   @keyframes scal-breath { 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.012);} }
   .scalinata.unstoppable { animation: scal-breath 4.5s ease-in-out infinite, scal-glow 1.6s ease-in-out infinite; }
-  @keyframes scal-glow { 0%,100%{ box-shadow:0 0 0 rgba(255,224,128,0);} 50%{ box-shadow:0 0 22px rgba(255,224,64,.55);} }
+  @keyframes scal-glow { 0%,100%{ box-shadow:0 0 0 rgba(255,89,100,0);} 50%{ box-shadow:0 0 22px rgba(227,22,35,.55);} }
 
   /* ── corpo ── */
   .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top: 4px; }
@@ -168,10 +168,10 @@
   .htitle { font-size:15px; display:flex; align-items:center; gap:5px; }
   .streak { color:var(--gold2); font-size:11px; font-weight:700; }
   .habit-month { font-size:11px; color:var(--dim); }
-  .boss-done { background:rgba(232,184,75,.1); border:1px solid rgba(232,184,75,.35); border-radius:12px; padding:10px 14px; text-align:center; font-weight:700; color:var(--gold2); font-size:14px; margin-top:10px; }
-  .habit.is-boss { background:rgba(232,184,75,.06); border-radius:10px; padding-left:8px; padding-right:6px; border-bottom:none; margin-bottom:2px; }
+  .boss-done { background:rgba(227,22,35,.1); border:1px solid rgba(227,22,35,.35); border-radius:12px; padding:10px 14px; text-align:center; font-weight:700; color:var(--gold2); font-size:14px; margin-top:10px; }
+  .habit.is-boss { background:rgba(227,22,35,.06); border-radius:10px; padding-left:8px; padding-right:6px; border-bottom:none; margin-bottom:2px; }
   .habit.is-boss .htitle { color:var(--gold2); }
-  .hgroup-boss > .habit.is-boss:not(:last-child) { border-bottom:1px solid rgba(232,184,75,.12); }
+  .hgroup-boss > .habit.is-boss:not(:last-child) { border-bottom:1px solid rgba(227,22,35,.12); }
   .day-empty-warn { background:rgba(240,168,48,.1); border:1px solid rgba(240,168,48,.3); border-radius:10px; padding:8px 12px; font-size:13px; color:var(--red); margin-top:8px; }
   .habit-edit { padding:10px 0; border-bottom:1px solid var(--line); }
   .next-level-hint { font-size:12px; color:var(--dim); margin-top:6px; }
@@ -184,7 +184,7 @@
   .score-big small { font-size: 18px; color: var(--dim); font-weight: 500; }
   .badge { display:inline-block; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
   .badge.ok { background: rgba(76,175,125,.15); color: var(--green); }
-  .badge.mid { background: rgba(232,184,75,.15); color: var(--gold2); }
+  .badge.mid { background: rgba(227,22,35,.15); color: var(--gold2); }
   .badge.ko { background: rgba(242,101,107,.15); color: var(--red); }
 
   /* ── libreria ── */
@@ -202,7 +202,7 @@
   .ladder li.current { color: var(--gold2); font-weight: 700; }
   .ladder .dot { width: 10px; height: 10px; border-radius: 99px; background: var(--line); flex-shrink: 0; }
   .ladder li.done .dot { background: var(--gold); }
-  .ladder li.current .dot { background: var(--gold2); box-shadow: 0 0 0 4px rgba(232,184,75,.2); }
+  .ladder li.current .dot { background: var(--gold2); box-shadow: 0 0 0 4px rgba(227,22,35,.2); }
   .week { display:flex; gap:8px; justify-content:space-between; margin-top: 6px; }
   .day { flex:1; text-align:center; }
   .day i { display:block; width: 26px; height: 26px; margin: 0 auto 4px; border-radius: 99px; background: var(--bg2); border: 1px solid var(--line); font-style: normal; line-height: 26px; font-size: 13px; }
@@ -212,7 +212,7 @@
   /* ── tabs ── */
   nav {
     position: fixed; bottom: 0; left: 0; right: 0;
-    background: rgba(13,18,32,.92); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    background: rgba(10,10,10,.92); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
     border-top: 1px solid var(--line); display:flex;
     padding: 8px 0 calc(8px + var(--safe-bot)); z-index: 10;
   }
@@ -500,7 +500,7 @@
     </div>
 
     <!-- chiamata del giorno: non perdere la striscia -->
-    <div id="streak-call" class="card hidden" style="border-color:rgba(232,184,75,.45);background:rgba(232,184,75,.08)">
+    <div id="streak-call" class="card hidden" style="border-color:rgba(227,22,35,.45);background:rgba(227,22,35,.08)">
       <div id="streak-call-txt" style="color:var(--gold2);font-size:14px"></div>
     </div>
 
