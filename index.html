@@ -762,19 +762,25 @@ const GRUPPI_GRANDI = ['petto','dorso','quadricipiti','femorali_glutei'];
 const BIG_LIFTS = ['Stacco rumeno','Panca piana bilanciere','Squat bilanciere o hack squat','Trazioni zavorrate'];
 
 const SEDUTE = [
+  /* Multifrequenza (30/9/2026): il leg curl è passato al giovedì e il leg extension è
+     arrivato qui. Prima erano 15 serie di catena posteriore tutte in questa seduta e 14
+     di quadricipiti tutte nel giovedì: oltre le 8-10 serie per muscolo in una sessione
+     aggiungi fatica, non stimolo. Volume settimanale identico, frequenza raddoppiata. */
   { day:'Lunedì', variant:'piena', order:0, focus:'Lower B (hinge)', core:'anti-estensione', finisher:'vogatore_lungo', ex:[
     { n:'Stacco rumeno', s:4, r:'8-10', rest:150, rpe:8, rir:2, big:true, m:'femorali_glutei' },
     { n:'Hip thrust', s:4, r:'10-12', rest:120, rpe:8, rir:2, big:true, m:'femorali_glutei' },
-    { n:'Leg curl', s:4, r:'15', rest:90, rpe:9, rir:1, m:'femorali_glutei' },
-    { n:'Step-up o affondi in cammino', s:3, r:'10 per lato', rest:90, rpe:8, m:'femorali_glutei' },
-    { n:'Polpacci seduto', s:4, r:'15-20', rest:75, rpe:8, rir:2, m:'polpacci', ss:'A' },
-    { n:'Curl bicipiti', s:3, r:'10-12', rest:75, rpe:9, rir:1, m:'bicipiti', ss:'A' },
-    { n:'Plank o Stir the pot', s:3, r:'30-45 sec', rest:60, core:true },
+    // la lat machine arriva dal venerdì: dorso su 3 giorni invece di 12 serie in uno
+    { n:'Lat machine presa larga', s:4, r:'10-12', rest:75, rpe:8, rir:2, m:'dorso', ss:'A' },
+    { n:'Step-up o affondi in cammino', s:3, r:'10 per lato', rest:75, rpe:8, m:'femorali_glutei', ss:'A' },
+    { n:'Leg extension', s:3, r:'15', rest:75, rpe:9, rir:1, m:'quadricipiti', ss:'B' },
+    { n:'Polpacci seduto', s:4, r:'15-20', rest:75, rpe:8, rir:2, m:'polpacci', ss:'B' },
+    { n:'Curl bicipiti', s:3, r:'10-12', rest:60, rpe:9, rir:1, m:'bicipiti', ss:'C' },
+    { n:'Plank o Stir the pot', s:3, r:'30-45 sec', rest:60, core:true, ss:'C' },
   ]},
   { day:'Martedì', variant:'piena', order:1, focus:'Upper A (push)', core:'flessione', finisher:'mma_sacco', warmup:'corda', ex:[
     { n:'Panca piana bilanciere', s:4, r:'6-8', rest:150, rpe:8, rir:2, big:true, m:'petto' },
     { n:'Panca inclinata manubri', s:4, r:'8-10', rest:120, rpe:8, rir:2, big:true, m:'petto' },
-    { n:'Dip o chest press', s:4, r:'10-12', rest:90, rpe:8, rir:2, m:'petto' },
+    // il dip è passato al sabato: petto 8 + 8 su due giorni, e il martedì torna in 90'
     { n:'Alzate laterali', s:4, r:'12-15', rest:75, rpe:9, rir:1, m:'deltoidi_laterali', ss:'A' },
     { n:'Face pull', s:4, r:'15', rest:75, rpe:8, m:'deltoidi_posteriori', ss:'A' },
     /* Push-down + reverse fly: tricipiti e posteriori non interferiscono (il superset
@@ -782,31 +788,36 @@ const SEDUTE = [
        chiudono il buco del piano: 12 su 12, 115 serie dirette su 115. */
     { n:'Push-down tricipiti', s:4, r:'12-15', rest:75, rpe:9, rir:1, m:'tricipiti', ss:'B' },
     { n:'Reverse fly', s:4, r:'15', rest:75, rpe:8, m:'deltoidi_posteriori', ss:'B' },
-    { n:'French press', s:3, r:'12', rest:90, rpe:9, rir:1, m:'tricipiti' },
-    { n:'Cable crunch', s:3, r:'12-15', rest:60, core:true },
+    // French press + crunch in superset: è il martedì il giorno che sfonda i 90'
+    { n:'French press', s:3, r:'12', rest:60, rpe:9, rir:1, m:'tricipiti', ss:'C' },
+    { n:'Cable crunch', s:3, r:'12-15', rest:60, core:true, ss:'C' },
   ]},
   { day:'Mercoledì', variant:'piena', order:2, focus:'Riposo', riposo:true, mobilita:'mercoledi',
     nota:'Mobilità pura 10-12\' la sera a casa: colonna toracica, anche, spalle. Zero training.', ex:[] },
   { day:'Giovedì', variant:'piena', order:3, focus:'Lower A (quad)', core:'anti-rotazione', finisher:'vogatore_corto', ex:[
     { n:'Squat bilanciere o hack squat', s:4, r:'6-8', rest:150, rpe:8, rir:2, big:true, m:'quadricipiti' },
     { n:'Leg press', s:4, r:'10-12', rest:120, rpe:8, rir:2, big:true, m:'quadricipiti' },
-    { n:'Leg extension', s:3, r:'15', rest:75, rpe:9, rir:1, m:'quadricipiti', ss:'A' },
+    { n:'Leg curl', s:4, r:'15', rest:75, rpe:9, rir:1, m:'femorali_glutei', ss:'A' },
     { n:'Polpacci in piedi', s:4, r:'12-15', rest:75, rpe:8, m:'polpacci', ss:'A' },
     { n:'Affondi bulgari', s:3, r:'10 per lato', rest:90, rpe:8, rir:2, m:'quadricipiti' },
-    { n:'Alzate laterali ai cavi', s:4, r:'15', rest:60, rpe:9, rir:1, m:'deltoidi_laterali' },
-    { n:'Pallof press', s:3, r:'12 per lato', rest:60, core:true },
+    { n:'Alzate laterali ai cavi', s:4, r:'15', rest:60, rpe:9, rir:1, m:'deltoidi_laterali', ss:'B' },
+    { n:'Pallof press', s:3, r:'12 per lato', rest:60, core:true, ss:'B' },
   ]},
   { day:'Venerdì', variant:'piena', order:4, focus:'Upper B (pull)', core:'obliqui', finisher:'corsa_z2_facile', ex:[
     { n:'Skill muscle-up', rest:120, skill:'muscle_up', nota:'Inizio seduta, a fresco. Tecnica, mai a cedimento.' },
     { n:'Trazioni zavorrate', s:4, r:'6-8', rest:150, rpe:8, rir:2, big:true, m:'dorso' },
     { n:'Rematore bilanciere o manubrio', s:4, r:'8-10', rest:120, rpe:8, rir:2, big:true, m:'dorso' },
-    { n:'Lat machine presa larga', s:4, r:'10-12', rest:90, rpe:8, rir:2, m:'dorso' },
     { n:'Curl bicipiti', s:4, r:'10-12', rest:75, rpe:9, rir:1, m:'bicipiti', ss:'A' },
     { n:'Reverse fly', s:4, r:'15', rest:75, rpe:8, m:'deltoidi_posteriori', ss:'A' },
-    { n:'Russian twist zavorrato', s:3, r:'15 per lato', rest:60, core:true },
+    /* Plank laterale al posto del russian twist zavorrato: rotazione lombare sotto
+       carico a fine seduta era il peggior rapporto rischio/beneficio della scheda.
+       Stesso lavoro sugli obliqui, in anti-flessione laterale, senza torcere la colonna. */
+    { n:'Plank laterale o trasporto valigia', s:3, r:'30-40 sec per lato', rest:60, core:true },
   ]},
   { day:'Sabato', variant:'piena', order:5, focus:'Full body + MMA tecnica', core:'circuito',
     finisher:'mma_tecnica', warmup:'corda', mobilita:'sabato', ex:[
+    // il dip arriva dal martedì: qui il tempo non è un problema
+    { n:'Dip o chest press', s:4, r:'10-12', rest:90, rpe:8, rir:2, m:'petto' },
     { n:'Alzate laterali o Arnold press', s:3, r:'12-15', rest:90, rpe:8, m:'deltoidi_laterali' },
     { n:'Cable fly', s:4, r:'15', rest:75, rpe:8, m:'petto', ss:'A' },
     { n:'Pulley basso', s:4, r:'15', rest:75, rpe:8, m:'dorso', ss:'A' },
@@ -1035,13 +1046,18 @@ const MOB_GIORNO = {
 const MOBILITA_AREE = 'Priorità: colonna toracica, spalle, anche, caviglie.';
 
 // ── Benchmark: settimana 0 e settimana 8. Niente bilancia: il metro è questo ──
+/* I "base" sono numeri del tuo passato, non il tuo punto di oggi: dopo uno stop il primo
+   S0 è più basso e va bene così — serve come partenza, non come confronto.
+   La vita a digiuno (30/9/2026) sostituisce la bilancia come misura della ricomposizione:
+   sul grasso che conta dice più del peso, e non ti rimette sulla bilancia. */
 const BENCHMARKS = [
-  { id:'trazioni', test:'Trazioni strict, max reps', unit:'reps', base:'12 (storico)' },
-  { id:'panca', test:'Panca piana 5RM o 3x8 col massimo carico pulito', unit:'kg', base:'3x110 (storico)' },
-  { id:'squat', test:'Squat 5RM o 3x8', unit:'kg', base:'3x100 (storico)' },
-  { id:'military', test:'Military press 3x8', unit:'kg', base:'3x65 (storico)' },
-  { id:'corsa', test:'Tempo max continuo a 7.5 km/h', unit:'min', base:'15 (attuale)' },
-  { id:'mobilita', test:'Supino, braccia distese a terra: quanto stacca la lombare', unit:'cm', base:'—' },
+  { id:'vita', test:'Circonferenza vita, a digiuno, all\'ombelico', unit:'cm', base:'da misurare' },
+  { id:'trazioni', test:'Trazioni strict, max reps', unit:'reps', base:'12 nel passato' },
+  { id:'panca', test:'Panca piana 5RM o 3x8 col massimo carico pulito', unit:'kg', base:'3x110 nel passato' },
+  { id:'squat', test:'Squat 5RM o 3x8', unit:'kg', base:'3x100 nel passato' },
+  { id:'military', test:'Military press 3x8', unit:'kg', base:'3x65 nel passato' },
+  { id:'corsa', test:'Tempo max continuo a 7.5 km/h', unit:'min', base:'da misurare' },
+  { id:'mobilita', test:'Supino, braccia distese a terra: quanto stacca la lombare', unit:'cm', base:'da misurare' },
   { id:'foto', test:'Foto fronte/lato/retro, stessa luce', unit:'fatta', base:'—' },
 ];
 
@@ -1054,7 +1070,10 @@ const NOTE_PIANO = [
   ['Come avanza il piano','La settimana sale quando una settimana chiude con almeno 2 sedute registrate. Se una settimana salta, la progressione resta dov\'era: non è una punizione, è che il sovraccarico segue il lavoro fatto, non i giorni passati.'],
   ['Scarico','A metà blocco serve, ma il quando lo decidi tu: il chip 🛠 dimezza gli accessori e lascia i big lift, per 7 giorni. Poi si spegne da sé.'],
   ['Superset','Solo antagonisti o muscoli non interferenti. A → 10-15" → B → 60-75" recupero. Se una postazione è occupata, falli come serie normali: non è un fallimento del piano.'],
-  ['Sicurezza MMA','Paratibia obbligatori nelle settimane 1-4. Calci al 50% nelle settimane 1-2, al 70% nelle 3-4. Le ossa si adattano molto più lentamente dei muscoli.'],
+  ['Sicurezza MMA','Paratibia obbligatori nelle settimane 1-4. Calci al 50% nelle settimane 1-2, al 70% nelle 3-4. <b>Fasce e guantoni sempre</b>, e anche i pugni al 50% nelle prime due settimane: senza esperienza sul sacco il primo infortunio non è la tibia, è il polso — e un polso storto ti costa la panca per sei settimane. Le ossa si adattano molto più lentamente dei muscoli.'],
+  ['Rientro','Prime due settimane del piano: stesse sedute, accessori con una serie in meno e RPE massimo 8. I quattro big lift restano interi. Dopo sette settimane ferme il primo obiettivo è tornare, non spingere: il volume pieno arriva dalla settimana 3.'],
+  ['Se la seduta non ci sta in 90\'','Martedì e venerdì, con recuperi pieni, i pesi più la mobilità occupano 75-80\'. Il finisher è quello che sfonda: in pausa pranzo fai metà round di sacco (o sposti la corsa alla sera). Non tagliare i pesi e non spezzare la seduta in due.'],
+  ['Muscle-up','È un obiettivo di primavera, non una scadenza di novembre: in deficit e con questo peso il rapporto forza-peso non c\'è ancora. Il lavoro di skill resta perché costa poco ed è sistema nervoso — ma le negative sono la parte più aggressiva per la spalla: poche, pulite, mai su una spalla già stanca.'],
   ['Dopo il parto','Realisticamente si vive in minima o vicino per 2-4 mesi. Non è un fallimento del piano né tuo: è fisiologia.'],
 ];
 
@@ -2085,7 +2104,8 @@ function suggerimento(e) {
   // In minima e a casa non si rincorre il carico: si mantiene. Nessuna progressione da inseguire.
   if (currentMode() !== 'piena') return 'Carico che ti lascia margine, RPE 6-7. Qui si mantiene, non si cresce — ed è esattamente il lavoro giusto.';
   if (isBlock2()) return '🌉 Blocco 2: stesso carico, RPE 7. Mantenimento, non crescita.';
-  if (isDeload() && !e.big_lift) return '🛠 Deload: metà volume, RPE massimo 7. Serve ad arrivare veri al retest.';
+  if (isDeload() && !isCoreLift(e)) return '🛠 Scarico: metà volume, RPE massimo 7. Serve ad arrivare veri al retest.';
+  if (isRientro() && !isCoreLift(e)) return '🌱 Rientro: una serie in meno e RPE massimo 8. Dopo sette settimane ferme il primo lavoro è tornare, non spingere.';
   // Stessa palestra del selettore: i macchinari non sono confrontabili, e il consiglio
   // di progressione deve nascere dalla sede dove ti allenerai oggi.
   const last = logsOfEx(e).filter(l => l.day !== today() && gymOf(l) === currentGym)
@@ -2117,8 +2137,30 @@ function rampa(e) {
     : '🔥 Prima della prima serie fai 3-4 serie in progressione (circa 50%, 70%, 85% del carico di lavoro, poche ripetizioni). Sono serie tecniche: non contano nel volume.';
 }
 
-// Serie previste oggi: nel deload gli accessori scendono del 50%, i big lift restano.
-const serieOggi = e => (isDeload() && !e.big_lift && e.sets_target) ? Math.max(1, Math.round(e.sets_target / 2)) : e.sets_target;
+/* ── Rientro: stesse sedute, una serie in meno ──
+   Sette settimane a zero e poi 115 serie è il modo più sicuro di irritare tutto e
+   mollare alla seconda settimana. Nelle prime due settimane del piano gli accessori
+   perdono una serie e non si va oltre RPE 8. Il numero di sedute NON cambia: cambia
+   quanto pesa ciascuna. Dalla terza si va pieni. */
+const isRientro = () => !isBlock2() && blockWeek() <= 2;
+/* Esenzioni: solo i QUATTRO benchmark di forza, non gli otto marcati big_lift.
+   Con otto esenti, la settimana di scarico scaricava metà di quello che doveva. */
+const isCoreLift = e => BIG_LIFTS.includes(e.name || e.n);
+// Serie previste oggi: scarico -50% sugli accessori, rientro -1. I 4 grandi non si toccano.
+const serieOggi = e => {
+  const s = e.sets_target; if (!s) return s;
+  if (isCoreLift(e)) return s;
+  if (isDeload()) return Math.max(1, Math.round(s / 2));
+  if (isRientro()) return Math.max(1, s - 1);
+  return s;
+};
+// RPE del giorno: nel rientro gli accessori non vanno a cercare il cedimento
+const rpeOggi = e => {
+  if (!e.rpe) return null;
+  if (isDeload()) return Math.min(7, e.rpe);
+  if (isRientro() && !isCoreLift(e)) return Math.min(8, e.rpe);
+  return e.rpe;
+};
 
 // La settimana in corso come 7 giorni concreti: di calendario, perché il volume
 // settimanale è una fotografia di questi giorni, non della settimana del piano.
@@ -2319,7 +2361,7 @@ function renderCorpo() {
     const schemaOggi = e.sets_target
       ? `${serie}x${e.reps_target}${serie !== e.sets_target ? ' 🛠' : ''}`
       : (e.scheme || '');
-    const intensita = [e.rpe ? `RPE ${isDeload() ? Math.min(7, e.rpe) : e.rpe}` : null, e.rir != null ? `${e.rir} in canna` : null]
+    const intensita = [rpeOggi(e) ? `RPE ${rpeOggi(e)}` : null, e.rir != null ? `${e.rir} in canna` : null]
       .filter(Boolean).join(' · ');
     const skill = e.name === 'Skill muscle-up' ? muscleUpPresc() : null;
     const sugg = skill ? null : suggerimento(e);
@@ -2435,6 +2477,12 @@ function renderBlocco() {
   // Fatti sulla settimana in corso. Nessun commento: i numeri parlano da soli.
   const ora = `<div class="muted" style="font-size:12px;margin-top:8px">Questa settimana: <b style="color:var(--txt)">${sett.sedute} ${sett.sedute === 1 ? 'seduta' : 'sedute'}</b> · ${sett.serie} serie${sett.extra ? ` · ${sett.extra} fra corse e condizionamento` : ''}</div>
     <div class="muted" style="font-size:11px;margin-top:3px">La settimana del piano avanza quando una settimana chiude con almeno ${MIN_SEDUTE_SETT} sedute: le progressioni seguono il lavoro, non il calendario.</div>`;
+  const rientro = isRientro() && !isDeload()
+    ? `<div class="presc">🌱 <b>Rientro</b> — settimana ${w} di 2. Stesse sedute, ma gli accessori hanno <b>una serie in meno</b> e non superano RPE 8 (${Object.keys(MUSCOLI).reduce((s, k) => s + targetGruppo(k), 0)} serie invece di 115). I quattro big lift restano interi. Dalla settimana 3 si va pieni.</div>`
+    : '';
+  const ponte = isBlock2()
+    ? '<div class="muted" style="font-size:12px;margin-top:6px">Registri tutto come prima: stesse giornate, stessi esercizi, stesso log. Cambia solo che l\'app non ti spinge più a salire di carico (RPE 7, progressione congelata) e il condizionamento resta ai livelli della settimana 6. Quando dopo il parto vorrai ripartire con un blocco nuovo, si semina una scheda nuova e questa va in archivio con tutto il suo storico.</div>'
+    : '';
   const deload = isDeload()
     ? `<div class="presc">🛠 <b>Scarico acceso</b> (giorno ${deloadGiorno() + 1} di ${DELOAD_DAYS}). Accessori a metà volume, big lift invariati, RPE massimo 7. Si spegne da sé fra ${DELOAD_DAYS - deloadGiorno()} giorni, o quando lo tocchi.</div>`
     : (w >= 4 && !isBlock2() ? '<div class="muted" style="font-size:12px;margin-top:6px">A metà blocco uno scarico ci vuole: accendilo quando lo senti, non a una data.</div>' : '');
@@ -2454,7 +2502,7 @@ function renderBlocco() {
         : mode === 'minima'
           ? 'Sei in minima: 4 sedute, superset, RPE 6-7. Le due di pesi coprono entrambe tutto il corpo, così anche saltandone una hai toccato tutto. È il piano B, non un passo indietro.'
           : 'Versione piena: 5 sedute + 2 facoltative. Quando la settimana si stringe, il chip è lì.'}</div>
-    ${ora}${deload}${retest}`;
+    ${ponte}${ora}${rientro}${deload}${retest}`;
   el.querySelectorAll('[data-mode]').forEach(c => c.onclick = () => setMode(c.dataset.mode));
   el.querySelector('[data-deload]').onclick = toggleDeload;
 }
@@ -2691,11 +2739,17 @@ async function toggleMobilita(min) {
 /* Target della settimana. Nel deload gli accessori valgono metà serie e i big lift no
    (come serieOggi): senza questo, nella settimana in cui fare meno È la prescrizione
    tutte le barre direbbero "ti manca" — l'esatto contrario del messaggio. */
+const serieTarget = e => { // e = voce di SEDUTE (stesse regole di serieOggi)
+  if (!e.s) return 0;
+  if (isCoreLift(e)) return e.s;
+  if (isDeload()) return Math.max(1, Math.round(e.s / 2));
+  if (isRientro()) return Math.max(1, e.s - 1);
+  return e.s;
+};
 const targetGruppo = k => {
-  if (!isDeload()) return VOLUME_TARGET[k];
+  if (!isDeload() && !isRientro()) return VOLUME_TARGET[k];
   let t = 0;
-  for (const s of seduteDi('piena')) for (const e of s.ex)
-    if (e.m === k && e.s) t += e.big ? e.s : Math.max(1, Math.round(e.s / 2));
+  for (const s of seduteDi('piena')) for (const e of s.ex) if (e.m === k) t += serieTarget(e);
   return t || VOLUME_TARGET[k];
 };
 
@@ -2717,11 +2771,13 @@ function renderVolGroups() {
   }).join('');
   const tot = Object.values(v).reduce((a, b) => a + b, 0);
   const totTarget = Object.keys(MUSCOLI).reduce((s, k) => s + targetGruppo(k), 0);
-  el.innerHTML = `<div class="muted" style="font-size:12px;margin-bottom:6px">Questa settimana · ${tot} serie dirette${minima ? '' : ` su ${totTarget} previste${isDeload() ? ' (scarico: accessori a metà)' : ''}`}</div>${rows}
+  el.innerHTML = `<div class="muted" style="font-size:12px;margin-bottom:6px">Questa settimana · ${tot} serie dirette${minima ? '' : ` su ${totTarget} previste${isDeload() ? ' (scarico: accessori a metà)' : isRientro() ? ' (rientro: una serie in meno sugli accessori)' : ''}`}</div>${rows}
     <div class="muted" style="font-size:12px;margin-top:8px">${minima
       ? `Fascia: ${fasce.grandi.join('-')} serie per i gruppi grandi, ${fasce.piccoli.join('-')} per i piccoli. Starci dentro è il risultato, non il minimo sindacale.`
       : isDeload()
         ? 'Scarico acceso: i target qui sono già dimezzati sugli accessori. Starci dentro vuol dire fare meno, ed è giusto così.'
+      : isRientro()
+        ? 'Rientro: i target sono già ridotti di una serie per accessorio. Dopo sette settimane ferme, arrivare a questi numeri è il risultato.'
         : 'Fascia alta del range produttivo per un avanzato in deficit. Oltre questi numeri aggiungi fatica, non stimolo.'}</div>`;
 }
 

@@ -74,6 +74,19 @@ Logiche implementate: doppia progressione, timer di recupero (superset = 15" + 7
 
 ⚠️ **La card Proteine non esiste più** (30/9/2026): era una moltiplicazione che non cambia mai. Il numero (2,0-2,2 g/kg) vive come nota in "Come funziona il piano", calcolato da `notaProteine()` sull'ultimo peso o su `PESO_FALLBACK`. La card **Peso resta**, per scelta esplicita di Fabrizio, anche se `po_weight` è vuota.
 
+### Revisione da personal trainer (30/9/2026)
+
+Nove punti passati in rassegna con Fabrizio; questi sono quelli finiti in codice.
+
+- **Rientro** (`isRientro()`, prime 2 settimane del piano): stesse 5 sedute, accessori con una serie in meno e RPE massimo 8, i 4 big lift interi → 88 serie invece di 115. Sette settimane ferme (ultimo log 10/8) e poi volume pieno = abbandono alla seconda settimana. Vincolo suo: **il numero di sedute non si tocca**.
+- **Multifrequenza**: leg curl → giovedì, leg extension → lunedì, dip → sabato, lat machine → lunedì. Volume settimanale identico (115, tutti i gruppi in target), ma ogni gruppo su ≥2 sedute e mai più di 11 serie in una sola. Più superset su accessori e core: martedì e venerdì rientrano nei 90'. Vincolo suo: **ridurre, non spezzare le sedute in due**.
+- **Plank laterale o trasporto valigia** al posto del russian twist zavorrato (rotazione lombare sotto carico a fine seduta).
+- **Esenzioni deload/rientro solo ai 4 `BIG_LIFTS`** (`isCoreLift`), non agli 8 marcati `big_lift`: con otto esenti lo scarico scaricava metà del dovuto. `rampa()` invece resta su tutti gli 8 — la rampa serve anche a leg press e rematore.
+- **`rpeOggi(e)`**: RPE del giorno (scarico ≤7, rientro ≤8 sugli accessori), al posto del `Math.min` inline.
+- **Benchmark `vita`** (circonferenza a digiuno): con la bilancia esclusa era l'unico segnale intermedio mancante. Le baseline storiche degli altri test sono etichettate "nel passato", non come punto di partenza.
+- **Note nuove in `NOTE_PIANO`**: sicurezza polsi sul sacco (fasce e guantoni, pugni al 50% nelle prime 2 settimane), rientro, cosa tagliare se la seduta non sta in 90', muscle-up come obiettivo di primavera.
+- Fuori dal codice, decisioni sue: obiettivo peso riscritto senza numeri inventati (vedi sezione 1 di `TRAINING_PLAN.md`), finisher spostato alla sera nei giorni di pausa pranzo, sonno da verificare.
+
 ### ⚠️ L'app conta e mostra, non decide (30/9/2026)
 
 Tre scelte esplicite di Fabrizio. Non sono bug e non vanno "risistemate" senza chiederglielo.

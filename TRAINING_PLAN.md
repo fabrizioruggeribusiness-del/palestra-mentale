@@ -13,21 +13,22 @@
 |---|---|
 | Nome | Fabrizio |
 | Età | 31 |
-| Peso stimato di partenza | ~85 kg |
-| BF stimata di partenza | ~26% |
-| Background | Bodybuilding pluriennale, ottima tecnica, memoria muscolare |
+| Punto di partenza | **Fuori forma dopo uno stop** (ultimo allenamento registrato: 10 agosto 2026, sette settimane ferme) |
+| Peso e BF | **Non misurati, per scelta: niente bilancia.** I numeri "~85 kg / ~26%" della prima stesura erano stime, non dati: rimossi. La partenza vera la fissano i benchmark S0 (sezione 2.7), circonferenza vita inclusa |
+| Background | Bodybuilding pluriennale, ottima tecnica, memoria muscolare — è il motivo per cui la forza tornerà molto più veloce della condizione |
 | Infortuni | Nessuno, storico e attuale |
 | Fase alimentare | Deficit calorico (body recomposition) |
-| Sonno attuale | 8h+ |
+| Sonno | ⚠️ La prima stesura diceva "8h+". Da verificare: la sveglia reale è alle 9:30-10 e cinque sedute in pausa pranzo con sonno instabile non si recuperano. Se il sonno non è stabile, il volume di questo piano non è sostenibile e il primo segnale sarà il calo sui big lift |
 | Tempo per seduta (feriale) | 90' in pausa pranzo |
 | Weekend | Disponibile, senza vincoli di orario |
 | Attrezzatura palestra | Completa (bilancieri, macchine, cavi doppi, sbarra, anelli, sacco, tappeti) |
 | Attrezzatura casa | Manubri modulabili 2-10 kg x2, manubrio singolo 18 kg, corda |
 | Corsa | Pista ciclabile sotto casa, cardiofrequenzimetro disponibile |
 
-**Obiettivi**
-- Breve termine: 75 kg / 8-10% BF
-- Lungo termine: ~80 kg / ~8% BF, muscle-up, capacità di correre una mezza maratona
+**Obiettivi (riscritti il 30/9/2026)**
+- **Breve termine (6 mesi): vita in calo costante e forza in crescita sui quattro benchmark.** Nessun bersaglio in kg: il precedente — "75 kg / 8-10% BF entro agosto" — è scaduto e non era raggiungibile. Da un punto di partenza fuori forma, l'8-10% di BF significa perdere oltre dieci chili di grasso mantenendo il muscolo: 8-12 mesi nella migliore delle ipotesi, con un neonato in casa da dicembre. Tenerlo scritto non motiva, crea un debito che non si paga
+- **Come si misura:** circonferenza vita a digiuno una volta a settimana (più informativa del peso sul grasso che conta, e non rimette in ballo la bilancia), carichi sui quattro big lift, foto ogni 8 settimane
+- Lungo termine (orizzonte, senza data): ~80 kg / ~8% BF, muscle-up, mezza maratona
 - Trasversale: essere un padre atletico, con energia per giocare col figlio
 
 **Priorità dichiarate (in ordine)**
@@ -59,6 +60,13 @@ Profilo psicologico "tutto o niente": se salta troppo, perde lo stimolo. Per que
 }
 ```
 
+> **Revisione del 30/9/2026 — multifrequenza e tempo.** Volume settimanale identico (115 serie, tutti i gruppi in target), ma redistribuito:
+> - **Leg curl al giovedì, leg extension al lunedì**: prima erano 15 serie di catena posteriore nella stessa seduta e 14 di quadricipiti in un'altra. Oltre le 8-10 serie per muscolo in una singola sessione si aggiunge fatica, non stimolo — lo stesso principio con cui questo file fissa il tetto settimanale, applicato alla seduta.
+> - **Dip al sabato, lat machine al lunedì**: petto 8+8 su due giorni, dorso 4+8+4 su tre. E martedì e venerdì perdono 4 serie ciascuno, che è il modo di rientrare nei 90' senza spezzare le sedute.
+> - **Più superset sugli accessori** (mai sui big lift): accessori e core accoppiati fanno risparmiare 10-12 minuti sui giorni feriali.
+> - **Plank laterale o trasporto valigia al posto del russian twist zavorrato**: rotazione lombare sotto carico a fine seduta era il peggior rapporto rischio/beneficio della scheda. Stesso lavoro sugli obliqui, senza torcere la colonna carica.
+> - Risultato verificato: ogni gruppo muscolare almeno 2 sedute a settimana, nessuno oltre le 11 serie in una sola seduta, nessun superset agonista, 5 sedute a settimana come prima.
+
 **Logica dello split (da mostrare in-app come testo esplicativo):**
 - I big lift vanno sempre a inizio seduta, freschi, con recuperi pieni. Mai in superset.
 - Il condizionamento viene sempre dopo i pesi: in deficit calorico la forza è la prima cosa da proteggere.
@@ -76,13 +84,18 @@ Profilo psicologico "tutto o niente": se salta troppo, perde lo stimolo. Per que
       "exercises": [
         { "name": "Stacco rumeno",         "sets": 4, "reps": "8-10",  "rest_sec": 150, "rpe": 8,   "rir": 2, "big_lift": true },
         { "name": "Hip thrust",            "sets": 4, "reps": "10-12", "rest_sec": 120, "rpe": 8,   "rir": 2, "big_lift": true },
-        { "name": "Leg curl",              "sets": 4, "reps": "15",    "rest_sec": 90,  "rpe": 9,   "rir": 1 },
-        { "name": "Step-up o affondi in cammino", "sets": 3, "reps": "10 per lato", "rest_sec": 90, "rpe": 8 },
         { "superset": [
-            { "name": "Polpacci seduto",   "sets": 4, "reps": "15-20", "rpe": 8, "rir": 2 },
-            { "name": "Curl bicipiti",     "sets": 3, "reps": "10-12", "rpe": 9, "rir": 1 }
+            { "name": "Lat machine presa larga", "sets": 4, "reps": "10-12", "rpe": 8, "rir": 2 },
+            { "name": "Step-up o affondi in cammino", "sets": 3, "reps": "10 per lato", "rpe": 8 }
           ], "rest_sec": 75 },
-        { "name": "Plank o Stir the pot",  "sets": 3, "reps": "30-45 sec", "rest_sec": 60, "core": true }
+        { "superset": [
+            { "name": "Leg extension",     "sets": 3, "reps": "15",    "rpe": 9, "rir": 1 },
+            { "name": "Polpacci seduto",   "sets": 4, "reps": "15-20", "rpe": 8, "rir": 2 }
+          ], "rest_sec": 75 },
+        { "superset": [
+            { "name": "Curl bicipiti",     "sets": 3, "reps": "10-12", "rpe": 9, "rir": 1 },
+            { "name": "Plank o Stir the pot", "sets": 3, "reps": "30-45 sec", "core": true }
+          ], "rest_sec": 60 }
       ],
       "finisher": "vogatore_lungo"
     },
@@ -92,7 +105,6 @@ Profilo psicologico "tutto o niente": se salta troppo, perde lo stimolo. Per que
       "exercises": [
         { "name": "Panca piana bilanciere",    "sets": 4, "reps": "6-8",   "rest_sec": 150, "rpe": 8, "rir": 2, "big_lift": true },
         { "name": "Panca inclinata manubri",   "sets": 4, "reps": "8-10",  "rest_sec": 120, "rpe": 8, "rir": 2, "big_lift": true },
-        { "name": "Dip o chest press",         "sets": 4, "reps": "10-12", "rest_sec": 90,  "rpe": 8, "rir": 2 },
         { "superset": [
             { "name": "Alzate laterali",       "sets": 4, "reps": "12-15", "rpe": 9, "rir": 1 },
             { "name": "Face pull",             "sets": 4, "reps": "15",    "rpe": 8 }
@@ -101,8 +113,10 @@ Profilo psicologico "tutto o niente": se salta troppo, perde lo stimolo. Per que
             { "name": "Push-down tricipiti",   "sets": 4, "reps": "12-15", "rpe": 9, "rir": 1 },
             { "name": "Reverse fly",           "sets": 4, "reps": "15",    "rpe": 8 }
           ], "rest_sec": 75 },
-        { "name": "French press",              "sets": 3, "reps": "12",    "rest_sec": 90, "rpe": 9, "rir": 1 },
-        { "name": "Cable crunch",              "sets": 3, "reps": "12-15", "rest_sec": 60, "core": true }
+        { "superset": [
+            { "name": "French press",          "sets": 3, "reps": "12",    "rpe": 9, "rir": 1 },
+            { "name": "Cable crunch",          "sets": 3, "reps": "12-15", "core": true }
+          ], "rest_sec": 60 }
       ],
       "warmup_extra": "corda_5_8min",
       "finisher": "mma_sacco"
@@ -120,12 +134,14 @@ Profilo psicologico "tutto o niente": se salta troppo, perde lo stimolo. Per que
         { "name": "Squat bilanciere o hack squat", "sets": 4, "reps": "6-8",   "rest_sec": 150, "rpe": 8, "rir": 2, "big_lift": true },
         { "name": "Leg press",                     "sets": 4, "reps": "10-12", "rest_sec": 120, "rpe": 8, "rir": 2, "big_lift": true },
         { "superset": [
-            { "name": "Leg extension",             "sets": 3, "reps": "15",    "rpe": 9, "rir": 1 },
+            { "name": "Leg curl",                  "sets": 4, "reps": "15",    "rpe": 9, "rir": 1 },
             { "name": "Polpacci in piedi",         "sets": 4, "reps": "12-15", "rpe": 8 }
           ], "rest_sec": 75 },
         { "name": "Affondi bulgari",               "sets": 3, "reps": "10 per lato", "rest_sec": 90, "rpe": 8, "rir": 2 },
-        { "name": "Alzate laterali ai cavi",       "sets": 4, "reps": "15",    "rest_sec": 60, "rpe": 9, "rir": 1 },
-        { "name": "Pallof press",                  "sets": 3, "reps": "12 per lato", "rest_sec": 60, "core": true }
+        { "superset": [
+            { "name": "Alzate laterali ai cavi",   "sets": 4, "reps": "15",    "rpe": 9, "rir": 1 },
+            { "name": "Pallof press",              "sets": 3, "reps": "12 per lato", "core": true }
+          ], "rest_sec": 60 }
       ],
       "finisher": "vogatore_corto"
     },
@@ -136,12 +152,11 @@ Profilo psicologico "tutto o niente": se salta troppo, perde lo stimolo. Per que
         { "name": "Skill muscle-up", "position": "inizio seduta, a fresco", "rest_sec": 120, "note": "tecnica, mai a cedimento", "progression_ref": "muscle_up" },
         { "name": "Trazioni zavorrate",         "sets": 4, "reps": "6-8",   "rest_sec": 150, "rpe": 8, "rir": 2, "big_lift": true },
         { "name": "Rematore bilanciere o manubrio", "sets": 4, "reps": "8-10", "rest_sec": 120, "rpe": 8, "rir": 2, "big_lift": true },
-        { "name": "Lat machine presa larga",    "sets": 4, "reps": "10-12", "rest_sec": 90, "rpe": 8, "rir": 2 },
         { "superset": [
             { "name": "Curl bicipiti",          "sets": 4, "reps": "10-12", "rpe": 9, "rir": 1 },
             { "name": "Reverse fly",            "sets": 4, "reps": "15",    "rpe": 8 }
           ], "rest_sec": 75 },
-        { "name": "Russian twist zavorrato",    "sets": 3, "reps": "15 per lato", "rest_sec": 60, "core": true }
+        { "name": "Plank laterale o trasporto valigia", "sets": 3, "reps": "30-40 sec per lato", "rest_sec": 60, "core": true }
       ],
       "finisher": "corsa_z2_facile"
     },
@@ -149,6 +164,7 @@ Profilo psicologico "tutto o niente": se salta troppo, perde lo stimolo. Per que
     "sabato": {
       "name": "Full body + MMA tecnica",
       "exercises": [
+        { "name": "Dip o chest press",              "sets": 4, "reps": "10-12", "rest_sec": 90, "rpe": 8, "rir": 2 },
         { "name": "Alzate laterali o Arnold press", "sets": 3, "reps": "12-15", "rest_sec": 90, "rpe": 8 },
         { "superset": [
             { "name": "Cable fly",                  "sets": 4, "reps": "15", "rpe": 8 },
@@ -316,6 +332,7 @@ L'app dovrebbe calcolare il volume effettivo per gruppo muscolare e segnalare gl
 ```json
 {
   "benchmarks": [
+    { "id": "vita",      "test": "Circonferenza vita, a digiuno, all'ombelico", "unit": "cm", "baseline": "da misurare" },
     { "id": "trazioni",  "test": "Trazioni strict, max reps", "unit": "reps", "baseline_storico": 12 },
     { "id": "panca",     "test": "Panca piana 5RM o 3x8 col massimo carico pulito", "unit": "kg", "baseline_storico": "3x110" },
     { "id": "squat",     "test": "Squat 5RM o 3x8", "unit": "kg", "baseline_storico": "3x100" },
@@ -328,6 +345,8 @@ L'app dovrebbe calcolare il volume effettivo per gruppo muscolare e segnalare gl
   "note": "L'utente ha scelto di NON usare la bilancia. Questi benchmark sono l'unico metro oggettivo: l'app non deve richiedere né suggerire pesate."
 }
 ```
+
+> **Aggiunta del 30/9/2026 — la circonferenza vita.** Con la bilancia esclusa e i benchmark solo a S0 e S8, la ricomposizione non aveva nessun segnale intermedio. La vita a digiuno, una volta a settimana, lo dà: sul grasso viscerale è più informativa del peso e non rimette in ballo il numero sulla bilancia. I "baseline storici" degli altri test sono numeri del passato, non il punto di partenza di oggi: dopo uno stop l'S0 sarà più basso, ed è normale.
 
 **Importante per l'app:** non inserire tracking del peso corporeo come campo obbligatorio, non mandare notifiche che invitano a pesarsi, non mostrare grafici di peso vuoti. Il tracking passa da forza, tempi di corsa e foto.
 
@@ -384,6 +403,19 @@ Incrementi suggeriti: +2,5 kg sui lower body e sui bilancieri grossi, +1-2 kg su
 ```
 
 > **Deroga del 30/9/2026 — lo scarico lo accende lui.** Non scatta più alla settimana 6 di calendario: nella card Blocco c'è un chip **🛠 Scarico** che dimezza gli accessori, lascia i big lift e tiene l'RPE a 7 per 7 giorni, poi si spegne da sé. Due ragioni: una settimana 6 di calendario può cadere in una settimana già scarica (e allora dimezza il volume nel momento sbagliato), e il segnale che serve uno scarico lo sente lui prima di qualunque conteggio. Dalla settimana 4 l'app ricorda che a metà blocco ci vuole, senza accenderlo. La regola `autoregulated` qui sopra decade: non serve più evitare un doppio scarico automatico.
+
+### 3.2-bis Rientro dopo uno stop (30/9/2026)
+
+```
+PRIME 2 SETTIMANE del piano (quelle contate come allenate):
+  numero di sedute: INVARIATO
+  accessori: una serie in meno ciascuno
+  RPE massimo accessori: 8
+  i 4 big lift di benchmark: invariati, serie piene
+  dalla settimana 3: volume pieno
+```
+
+88 serie invece di 115. La ragione: sette settimane a zero e poi volume pieno significa indolenzimento da fermo macchina, articolazioni irritate e abbandono alla seconda settimana — che per questo atleta è il rischio numero uno, più di qualunque errore di programmazione. Le sedute restano cinque: si riduce quanto pesa ciascuna, non quante sono.
 
 ### 3.3 Trigger versione minima
 
