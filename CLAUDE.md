@@ -25,7 +25,7 @@ PWA single-file (`index.html`) su GitHub Pages. "La vita come videogioco" — Fa
 |-----|-----------|
 | Piano | **Home** (si apre per prima): focus del mese (area debole), piano 2026 (sola lettura, `PIANO_2026`), andamento Vita/Azione nel tempo (grafico 6 mesi) |
 | Ruota | Wheel of Life SVG (8 aree) + avatar pixel art + barra livello |
-| Corpo | **Blocco** (settimana, switch piena/minima, deload, avvisi), log allenamento con prescrizione del giorno + timer recupero + suggerimento progressione, 1RM stimato (Epley), PR, peso, **palestra per sessione**, **condizionamento** (vogatore/sacco/MMA/corda) + **corsa**, **mobilità**, **volume per gruppo**, **benchmark S0/S8**, proteine. **Storico:** grafico 1RM+volume per esercizio (per palestra), Record, Diario, heatmap |
+| Corpo | **Blocco** (settimana, switch piena/minima, deload, avvisi), log allenamento con prescrizione del giorno + timer recupero + suggerimento progressione, 1RM stimato (Epley), PR, peso, **palestra per sessione**, **condizionamento** (vogatore/sacco/MMA/corda) + **corsa**, **mobilità**, **volume per gruppo**, **benchmark S0/S8**. **Storico:** grafico 1RM+volume per esercizio (per palestra), Record, Diario (una riga per giornata, si apre col tap), heatmap |
 | Mente | Lettura come gioco: check-in giornaliero, **boss book** (barra HP pagine), **striscia** 🔥, **codex** (estratti passati a rotazione), **quest 📚 X/24** annuale. Tabelle `pm_*` |
 | Disciplina | Tracker abitudini, chips Oggi/Ieri, storico mesi, gestione abitudini |
 | Config | Chiave API, logout, info |
@@ -66,7 +66,9 @@ Switch fra le tre in un tap, **nessuna penalità, nessuna striscia interrotta** 
 
 **Revisioni della scheda:** `syncVariant(v)` riallinea una versione alle costanti quando la scheda cambia, ma **solo se su quella versione non è mai stata registrata una serie**. Se ci hai già allenato o hai aggiunto esercizi a mano, la lascia stare. Per cambiare una versione già usata serve una scelta esplicita.
 
-Logiche implementate: doppia progressione, timer di recupero (superset = 15" + 75"), volume settimanale per gruppo vs target, allarme calo big lift → taglia il condizionamento (non cibo né sonno), scarico manuale (accessori -50%, big lift invariati), progressioni condizionamento e muscle-up per fascia di settimane, checklist mobilità separata dai pesi, benchmark settimana 0/8, promemoria proteine 2,0-2,2 g/kg.
+Logiche implementate: doppia progressione, timer di recupero (superset = 15" + 75"), volume settimanale per gruppo vs target, allarme calo big lift → taglia il condizionamento (non cibo né sonno), scarico manuale (accessori -50%, big lift invariati), progressioni condizionamento e muscle-up per fascia di settimane, checklist mobilità separata dai pesi, benchmark settimana 0/8.
+
+⚠️ **La card Proteine non esiste più** (30/9/2026): era una moltiplicazione che non cambia mai. Il numero (2,0-2,2 g/kg) vive come nota in "Come funziona il piano", calcolato da `notaProteine()` sull'ultimo peso o su `PESO_FALLBACK`. La card **Peso resta**, per scelta esplicita di Fabrizio, anche se `po_weight` è vuota.
 
 ### ⚠️ L'app conta e mostra, non decide (30/9/2026)
 

@@ -465,10 +465,6 @@
         <p class="muted">Niente bilancia. Il metro oggettivo è questo: forza, tempo di corsa, mobilità, foto.</p>
         <div id="co-bench"></div>
       </div>
-      <div class="card" id="co-prot-card">
-        <h2>Proteine <small>— unico parametro nutrizionale</small></h2>
-        <div id="co-prot"></div>
-      </div>
       <div class="card">
         <h2>Come funziona il piano</h2>
         <div id="co-note-piano"></div>
@@ -980,6 +976,7 @@ let histGym = null; // palestra selezionata nello storico esercizio aperto (null
 let selDay = localStorage.getItem('po_selday') || '';
 let bootDay = today(); // per rilevare il cambio giorno quando si rientra nell'app
 let openHistory = null;
+let openDiario = null; // giornata aperta nel diario allenamenti (una alla volta)
 let diDay = today();
 let editingHabit = null; // id dell'abitudine in modifica inline (Gestisci abitudini)
 let editingEx = null; // id dell'esercizio in modifica inline (nome/schema)
@@ -2270,7 +2267,7 @@ function renderCorpo() {
   }).join('');
 
   renderBlocco(); renderAlerts(); renderCond(); renderMobilita(); renderVolGroups();
-  renderBench(); renderProteine(); renderNotePiano();
+  renderBench(); renderNotePiano();
   renderTrends(); renderRecords(); renderDiario(); renderRuns();
 }
 
@@ -2594,20 +2591,19 @@ function renderBench() {
   });
 }
 
-/* ───────────────── PROTEINE ───────────────── */
-function renderProteine() {
-  const el = $('co-prot'); if (!el) return;
-  if (!planReady) { el.innerHTML = ''; return; }
+/* Le proteine non avevano bisogno di una card: è una moltiplicazione che non cambia
+   mai (30/9/2026). Il numero resta, come nota fra le cose che si leggono una volta. */
+function notaProteine() {
   const kg = weights.length ? +weights[weights.length - 1].kg : PESO_FALLBACK;
   const lo = Math.round(kg * PROTEIN_MIN), hi = Math.round(kg * PROTEIN_MAX);
-  el.innerHTML = `<div class="presc"><b>${lo}-${hi} g al giorno</b> (${PROTEIN_MIN}-${PROTEIN_MAX} g/kg su ${kg} kg)</div>
-    <div class="muted" style="font-size:12px;margin-top:8px">In deficit e con questo volume, sotto questa soglia il muscolo se ne va anche con l'allenamento perfetto. È l'unico numero che devi guardare a tavola.</div>`;
+  return ['Proteine', `<b>${lo}-${hi} g al giorno</b> (${PROTEIN_MIN}-${PROTEIN_MAX} g/kg su ${kg} kg). In deficit e con questo volume, sotto questa soglia il muscolo se ne va anche con l'allenamento perfetto. È l'unico numero da guardare a tavola.`];
 }
 
 function renderNotePiano() {
   const el = $('co-note-piano'); if (!el) return;
   if (!planReady) { el.innerHTML = ''; return; }
-  el.innerHTML = NOTE_PIANO.map(([t, c]) => `<div class="plan-row"><b>${esc(t)}</b><div class="muted" style="margin-top:3px">${c}</div></div>`).join('');
+  el.innerHTML = [...NOTE_PIANO, notaProteine()]
+    .map(([t, c]) => `<div class="plan-row"><b>${esc(t)}</b><div class="muted" style="margin-top:3px">${c}</div></div>`).join('');
 }
 
 // Selettore palestra corrente: i progressi sono separati per sede.
@@ -2724,20 +2720,32 @@ function renderRecords() {
     : '<p class="muted">Ancora nessun record. Registra il primo allenamento.</p>';
 }
 
-// C — diario per sessione: cosa ho fatto ogni giorno di allenamento
+/* C — diario per sessione: UNA riga per giornata, si apre col tap (30/9/2026).
+   Prima sputava tutti gli esercizi e tutte le serie di venti giornate: un muro di
+   testo dentro una finestrella che scrolla. Stessa informazione, un decimo di spazio. */
 function renderDiario() {
   const days = [...new Set(workoutLogs.map(l => l.day))].sort().reverse().slice(0, 20);
   $('co-diario').innerHTML = days.length
     ? days.map(d => {
         const ls = workoutLogs.filter(l => l.day === d);
         const vol = Math.round(ls.reduce((s, l) => s + volume(l.sets), 0));
-        const items = ls.map(l => { const e = exercises.find(x => x.id === l.exercise_id); return `${esc(e ? e.name : '?')}: ${fmtSets(l.sets)}`; }).join('<br>');
         const noteTxt = (ls.find(l => l.note && l.note.trim()) || {}).note;
         const dGyms = [...new Set(ls.map(gymOf))];
         const wd = new Date(d + 'T12:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
-        return `<div class="plan-row"><b>${wd}</b> · ${ls.length} es · ${vol} kg <span class="muted" style="font-size:11px">🏋 ${esc(dGyms.join(', '))}</span>${noteTxt ? `<div style="font-size:12px;margin-top:3px;color:var(--gold2)">📝 ${esc(noteTxt)}</div>` : ''}<div class="muted" style="font-size:12px;margin-top:3px">${items}</div></div>`;
+        const aperta = openDiario === d;
+        const items = ls.map(l => { const e = exercises.find(x => x.id === l.exercise_id); return `${esc(e ? e.name : '?')}: ${esc(fmtSets(l.sets))}`; }).join('<br>');
+        return `<div class="plan-row" data-diario="${d}" style="cursor:pointer">
+          <b>${wd}</b> · ${ls.length} es · ${vol ? vol + ' kg' : 'corpo libero'}${noteTxt ? ' 📝' : ''}
+          <span class="muted" style="font-size:11px;float:right">${aperta ? '▾' : '▸'}</span>
+          ${aperta ? `${noteTxt ? `<div style="font-size:12px;margin-top:4px;color:var(--gold2)">📝 ${esc(noteTxt)}</div>` : ''}
+            <div class="muted" style="font-size:12px;margin-top:4px">🏋 ${esc(dGyms.join(', '))}<br>${items}</div>` : ''}
+        </div>`;
       }).join('')
     : '<p class="muted">Nessun allenamento registrato.</p>';
+  document.querySelectorAll('[data-diario]').forEach(el => el.onclick = () => {
+    openDiario = openDiario === el.dataset.diario ? null : el.dataset.diario;
+    renderDiario();
+  });
 }
 
 // Riordina un esercizio nella giornata corrente scambiando la posizione col vicino.
