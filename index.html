@@ -132,7 +132,7 @@
   .mob { background: var(--card2); border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
   .mob-head { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--gold2); margin-bottom: 7px; }
   .mob-row { font-size: 13px; padding: 5px 0; border-top: 1px solid var(--line); }
-  .mob-row:nth-of-type(1) { border-top: 0; }
+  .mob-head + .mob-row { border-top: 0; } /* nth-of-type contava anche .mob-head: nessuna riga perdeva il filo */
   .mob-row span { color: var(--dim); font-size: 12px; }
   .mob-come { font-size: 12.5px; color: var(--txt); margin-top: 6px; line-height: 1.5; }
   .mob-tip { font-size: 12.5px; color: var(--gold2); margin-top: 5px; line-height: 1.5; }
@@ -216,9 +216,13 @@
     border-top: 1px solid var(--line); display:flex;
     padding: 8px 0 calc(8px + var(--safe-bot)); z-index: 10;
   }
-  nav a { flex:1; text-align:center; color: var(--dim); text-decoration:none; font-size: 10px; }
+  nav a { flex:1; text-align:center; color: var(--dim); text-decoration:none; font-size: 10px; position:relative; }
   nav a .ico { font-size: 21px; display:block; margin-bottom: 2px; }
+  /* separatore fra le icone: filo verticale sul confine, accorciato in alto e in basso */
+  nav a + a::before { content:''; position:absolute; left:0; top:12%; bottom:12%; width:1px; background:var(--line); }
   nav a.on { color: var(--gold2); }
+  /* tab attiva: barretta rossa appoggiata al bordo della dock, non solo il testo colorato */
+  nav a.on::after { content:''; position:absolute; left:26%; right:26%; top:-8px; height:2px; border-radius:0 0 2px 2px; background:var(--gold); }
   .view { display:none; }
   .view.on { display:block; animation: fade .25s ease; }
   @keyframes fade { from { opacity:0; transform: translateY(6px);} to { opacity:1; transform:none;} }
@@ -1153,6 +1157,8 @@ function qPush(op) {
   if (op.kind === 'goal_toggle') q = q.filter(o => !(o.kind === 'goal_toggle' && o.id === op.id));
   if (op.kind === 'block') q = q.filter(o => o.kind !== 'block'); // vale l'ultima configurazione
   if (op.kind === 'mob') q = q.filter(o => !(o.kind === 'mob' && o.row.day === op.row.day));
+  // una misura per test e settimana: se la rifai prima che la rete torni, vale l'ultima
+  if (op.kind === 'bench') q = q.filter(o => !(o.kind === 'bench' && o.row.test_id === op.row.test_id && o.row.week === op.row.week));
   q.push(op); qSet(q);
 }
 // Esegue una singola operazione contro Supabase. Lancia in caso di errore.
@@ -1195,6 +1201,8 @@ async function runOp(op) {
     const { error } = await sb.from('po_conditioning').delete().eq('id', op.id); if (error) throw error;
   } else if (op.kind === 'mob') {
     const { error } = await sb.from('po_mobility').upsert(op.row, { onConflict: 'user_id,day' }); if (error) throw error;
+  } else if (op.kind === 'bench') {
+    const { error } = await sb.from('po_benchmarks').upsert(op.row, { onConflict: 'user_id,test_id,week' }); if (error) throw error;
   }
 }
 async function qFlush() {
@@ -1267,6 +1275,9 @@ function applyQueueLocally() {
     } else if (op.kind === 'mob') {
       mobility = mobility.filter(m => m.day !== op.row.day);
       mobility.push(op.row);
+    } else if (op.kind === 'bench') {
+      benchmarks = benchmarks.filter(b => !(b.test_id === op.row.test_id && b.week === op.row.week));
+      benchmarks.push(op.row);
     }
   }
 }
@@ -1443,10 +1454,16 @@ const blockStart = () => (block && block.start_date) || DEFAULT_BLOCK_START;
 const calWeek = (d = today()) =>
   Math.floor((new Date(d + 'T12:00') - new Date(blockStart() + 'T12:00')) / 604800000) + 1;
 const calWeekNow = () => Math.max(1, calWeek());
-// Sedute (giorni distinti con almeno un log) per settimana di calendario
+/* Sedute (giorni distinti con almeno un log) per settimana di calendario.
+   Memoizzata: blockWeek() la chiama a ogni esercizio, a ogni gruppo muscolare e a ogni
+   prescrizione — senza cache è un giro su tutti i log un centinaio di volte per render. */
+let _spsCache = null, _spsKey = '';
 const sedutePerSett = () => {
+  const key = workoutLogs.length + '|' + blockStart();
+  if (_spsCache && _spsKey === key) return _spsCache;
   const out = {};
   for (const l of workoutLogs) { const w = calWeek(l.day); if (w >= 1) (out[w] ??= new Set()).add(l.day); }
+  _spsCache = out; _spsKey = key;
   return out;
 };
 const sedutePerSettN = w => (sedutePerSett()[w] || new Set()).size;
@@ -2366,6 +2383,7 @@ function renderCorpo() {
       .filter(Boolean).join(' · ');
     const skill = e.name === 'Skill muscle-up' ? muscleUpPresc() : null;
     const sugg = skill ? null : suggerimento(e);
+    const ramp = rampa(e); // una volta sola: dentro cerca l'ultima sessione nello storico
     return `<div class="ex"${e.superset_group ? ' style="border-left:3px solid var(--gold);padding-left:9px"' : ''}>
       <div class="exhead" data-hist="${e.id}">
         <span class="name">${esc(e.name)}</span><span class="scheme">${esc(schemaOggi)}</span>${e.superset_group ? ` <span class="ss-tag">🔗${esc(e.superset_group)}</span>` : ''}${e.big_lift ? ' <span class="ss-tag" title="big lift: mai in superset, recuperi pieni">★</span>' : ''}
@@ -2376,7 +2394,7 @@ function renderCorpo() {
       </div>
       ${intensita || e.rest_sec ? `<div class="lastbest">${esc(intensita)}${intensita && e.rest_sec ? ' · ' : ''}${e.rest_sec ? `<span class="exctl" data-rest="${e.rest_sec}" data-restname="${esc(e.name)}" data-restss="${e.superset_group || ''}" style="cursor:pointer">⏱ ${e.superset_group ? '15" + 75"' : fmtDur(e.rest_sec)}</span>` : ''}</div>` : ''}
       ${e.note ? `<div class="lastbest">📝 ${esc(e.note)}</div>` : ''}
-      ${rampa(e) ? `<div class="sugg">${esc(rampa(e))}</div>` : ''}
+      ${ramp ? `<div class="sugg">${esc(ramp)}</div>` : ''}
       ${skill ? `<div class="presc">Settimana ${blockWeek()}: <b>${esc(skill)}</b>${muFatto() ? '' : '<div style="margin-top:8px"><button class="mini ghost" data-mudone="1">🏅 Fatto il primo muscle-up</button></div>'}</div>` : ''}
       <div class="lastbest">${exGyms.length > 1 ? `<span class="muted" style="font-size:10px">🏋 ${esc(histG)}</span> · ` : ''}${last ? `ultima: ${fmtSets(last.sets)} (${last.day}) · ` : ''}${bestTxt ? `best: <span class="pr-tag">${bestTxt}</span>` : 'mai registrato qui'}</div>
       ${sugg ? `<div class="sugg">${sugg}</div>` : ''}
@@ -2401,10 +2419,12 @@ function renderCorpo() {
     if (!confirm('Primo muscle-up pulito fatto?\nDa qui la prescrizione diventa consolidamento: poche reps pulite, lontano dalla fatica.')) return;
     const row = { id: crypto.randomUUID(), user_id: user.id, test_id: 'muscle_up', week: blockWeek(), value: today(), day: today() };
     try {
-      const { error } = await sb.from('po_benchmarks').upsert(row, { onConflict: 'user_id,test_id,week' });
-      if (error) throw new Error(error.message);
+      await runOp({ kind: 'bench', row });
       await loadAll(); renderAll();
-    } catch (err) { alert(isNetErr(err) ? 'Serve la rete per salvarlo. Riprova dopo.' : 'Errore: ' + err.message); }
+    } catch (err) {
+      if (isNetErr(err)) { qPush({ kind: 'bench', row }); applyQueueLocally(); renderCorpo(); renderSyncStatus(); return; }
+      alert('Errore: ' + err.message);
+    }
   });
   document.querySelectorAll('[data-histgym]').forEach(el => el.onclick = ev => {
     ev.stopPropagation();
@@ -2695,16 +2715,18 @@ function renderMobilita() {
   const listaPost = g && g.post !== undefined ? g.post : (minima ? MOB_POST.slice(0, 2) : MOB_POST);
   const fatta = mobility.some(x => x.day === today());
   const fatte = lastNDays(7).filter(d => mobility.some(x => x.day === d)).length;
-  // Tocca il nome e si apre come si fa + l'errore tipico. Uno alla volta.
-  const blocco = (titolo, arr) => `<div class="mob"><div class="mob-head">${titolo}</div>${
-    arr.map(x => `<div class="mob-row" data-mob="${esc(x.n)}" style="cursor:pointer"><b>${esc(x.n)}</b> <span>${esc(x.d)}</span>${
-      openMob === x.n ? `<div class="mob-come">${esc(x.come)}</div><div class="mob-tip">💡 ${esc(x.tip)}</div>` : ''}</div>`).join('')}</div>`;
-  pre.innerHTML = (listaPre.length ? blocco(`🧘 Prima — mobilità ${esc(m.label)}`, listaPre) : '') +
-    (listaSpec ? blocco(`⚙️ Prepara la seduta di oggi — ${esc(sed ? sed.focus : '')}`, listaSpec) : '') +
+  /* Tocca il nome e si apre come si fa + l'errore tipico. Uno alla volta.
+     La chiave è "blocco|nome", non il solo nome: il sabato l'affondo con rotazione sta
+     sia nel Prima sia nel flow del Dopo, e con la chiave sul nome si aprivano entrambi. */
+  const blocco = (id, titolo, arr) => `<div class="mob"><div class="mob-head">${titolo}</div>${
+    arr.map(x => `<div class="mob-row" data-mob="${esc(id + '|' + x.n)}" style="cursor:pointer"><b>${esc(x.n)}</b> <span>${esc(x.d)}</span>${
+      openMob === id + '|' + x.n ? `<div class="mob-come">${esc(x.come)}</div><div class="mob-tip">💡 ${esc(x.tip)}</div>` : ''}</div>`).join('')}</div>`;
+  pre.innerHTML = (listaPre.length ? blocco('pre', `🧘 Prima — mobilità ${esc(m.label)}`, listaPre) : '') +
+    (listaSpec ? blocco('spec', `⚙️ Prepara la seduta di oggi — ${esc(sed ? sed.focus : '')}`, listaSpec) : '') +
     (listaPre.length || listaSpec
       ? `<div class="muted" style="font-size:11px;margin-top:5px">${MOBILITA_AREE} Il nucleo è lo stesso ogni giorno di proposito: è la frequenza sulle stesse posizioni che apre un corpo rigido. Cambia il blocco che prepara il movimento di oggi. Qui solo movimento, mai tenute lunghe: lo stretching statico prima di spingere abbassa la forza per qualche minuto. Tocca un esercizio per vedere come si fa.</div>`
       : '');
-  post.innerHTML = (listaPost.length ? blocco(`🧘 Dopo${g && g.post && g.post.length && sed && !minima ? ' — quello che hai allenato oggi' : ''}`, listaPost) : '') +
+  post.innerHTML = (listaPost.length ? blocco('post', `🧘 Dopo${g && g.post && g.post.length && sed && !minima ? ' — quello che hai allenato oggi' : ''}`, listaPost) : '') +
     `<button id="btn-mob" class="mini${fatta ? ' ghost' : ''}" style="margin-top:10px">${fatta ? 'Mobilità fatta oggi ✓' : `Segna la mobilità +${MOB_XP} XP`}</button>
      <div class="muted" style="font-size:12px;margin-top:8px">Ultimi 7 giorni: <b>${fatte}/7</b>. ${fatte >= 5 ? 'Sta reggendo.' : 'È il lavoro su cui si regge tutto il resto: è l\'ultima cosa da tagliare.'}</div>`;
   $('btn-mob').onclick = () => toggleMobilita(m.min);
@@ -2793,11 +2815,24 @@ function renderBench() {
   const nudge = (mancanti && !isBlock2() && blockWeek() <= 3)
     ? `<div class="warn" style="margin-bottom:10px">📏 <b>${mancanti} benchmark su ${BENCHMARKS.length} senza valore di partenza</b>, e sei alla settimana ${blockWeek()}. Senza la S0 il retest della settimana 8 non ha con cosa confrontarsi: mezz'ora adesso vale otto settimane di dati.</div>`
     : '';
+  /* La vita si misura ogni settimana, non solo a inizio e fine blocco: ha un terzo
+     pulsante che registra la misura di oggi sulla settimana corrente, e mostra
+     l'ultima con la differenza dalla partenza. */
+  const misureVita = () => benchmarks.filter(b => b.test_id === 'vita').sort((a, b) => a.week - b.week);
   el.innerHTML = nudge + BENCHMARKS.map(b => {
     const v0 = val(b.id, 0), v8 = val(b.id, 8);
-    return `<div class="plan-row"><b>${esc(b.test)}</b> <span class="muted" style="font-size:11px">${esc(b.unit)} · storico ${esc(b.base)}</span>
-      <div style="display:flex;gap:8px;margin-top:6px">
+    let extra = '';
+    if (b.id === 'vita') {
+      const ms = misureVita(), ultima = ms[ms.length - 1];
+      const d = (ultima && v0) ? +(parseFloat(String(ultima.value).replace(',', '.')) - parseFloat(String(v0).replace(',', '.'))).toFixed(1) : null;
+      extra = `<button class="mini ghost" data-bench="vita" data-week="${blockWeek()}" style="flex:1">Oggi (sett. ${blockWeek()})</button>`;
+      if (ultima) extra += `<div class="muted" style="font-size:12px;flex-basis:100%;margin-top:4px">Ultima: <b style="color:var(--txt)">${esc(String(ultima.value))} cm</b> (settimana ${ultima.week})${
+        d != null ? ` · ${d === 0 ? 'uguale alla partenza' : `${d > 0 ? '+' : ''}${d} cm dalla partenza`}` : ''}</div>`;
+    }
+    return `<div class="plan-row"><b>${esc(b.test)}</b> <span class="muted" style="font-size:11px">${esc(b.unit)} · ${esc(b.base)}</span>
+      <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
         <button class="mini ghost" data-bench="${b.id}" data-week="0" style="flex:1">S0: ${v0 ? esc(v0) : '—'}</button>
+        ${extra}
         <button class="mini ghost" data-bench="${b.id}" data-week="8" style="flex:1">S8: ${v8 ? esc(v8) : '—'}</button>
       </div></div>`;
   }).join('');
@@ -2808,10 +2843,13 @@ function renderBench() {
     if (!v) return;
     const row = { id: crypto.randomUUID(), user_id: user.id, test_id: id, week: w, value: v, day: today() };
     try {
-      const { error } = await sb.from('po_benchmarks').upsert(row, { onConflict: 'user_id,test_id,week' });
-      if (error) throw new Error(error.message);
+      await runOp({ kind: 'bench', row });
       await loadAll(); renderAll();
-    } catch (e) { alert(isNetErr(e) ? 'Serve la rete per salvare il benchmark.' : 'Errore: ' + e.message); }
+    } catch (e) {
+      // in palestra la rete manca: la misura non si perde, sale appena torna
+      if (isNetErr(e)) { qPush({ kind: 'bench', row }); applyQueueLocally(); renderCorpo(); renderSyncStatus(); return; }
+      alert('Errore: ' + e.message);
+    }
   });
 }
 
